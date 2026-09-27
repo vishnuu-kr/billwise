@@ -37,31 +37,66 @@ const SEED_HISTORY: HistoryRecord[] = [
 ];
 
 export class StorageManager {
+  private memoryStore: Map<string, string> = new Map();
+
   private isBrowser(): boolean {
     return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
   }
 
-  getHistory(): HistoryRecord[] {
-    if (!this.isBrowser()) return SEED_HISTORY;
+  private getItem(key: string): string | null {
+    if (this.isBrowser()) {
+      return localStorage.getItem(key);
+    }
+    return this.memoryStore.get(key) || null;
+  }
+
+  private setItem(key: string, value: string): void {
+    if (this.isBrowser()) {
+      localStorage.setItem(key, value);
+    } else {
+      this.memoryStore.set(key, value);
+    }
+  }
+
+  private removeItem(key: string): void {
+    if (this.isBrowser()) {
+      localStorage.removeItem(key);
+    } else {
+      this.memoryStore.delete(key);
+    }
+  }
+
+  hasHistory(): boolean {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.HISTORY);
+      const data = this.getItem(STORAGE_KEYS.HISTORY);
+      return !!data && JSON.parse(data).length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  getHistory(): HistoryRecord[] {
+    try {
+      const data = this.getItem(STORAGE_KEYS.HISTORY);
       if (!data) {
-        this.saveHistory(SEED_HISTORY);
-        return SEED_HISTORY;
+        return [];
       }
       return JSON.parse(data);
     } catch {
-      return SEED_HISTORY;
+      return [];
     }
   }
 
   saveHistory(records: HistoryRecord[]): void {
-    if (!this.isBrowser()) return;
     try {
-      localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(records));
+      this.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(records));
     } catch (e) {
-      console.error('Failed to save history to localStorage', e);
+      console.error('Failed to save history', e);
     }
+  }
+
+  loadSampleData(): void {
+    this.saveHistory(SEED_HISTORY);
   }
 
   addRecord(record: Omit<HistoryRecord, 'id' | 'timestamp'>): HistoryRecord {
@@ -73,7 +108,66 @@ export class StorageManager {
     };
     const updated = [newRecord, ...records];
     this.saveHistory(updated);
+    
+    // Also save last reading for easy carry-forward
+    if (record.meterReading) {
+      this.saveLastReading(record.meterReading, record.dateLabel);
+    }
+    
     return newRecord;
+  }
+
+  getLastReading(): { reading: number; date: string } | null {
+    try {
+      const val = this.getItem(STORAGE_KEYS.LAST_READING);
+      return val ? JSON.parse(val) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  saveLastReading(reading: number, date?: string): void {
+    try {
+      this.setItem(STORAGE_KEYS.LAST_READING, JSON.stringify({
+        reading,
+        date: date || new Date().toISOString().slice(0, 10),
+      }));
+    } catch (e) {
+      console.error('Failed to save last reading', e);
+    }
+  }
+
+  recordActualBill(recordId: string, actualBill: number): boolean {
+    const records = this.getHistory();
+    const target = records.find(r => r.id === recordId);
+    if (!target) return false;
+    target.actualBill = actualBill;
+    this.saveHistory(records);
+    return true;
+  }
+
+  getPredictionAccuracyStats(): {
+    totalEvaluated: number;
+    averageErrorRupees: number;
+    accuracyStatement: string;
+  } {
+    const records = this.getHistory().filter(r => r.predictedBill > 0 && typeof r.actualBill === 'number');
+    if (records.length === 0) {
+      return {
+        totalEvaluated: 0,
+        averageErrorRupees: 0,
+        accuracyStatement: 'Enter your actual bill when it arrives to see prediction accuracy calibration.',
+      };
+    }
+
+    const totalDiff = records.reduce((sum, r) => sum + Math.abs((r.actualBill as number) - r.predictedBill), 0);
+    const avgDiff = Math.round(totalDiff / records.length);
+
+    return {
+      totalEvaluated: records.length,
+      averageErrorRupees: avgDiff,
+      accuracyStatement: `Based on ${records.length} evaluated billing cycle${records.length > 1 ? 's' : ''}, estimates have been within approx ₹${avgDiff} of actual KSEB bills.`,
+    };
   }
 
   getBudget(): BudgetConfig {
@@ -82,9 +176,8 @@ export class StorageManager {
       billingCycleTargetRupees: 2000,
       createdDate: new Date().toISOString(),
     };
-    if (!this.isBrowser()) return defaultBudget;
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.BUDGET);
+      const data = this.getItem(STORAGE_KEYS.BUDGET);
       return data ? JSON.parse(data) : defaultBudget;
     } catch {
       return defaultBudget;
@@ -92,9 +185,8 @@ export class StorageManager {
   }
 
   saveBudget(budget: BudgetConfig): void {
-    if (!this.isBrowser()) return;
     try {
-      localStorage.setItem(STORAGE_KEYS.BUDGET, JSON.stringify(budget));
+      this.setItem(STORAGE_KEYS.BUDGET, JSON.stringify(budget));
     } catch (e) {
       console.error('Failed to save budget', e);
     }
@@ -126,10 +218,10 @@ export class StorageManager {
   }
 
   clearAllData(): void {
-    if (!this.isBrowser()) return;
     Object.values(STORAGE_KEYS).forEach(key => {
-      localStorage.removeItem(key);
+      this.removeItem(key);
     });
+    this.memoryStore.clear();
   }
 
   getUsageTrendStats(): {

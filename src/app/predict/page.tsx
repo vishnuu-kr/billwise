@@ -10,6 +10,8 @@ import { PredictionResult } from '@/types';
 import MeterVisualGuide from '@/components/MeterVisualGuide';
 import ResultCard from '@/components/ResultCard';
 import CardSkeleton from '@/components/CardSkeleton';
+import { extractMeterReadingFromImage } from '@/lib/ocr/extractor';
+import { MeterScanResult } from '@/types';
 import {
   Zap,
   Gauge,
@@ -21,19 +23,27 @@ import {
   CheckCircle2,
   HelpCircle,
   RotateCcw,
+  Camera,
+  FileText,
 } from 'lucide-react';
 import Link from 'next/link';
 
 function PredictContent() {
   const searchParams = useSearchParams();
   const { lang, t } = useLanguage();
+  const meterFileRef = React.useRef<HTMLInputElement>(null);
 
-  // Meter inputs
-  const [prevReading, setPrevReading] = useState<number>(10295);
-  const [currentReading, setCurrentReading] = useState<string>('10412');
+  // Meter inputs - initialize from params/storage without fake defaults
+  const [prevReading, setPrevReading] = useState<number | null>(null);
+  const [currentReading, setCurrentReading] = useState<string>('');
   const [daysElapsed, setDaysElapsed] = useState<number>(30);
   const [totalCycleDays, setTotalCycleDays] = useState<number>(60);
+  const [previousBillAmount, setPreviousBillAmount] = useState<number | undefined>(undefined);
   
+  // Meter camera scan state
+  const [isScanningMeter, setIsScanningMeter] = useState<boolean>(false);
+  const [meterScanResult, setMeterScanResult] = useState<MeterScanResult | null>(null);
+
   // Meter replacement state
   const [isMeterReplaced, setIsMeterReplaced] = useState<boolean>(false);
   const [oldMeterFinal, setOldMeterFinal] = useState<number>(10350);
@@ -44,14 +54,37 @@ function PredictContent() {
   const [isLowerError, setIsLowerError] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Read URL query params on initial mount
+  // Read URL query params & saved history on initial mount
   useEffect(() => {
     const pReading = searchParams.get('prevReading');
     const cReading = searchParams.get('reading');
     const uParam = searchParams.get('units');
+    const prevBillParam = searchParams.get('prevBill');
 
-    if (pReading) setPrevReading(Number(pReading));
-    if (cReading) setCurrentReading(cReading);
+    let initialPrev: number | null = null;
+    if (pReading) {
+      initialPrev = Number(pReading);
+      setPrevReading(initialPrev);
+    } else {
+      const lastSaved = storageManager.getLastReading();
+      if (lastSaved) {
+        initialPrev = lastSaved.reading;
+        setPrevReading(initialPrev);
+      }
+    }
+
+    if (cReading) {
+      setCurrentReading(cReading);
+    }
+
+    if (prevBillParam) {
+      setPreviousBillAmount(Number(prevBillParam));
+    } else {
+      const history = storageManager.getHistory();
+      if (history.length > 0 && history[0].actualBill) {
+        setPreviousBillAmount(history[0].actualBill);
+      }
+    }
 
     if (uParam) {
       const units = Number(uParam);
@@ -63,18 +96,13 @@ function PredictContent() {
         phase: 'single',
       });
       setPrediction(res);
-    } else {
-      runCalculation(
-        pReading ? Number(pReading) : 10295,
-        cReading || '10412',
-        30,
-        false
-      );
+    } else if (initialPrev !== null && cReading) {
+      runCalculation(initialPrev, cReading, 30, false);
     }
   }, [searchParams]);
 
   const runCalculation = (
-    prev: number,
+    prev: number | null,
     currStr: string,
     days: number,
     replaced: boolean
@@ -82,9 +110,14 @@ function PredictContent() {
     setValidationError(null);
     setIsLowerError(false);
 
+    if (prev === null) {
+      setValidationError('Please enter your previous reading from your last KSEB bill.');
+      setPrediction(null);
+      return;
+    }
+
     const curr = Number(currStr);
     if (isNaN(curr) || currStr.trim() === '') {
-      setValidationError('Please enter your current meter reading numbers.');
       setPrediction(null);
       return;
     }
@@ -106,17 +139,6 @@ function PredictContent() {
       });
 
       setPrediction(res);
-
-      // Persist reading in local device storage
-      storageManager.addRecord({
-        dateLabel: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-        meterReading: curr,
-        consumedUnits: res.currentUnits,
-        projectedUnits: res.projectedUnits,
-        predictedBill: res.estimatedBill,
-        billingCycle: totalCycleDays === 30 ? 'monthly' : 'bi-monthly',
-        source: 'reading',
-      });
     } catch (e: any) {
       setValidationError(e.message || 'Error occurred calculating prediction.');
       setPrediction(null);
@@ -128,7 +150,7 @@ function PredictContent() {
     runCalculation(prevReading, val, daysElapsed, isMeterReplaced);
   };
 
-  const handlePrevChange = (val: number) => {
+  const handlePrevChange = (val: number | null) => {
     setPrevReading(val);
     runCalculation(val, currentReading, daysElapsed, isMeterReplaced);
   };
@@ -138,8 +160,35 @@ function PredictContent() {
     runCalculation(prevReading, currentReading, val, isMeterReplaced);
   };
 
+  const handleMeterCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsScanningMeter(true);
+    try {
+      const result = await extractMeterReadingFromImage(file);
+      setMeterScanResult(result);
+    } catch {
+      setMeterScanResult({
+        detectedReading: null,
+        confidence: 0,
+        rawText: '',
+        status: 'failed',
+        message: 'Could not read meter display. Please enter digits manually.',
+      });
+    } finally {
+      setIsScanningMeter(false);
+    }
+  };
+
+  const handleApplySampleData = () => {
+    setPrevReading(10055);
+    setCurrentReading('10295');
+    setPreviousBillAmount(1148);
+    runCalculation(10055, '10295', 30, false);
+  };
+
   const currNum = Number(currentReading) || 0;
-  const consumedSoFar = Math.max(0, currNum - prevReading);
+  const consumedSoFar = prevReading !== null && currNum >= prevReading ? currNum - prevReading : 0;
 
   return (
     <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10 space-y-8">
@@ -165,36 +214,123 @@ function PredictContent() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Previous Reading */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-600">
-              LAST READING (On Bill)
-            </label>
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+              <label htmlFor="prev-reading-input">LAST READING (On Bill)</label>
+              <Link href="/scan" className="text-[11px] text-sky-600 hover:text-sky-700 font-medium">
+                Scan Bill
+              </Link>
+            </div>
             <input
+              id="prev-reading-input"
               type="number"
               inputMode="numeric"
-              value={prevReading}
-              onChange={e => handlePrevChange(Number(e.target.value))}
+              value={prevReading !== null ? prevReading : ''}
+              onChange={e => handlePrevChange(e.target.value ? Number(e.target.value) : null)}
+              placeholder="e.g. 10055"
               className="w-full rounded-2xl border border-slate-300 bg-slate-50 p-3.5 font-mono text-xl font-bold text-slate-900 focus:border-sky-500 focus:bg-white focus:outline-none"
             />
-            <span className="text-[10px] text-slate-400">From your previous KSEB bill</span>
+            <span className="text-[10px] text-slate-400">Previous kWh number from your KSEB bill</span>
           </div>
 
           {/* Current Reading */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-sky-800 flex items-center justify-between">
-              <span>NOW (On Meter)</span>
-              <span className="text-[10px] text-sky-600 font-normal">Next to &apos;kWh&apos;</span>
-            </label>
+            <div className="flex items-center justify-between text-xs font-semibold text-sky-800">
+              <label htmlFor="curr-reading-input">NOW (On Meter)</label>
+              <button
+                type="button"
+                onClick={() => meterFileRef.current?.click()}
+                className="flex items-center gap-1 rounded-md bg-sky-100/70 hover:bg-sky-200/80 px-2 py-0.5 text-[11px] font-bold text-sky-800 transition-colors"
+                title="Take photo of digital meter display"
+              >
+                <Camera className="h-3 w-3" />
+                <span>{isScanningMeter ? 'Scanning...' : 'Scan Meter'}</span>
+              </button>
+              <input
+                ref={meterFileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleMeterCameraCapture}
+                className="hidden"
+              />
+            </div>
             <input
+              id="curr-reading-input"
               type="number"
               inputMode="numeric"
               value={currentReading}
               onChange={e => handleCurrentChange(e.target.value)}
               className="w-full rounded-2xl border-2 border-sky-500 bg-white p-3.5 font-mono text-2xl font-extrabold text-slate-900 focus:outline-none"
-              placeholder="10412"
+              placeholder="e.g. 10295"
             />
-            <span className="text-[10px] text-slate-400">Digits currently on your meter</span>
+            <span className="text-[10px] text-slate-400">Current kWh number on your meter display</span>
           </div>
         </div>
+
+        {/* Meter Camera OCR Result Banner (Item 10) */}
+        {meterScanResult && (
+          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-xs space-y-2">
+            <div className="flex items-center justify-between font-semibold text-sky-950">
+              <span className="flex items-center gap-1.5">
+                <Camera className="h-4 w-4 text-sky-600 shrink-0" />
+                {meterScanResult.message}
+              </span>
+              {meterScanResult.detectedReading && (
+                <span className="text-[10px] bg-sky-200/90 text-sky-900 px-2 py-0.5 rounded-full font-bold">
+                  {Math.round(meterScanResult.confidence * 100)}% confidence
+                </span>
+              )}
+            </div>
+            {meterScanResult.detectedReading ? (
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const r = String(meterScanResult.detectedReading);
+                    setCurrentReading(r);
+                    if (prevReading !== null) {
+                      runCalculation(prevReading, r, daysElapsed, isMeterReplaced);
+                    }
+                    setMeterScanResult(null);
+                  }}
+                  className="rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-sky-500 transition-colors"
+                >
+                  Use {meterScanResult.detectedReading.toLocaleString()}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMeterScanResult(null)}
+                  className="rounded-xl bg-white border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  Enter manually
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMeterScanResult(null)}
+                className="text-xs font-semibold text-sky-700 underline"
+              >
+                Dismiss
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Real Math Live Indicator */}
+        {prevReading !== null && currentReading && !isLowerError && (
+          <div className="rounded-2xl bg-sky-50/80 border border-sky-100 p-4 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <span className="text-slate-500 font-medium">Electricity used so far:</span>
+              <div className="font-mono text-lg font-bold text-sky-900 mt-0.5">
+                {consumedSoFar} units
+              </div>
+            </div>
+            <div className="font-mono text-[11px] text-slate-500">
+              {currNum.toLocaleString()} − {prevReading.toLocaleString()} = {consumedSoFar} units
+            </div>
+          </div>
+        )}
 
         {/* ERROR STATE: Current < Previous */}
         {isLowerError && (
@@ -215,8 +351,10 @@ function PredictContent() {
               <button
                 type="button"
                 onClick={() => {
-                  setCurrentReading(String(prevReading + 100));
-                  runCalculation(prevReading, String(prevReading + 100), daysElapsed, false);
+                  if (prevReading !== null) {
+                    setCurrentReading(String(prevReading + 100));
+                    runCalculation(prevReading, String(prevReading + 100), daysElapsed, false);
+                  }
                 }}
                 className="rounded-xl border border-red-300 bg-white px-3.5 py-2 font-semibold text-red-800 hover:bg-red-50 transition-colors"
               >
@@ -234,7 +372,7 @@ function PredictContent() {
         )}
 
         {/* SUCCESS DERIVED CONSUMPTION (Prompt 8 requirement) */}
-        {!isLowerError && (
+        {!isLowerError && prevReading !== null && (
           <div className="rounded-2xl bg-sky-50/80 border border-sky-100 p-5 space-y-2">
             <div className="text-xs font-semibold text-sky-950 uppercase tracking-wide">
               You&apos;ve used {consumedSoFar} units since your last reading
@@ -327,6 +465,20 @@ function PredictContent() {
           </div>
         </div>
 
+        {/* Sample / Test Data Link for First-Time Users without a bill */}
+        {prevReading === null && (
+          <div className="pt-2 text-center border-t border-slate-100">
+            <button
+              type="button"
+              onClick={handleApplySampleData}
+              className="text-xs text-slate-500 hover:text-sky-700 font-medium inline-flex items-center gap-1.5 transition-colors"
+            >
+              <span>Don&apos;t have your bill with you right now?</span>
+              <span className="text-sky-600 font-semibold underline">Try with 240-unit sample bill</span>
+            </button>
+          </div>
+        )}
+
         {validationError && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900">
             {validationError}
@@ -337,7 +489,7 @@ function PredictContent() {
       {/* RESULT SECTION */}
       {prediction && !isLowerError && (
         <section className="space-y-6 pt-2">
-          <ResultCard prediction={prediction} previousBillAmount={1148} />
+          <ResultCard prediction={prediction} previousBillAmount={previousBillAmount} />
         </section>
       )}
 

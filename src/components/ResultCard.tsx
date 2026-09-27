@@ -23,12 +23,14 @@ interface ResultCardProps {
 
 export default function ResultCard({
   prediction,
-  previousBillAmount = 1148,
+  previousBillAmount,
 }: ResultCardProps) {
   const { lang, t } = useLanguage();
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showTariffDetails, setShowTariffDetails] = useState(false);
 
-  const billDiff = prediction.estimatedBill - previousBillAmount;
+  const hasPreviousBill = typeof previousBillAmount === 'number' && previousBillAmount > 0;
+  const billDiff = hasPreviousBill ? prediction.estimatedBill - previousBillAmount : 0;
   const isHigher = billDiff > 0;
   const cyclePercent = Math.min(
     100,
@@ -79,19 +81,30 @@ export default function ResultCard({
       <div className="grid grid-cols-2 gap-3.5 rounded-2xl bg-slate-50 p-4 mb-6 border border-slate-100">
         <div>
           <div className="text-xs text-slate-500 font-medium">
-            {t.comparedWithLast}
+            {hasPreviousBill ? t.comparedWithLast : 'Projected Units'}
           </div>
           <div className="mt-1 flex items-baseline gap-1">
-            <span
-              className={`font-mono text-lg font-bold num-tabular ${
-                isHigher ? 'text-amber-600' : 'text-emerald-600'
-              }`}
-            >
-              {isHigher ? '↑' : '↓'} ₹{Math.abs(billDiff).toLocaleString('en-IN')}
-            </span>
-            <span className="text-xs text-slate-400">
-              ({isHigher ? '+' : '-'}{Math.round(Math.abs(billDiff) / (previousBillAmount || 1) * 100)}%)
-            </span>
+            {hasPreviousBill ? (
+              <>
+                <span
+                  className={`font-mono text-lg font-bold num-tabular ${
+                    isHigher ? 'text-amber-600' : 'text-emerald-600'
+                  }`}
+                >
+                  {isHigher ? '↑' : '↓'} ₹{Math.abs(billDiff).toLocaleString('en-IN')}
+                </span>
+                <span className="text-xs text-slate-400">
+                  ({isHigher ? '+' : '-'}{Math.round(Math.abs(billDiff) / (previousBillAmount || 1) * 100)}%)
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="font-mono text-lg font-bold text-sky-800 num-tabular">
+                  {prediction.projectedUnits}
+                </span>
+                <span className="text-xs text-slate-500">{t.units}</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -165,6 +178,38 @@ export default function ResultCard({
         </div>
       )}
 
+      {/* Controllable Impact (Item 12) */}
+      {prediction.controllableImpact && prediction.daysRemaining > 0 && (
+        <div className="mb-6 rounded-2xl border border-slate-200/80 bg-slate-50 p-4 space-y-2.5">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wide">
+            <span>{lang === 'ml' ? 'നിങ്ങൾക്ക് മാറ്റങ്ങൾ വരുത്താം' : 'YOU CAN CONTROL THIS'}</span>
+            <span className="text-slate-500 font-normal">
+              {lang === 'ml' ? `${prediction.daysRemaining} ദിവസം ബാക്കി` : `${prediction.daysRemaining} days left`}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="rounded-xl bg-white border border-emerald-100 p-3 shadow-2xs">
+              <div className="text-slate-500 font-medium">
+                {lang === 'ml' ? '0.5 യൂണിറ്റ്/ദിവസം കുറച്ചാൽ' : 'If you reduce 0.5 u/day'}
+              </div>
+              <div className="mt-1 font-mono text-base font-bold text-emerald-600 num-tabular">
+                {prediction.controllableImpact.reducedHalfUnitSaving > 0
+                  ? (lang === 'ml' ? `ലാഭം ~₹${prediction.controllableImpact.reducedHalfUnitSaving.toLocaleString('en-IN')}` : `Save ~₹${prediction.controllableImpact.reducedHalfUnitSaving.toLocaleString('en-IN')}`)
+                  : (lang === 'ml' ? 'അതേ സ്ലാബിൽ' : 'Same slab')}
+              </div>
+            </div>
+            <div className="rounded-xl bg-white border border-amber-100 p-3 shadow-2xs">
+              <div className="text-slate-500 font-medium">
+                {lang === 'ml' ? '1.0 യൂണിറ്റ്/ദിവസം കൂട്ടിയാൽ' : 'If you use +1.0 u/day'}
+              </div>
+              <div className="mt-1 font-mono text-base font-bold text-amber-700 num-tabular">
+                +₹{prediction.controllableImpact.increasedOneUnitCost.toLocaleString('en-IN')} {lang === 'ml' ? 'അധിക തുക' : 'extra'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Discrepancy Note if applicable */}
       {prediction.calculatedBillResult.discrepancyNote && (
         <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 leading-relaxed">
@@ -174,6 +219,32 @@ export default function ResultCard({
           <p>{prediction.calculatedBillResult.discrepancyNote}</p>
         </div>
       )}
+
+      {/* Tariff Transparency (Item 22) */}
+      <div className="border-t border-slate-100 pt-3 mb-6">
+        <button
+          type="button"
+          onClick={() => setShowTariffDetails(!showTariffDetails)}
+          className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center justify-between w-full py-1"
+        >
+          <span>{lang === 'ml' ? 'ഉപയോഗിച്ച താരിഫ് വിവരങ്ങൾ' : 'View tariff rules used'}</span>
+          <span className="font-mono text-slate-400">{showTariffDetails ? '▲ Hide' : '▼ Inspect'}</span>
+        </button>
+        {showTariffDetails && (
+          <div className="mt-2 rounded-xl bg-slate-50 p-3.5 text-[11px] text-slate-600 space-y-1.5 font-mono border border-slate-100">
+            <div>Schedule: {prediction.calculatedBillResult.effectiveTariffVersion} (LT-1A Domestic)</div>
+            <div>Cycle: {prediction.calculatedBillResult.billingCycle} • Phase: {prediction.calculatedBillResult.phase}</div>
+            <div>Connected Load: {prediction.calculatedBillResult.connectedLoadWatts} W</div>
+            <div>Fuel Adjustment (FAC): ₹{prediction.calculatedBillResult.fuelAdjustment.toFixed(2)} (1p/unit)</div>
+            <div>Electricity Duty: 10% statutory state duty (₹{prediction.calculatedBillResult.electricityDuty.toFixed(2)})</div>
+            {prediction.calculatedBillResult.totalSubsidies > 0 ? (
+              <div className="text-emerald-700 font-bold">Government Subsidy: ₹{prediction.calculatedBillResult.totalSubsidies} applied</div>
+            ) : (
+              <div className="text-slate-400">Subsidies: None (above 240 units limit)</div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Three Primary Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 mb-6">

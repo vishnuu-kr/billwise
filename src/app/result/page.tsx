@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { predictUsage } from '@/lib/prediction/engine';
 import { calculateBill } from '@/lib/calculation/engine';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { storageManager } from '@/lib/storage';
 import ResultCard from '@/components/ResultCard';
 import CardSkeleton from '@/components/CardSkeleton';
 import Link from 'next/link';
@@ -19,6 +20,15 @@ function ResultContent() {
   const cycle = (searchParams.get('cycle') as any) || 'bi-monthly';
   const phase = (searchParams.get('phase') as any) || 'single';
   const load = searchParams.get('load') ? Number(searchParams.get('load')) : 982;
+
+  const prevBillParam = searchParams.get('prevBill');
+  let previousBillAmount: number | undefined = prevBillParam ? Number(prevBillParam) : undefined;
+  if (previousBillAmount === undefined) {
+    const history = storageManager.getHistory();
+    if (history.length > 0 && typeof history[0].actualBill === 'number') {
+      previousBillAmount = history[0].actualBill;
+    }
+  }
 
   // Run prediction projection
   const prediction = predictUsage({
@@ -44,7 +54,7 @@ function ResultContent() {
       </div>
 
       {/* Main Result Card */}
-      <ResultCard prediction={prediction} previousBillAmount={1148} />
+      <ResultCard prediction={prediction} previousBillAmount={previousBillAmount} />
     </div>
   );
 }

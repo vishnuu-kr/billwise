@@ -134,6 +134,30 @@ export function predictUsage(input: PredictionInput): PredictionResult {
     }
   }
 
+  // Controllable impact over remaining cycle days (Item 12)
+  let reducedHalfUnitSaving = 0;
+  let increasedOneUnitCost = 0;
+
+  if (daysRemaining > 0) {
+    const reducedUnits = Math.max(currentUnits, Math.round(projectedUnits - (0.5 * daysRemaining)));
+    const reducedBill = calculateBill({
+      units: reducedUnits,
+      billingCycle: input.billingCycle ?? 'bi-monthly',
+      phase: input.phase ?? 'single',
+      connectedLoadWatts: input.connectedLoadWatts ?? 982,
+    });
+    reducedHalfUnitSaving = Math.max(0, estimatedBill - reducedBill.total);
+
+    const increasedUnits = Math.round(projectedUnits + (1.0 * daysRemaining));
+    const increasedBill = calculateBill({
+      units: increasedUnits,
+      billingCycle: input.billingCycle ?? 'bi-monthly',
+      phase: input.phase ?? 'single',
+      connectedLoadWatts: input.connectedLoadWatts ?? 982,
+    });
+    increasedOneUnitCost = Math.max(0, increasedBill.total - estimatedBill);
+  }
+
   return {
     daysElapsed,
     daysRemaining,
@@ -147,6 +171,11 @@ export function predictUsage(input: PredictionInput): PredictionResult {
     confidence,
     confidenceReason,
     approachingSlab,
+    controllableImpact: {
+      reducedHalfUnitSaving,
+      increasedOneUnitCost,
+      remainingDays: daysRemaining,
+    },
     calculatedBillResult,
   };
 }

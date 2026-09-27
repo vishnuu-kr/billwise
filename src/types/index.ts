@@ -157,6 +157,13 @@ export interface PredictionResult {
     warningMessage: string;
   } | null;
   
+  // Real controllable impact calculations (Item 12)
+  controllableImpact?: {
+    reducedHalfUnitSaving: number; // if user saves 0.5 units/day
+    increasedOneUnitCost: number;  // if user uses 1.0 unit/day more
+    remainingDays: number;
+  };
+
   calculatedBillResult: BillCalculationResult;
 }
 
@@ -182,6 +189,48 @@ export interface ExtractedBillData {
   confidence: number;
   fieldConfidences: Record<string, number>;
   sourceFile?: string;
+  
+  // Verification and Bill Type Detection (Items 7 & 8)
+  consistencyCheck?: {
+    isConsistent: boolean;
+    computedUnits: number;
+    extractedUnits: number;
+    warningMessage?: string;
+  };
+  isSupportedBillType: boolean;
+  unsupportedReason?: string;
+  meterType?: 'electronic_static' | 'smart_tod' | 'mechanical';
+}
+
+export interface MeterScanResult {
+  detectedReading: number | null;
+  confidence: number;
+  rawText: string;
+  status: 'success' | 'low_confidence' | 'failed';
+  message: string;
+}
+
+export interface BillDifferenceBreakdown {
+  previousBillTotal: number;
+  currentBillTotal: number;
+  differenceAmount: number;
+  isIncrease: boolean;
+  percentageChange: number;
+  previousUnits: number;
+  currentUnits: number;
+  unitsDifference: number;
+  
+  // Categorized rupee drivers
+  usageImpactAmount: number;
+  fixedChargeImpactAmount: number;
+  dutyImpactAmount: number;
+  subsidyImpactAmount: number;
+  adjustmentsImpactAmount: number;
+  
+  primaryDriver: string;
+  primaryDriverMl: string;
+  explanationText: string;
+  explanationTextMl: string;
 }
 
 export interface HistoryRecord {

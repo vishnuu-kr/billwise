@@ -268,6 +268,67 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
             </button>
           </div>
 
+          {/* Unsupported Bill Type Blocker (Item 8) */}
+          {extractedData.isSupportedBillType === false && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-900 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-red-950 text-sm">
+                <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+                <span>This bill type isn&apos;t supported yet</span>
+              </div>
+              <p className="leading-relaxed text-red-800">
+                {extractedData.unsupportedReason || 'BILLWISE currently calculates Kerala domestic households (LT-1A). Commercial, industrial, and high-tension tariffs are not yet supported.'}
+              </p>
+              <button
+                onClick={() => setStage('upload')}
+                className="inline-flex items-center gap-1.5 font-bold text-red-700 hover:text-red-900 underline pt-1"
+              >
+                Upload a domestic LT-1A bill instead
+              </button>
+            </div>
+          )}
+
+          {/* Smart Reading-Consumption Consistency Check (Item 7) */}
+          {extractedData.consistencyCheck && !extractedData.consistencyCheck.isConsistent && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 space-y-2.5">
+              <div className="flex items-center gap-2 font-bold text-amber-950 text-sm">
+                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                <span>Reading & Consumption Discrepancy Detected</span>
+              </div>
+              <p className="leading-relaxed">
+                {extractedData.consistencyCheck.warningMessage}
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  onClick={() => {
+                    const comp = extractedData.consistencyCheck!.computedUnits;
+                    handleFieldChange('consumedUnits', comp);
+                    setExtractedData(prev => ({
+                      ...prev,
+                      consumedUnits: comp,
+                      consistencyCheck: { ...prev.consistencyCheck!, isConsistent: true }
+                    }));
+                  }}
+                  className="rounded-lg bg-amber-200/90 px-3 py-1.5 text-xs font-semibold text-amber-950 hover:bg-amber-300 transition-colors"
+                >
+                  Use {extractedData.consistencyCheck.computedUnits} units from readings
+                </button>
+                <button
+                  onClick={() => {
+                    const billed = extractedData.consistencyCheck!.extractedUnits;
+                    setExtractedData(prev => ({
+                      ...prev,
+                      consumedUnits: billed,
+                      consistencyCheck: { ...prev.consistencyCheck!, isConsistent: true }
+                    }));
+                  }}
+                  className="rounded-lg bg-white border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-50 transition-colors"
+                >
+                  Keep {extractedData.consistencyCheck.extractedUnits} units from bill
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Optical Quality Alert Banner if Blur or Darkness Detected */}
           {qualityReport && !qualityReport.isAcceptable && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 flex items-start gap-2.5">
@@ -279,18 +340,21 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
             </div>
           )}
 
-          {/* Preview Image with Rotate Tool */}
+          {/* Preview Image with Rotate & Contrast Tools */}
           {previewUrl && (
             <div className="relative rounded-2xl border border-slate-200 bg-slate-900 overflow-hidden text-center p-3">
               <div className="flex justify-between items-center text-xs text-slate-300 pb-2 px-1">
                 <span>Bill Document Preview</span>
-                <button
-                  onClick={handleRotate}
-                  className="flex items-center gap-1 rounded-lg bg-white/20 px-2 py-1 text-white hover:bg-white/30 transition-colors"
-                >
-                  <RotateCw className="h-3.5 w-3.5" />
-                  <span>Rotate 90°</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleRotate}
+                    className="flex items-center gap-1 rounded-lg bg-white/20 px-2 py-1 text-white hover:bg-white/30 transition-colors"
+                    title="Rotate orientation 90 degrees"
+                  >
+                    <RotateCw className="h-3.5 w-3.5" />
+                    <span>Rotate 90°</span>
+                  </button>
+                </div>
               </div>
               <img
                 src={previewUrl}
@@ -300,6 +364,12 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
               />
             </div>
           )}
+
+          {/* Privacy & Engine Transparency Note */}
+          <div className="flex items-center gap-2 text-[11px] text-slate-500 bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+            <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>On-device client extractor active. No images or personal numbers are uploaded to external servers.</span>
+          </div>
 
           {/* Core Extracted Fields Grid */}
           <div className="grid grid-cols-2 gap-3 text-sm">

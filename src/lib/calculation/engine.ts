@@ -3,6 +3,7 @@ import {
   BillCalculationResult,
   SlabCalculationDetail,
   TariffVersion,
+  BillDifferenceBreakdown,
 } from '@/types';
 import { tariffRepo } from '@/lib/tariffs';
 
@@ -251,5 +252,83 @@ export function calculateBill(
     },
     isEstimate: false,
     discrepancyNote,
+  };
+}
+
+/**
+ * Explains why a bill changed between two billing cycles.
+ * Categorizes the rupee delta into usage, fixed charge, duty, subsidy, and adjustments.
+ */
+export function calculateBillDifference(
+  previousResult: BillCalculationResult,
+  currentResult: BillCalculationResult
+): BillDifferenceBreakdown {
+  const differenceAmount = currentResult.total - previousResult.total;
+  const isIncrease = differenceAmount > 0;
+  const percentageChange = previousResult.total > 0
+    ? Math.round((Math.abs(differenceAmount) / previousResult.total) * 100)
+    : 0;
+  const unitsDifference = currentResult.units - previousResult.units;
+
+  const usageImpactAmount = Number((currentResult.grossEnergyCharge - previousResult.grossEnergyCharge).toFixed(2));
+  const fixedChargeImpactAmount = Number((currentResult.grossFixedCharge - previousResult.grossFixedCharge).toFixed(2));
+  const dutyImpactAmount = Number((currentResult.electricityDuty - previousResult.electricityDuty).toFixed(2));
+  // Positive subsidy impact means subsidy was reduced/lost, adding to payable bill
+  const subsidyImpactAmount = Number((previousResult.totalSubsidies - currentResult.totalSubsidies).toFixed(2));
+  const adjustmentsImpactAmount = Number(
+    ((currentResult.fuelAdjustment + currentResult.meterRent + currentResult.roundOff) -
+     (previousResult.fuelAdjustment + previousResult.meterRent + previousResult.roundOff)).toFixed(2)
+  );
+
+  let primaryDriver = 'Electricity usage change';
+  let primaryDriverMl = 'വൈദ്യുതി ഉപയോഗത്തിലെ മാറ്റം';
+  let explanationText = '';
+  let explanationTextMl = '';
+
+  if (previousResult.units <= 240 && currentResult.units > 240) {
+    primaryDriver = '240-Unit Subsidy Threshold Exceeded';
+    primaryDriverMl = '240 യൂണിറ്റ് സബ്സിഡി പരിധി കഴിഞ്ഞു';
+    explanationText = `Crossing 240 units removed state subsidies, adding ₹${subsidyImpactAmount.toFixed(0)} to your bill in addition to extra energy consumed.`;
+    explanationTextMl = `240 യൂണിറ്റ് കഴിഞ്ഞതിനാൽ സർക്കാർ സബ്സിഡി ഇളവ് നഷ്ടപ്പെടുകയും ബില്ലിൽ ₹${subsidyImpactAmount.toFixed(0)} വർദ്ധനവ് വരികയും ചെയ്തു.`;
+  } else if (previousResult.units > 240 && currentResult.units <= 240) {
+    primaryDriver = 'Subsidy Restored (< 240 Units)';
+    primaryDriverMl = 'സബ്സിഡി ആനുകൂല്യം തിരികെ ലഭിച്ചു (< 240 യൂണിറ്റ്)';
+    explanationText = `Dropping to 240 units or below restored Kerala Government subsidies, saving ₹${Math.abs(subsidyImpactAmount).toFixed(0)} on your bill.`;
+    explanationTextMl = `ഉപയോഗം 240 യൂണിറ്റിൽ താഴെയായതിനാൽ ₹${Math.abs(subsidyImpactAmount).toFixed(0)} സർക്കാർ സബ്സിഡി ഇളവ് തിരികെ ലഭിച്ചു.`;
+  } else if (previousResult.units <= 500 && currentResult.units > 500) {
+    primaryDriver = '500-Unit Non-Telescopic Cliff';
+    primaryDriverMl = '500 യൂണിറ്റ് നോൺ-ടെലിസ്കോപ്പിക് നിരക്ക്';
+    explanationText = `Crossing 500 units moved your entire bill to a non-telescopic flat rate without telescopic tiers.`;
+    explanationTextMl = `500 യൂണിറ്റ് കഴിഞ്ഞതിനാൽ സ്ലാബ് ആനുകൂല്യം നഷ്ടപ്പെട്ട് മുഴുവൻ യൂണിറ്റിനും ഉയർന്ന ഫ്ലാറ്റ് നിരക്ക് ബാധകമായി.`;
+  } else if (Math.abs(usageImpactAmount) >= Math.abs(differenceAmount) * 0.5) {
+    primaryDriver = 'Electricity Usage (kWh)';
+    primaryDriverMl = 'വൈദ്യുതി ഉപയോഗം (യൂണിറ്റ്)';
+    explanationText = `The change is almost entirely driven by your ${Math.abs(unitsDifference)} units ${unitsDifference > 0 ? 'increase' : 'decrease'} in energy consumption.`;
+    explanationTextMl = `ബില്ലിലെ മാറ്റം പ്രധാനമായും നിങ്ങളുടെ ഉപയോഗത്തിൽ വന്ന ${Math.abs(unitsDifference)} യൂണിറ്റിന്റെ ${unitsDifference > 0 ? 'വർദ്ധനവ്' : 'കുറവ്'} കാരണമാണ്.`;
+  } else {
+    primaryDriver = 'General Consumption & Levies';
+    primaryDriverMl = 'ഉപയോഗവും നികുതി നിരക്കുകളും';
+    explanationText = `Reflects changes in energy consumption, fixed charges, and statutory electricity duty.`;
+    explanationTextMl = `വൈദ്യുതി ഉപയോഗം, ഫിക്സഡ് ചാർജ്, സംസ്ഥാന ഡ്യൂട്ടി എന്നിവയിലെ വ്യതിയാനങ്ങളെ സൂചിപ്പിക്കുന്നു.`;
+  }
+
+  return {
+    previousBillTotal: previousResult.total,
+    currentBillTotal: currentResult.total,
+    differenceAmount,
+    isIncrease,
+    percentageChange,
+    previousUnits: previousResult.units,
+    currentUnits: currentResult.units,
+    unitsDifference,
+    usageImpactAmount,
+    fixedChargeImpactAmount,
+    dutyImpactAmount,
+    subsidyImpactAmount,
+    adjustmentsImpactAmount,
+    primaryDriver,
+    primaryDriverMl,
+    explanationText,
+    explanationTextMl,
   };
 }
