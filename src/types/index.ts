@@ -330,4 +330,73 @@ export type AnalyticsEventName =
   | 'budget_used'
   | 'history_recorded'
   | 'actual_bill_recorded'
-  | 'language_changed';
+  | 'language_changed'
+  | 'page_visit'
+  | 'flow_started'
+  | 'result_viewed'
+  | 'share_clicked'
+  | 'feedback_submitted';
+
+// ==========================================
+// Phase 5: Public Beta, Feedback & Funnel Types
+// ==========================================
+
+export type UserFeedbackCategory =
+  | 'too_high'
+  | 'too_low'
+  | 'explanation_unclear'
+  | 'scanner_error'
+  | 'tariff_query'
+  | 'other';
+
+export interface UserFeedbackRecord {
+  id: string;
+  timestamp: string;
+  context: 'prediction_result' | 'history_actual_bill' | 'scanner' | 'general';
+  sentiment: 'positive' | 'negative' | 'neutral';
+  category?: UserFeedbackCategory;
+  comment?: string;
+  accuracyRating?: 'accurate' | 'too_high' | 'too_low';
+  units?: number;
+  predictedBill?: number;
+  actualBill?: number;
+}
+
+export interface FeedbackSummaryStats {
+  totalFeedback: number;
+  positiveCount: number;
+  negativeCount: number;
+  helpfulRatioPct: number;
+  categoryBreakdown: Record<string, number>;
+  accuracyRatings: {
+    accurate: number;
+    too_high: number;
+    too_low: number;
+  };
+}
+
+export interface FunnelStageMetric {
+  stage: string;
+  label: string;
+  count: number;
+  conversionFromPrevious: number; // 0 - 100%
+  overallConversion: number; // 0 - 100%
+}
+
+export interface FunnelAnalysis {
+  totalVisitors: number;
+  stages: FunnelStageMetric[];
+  highestDropOffStage: string;
+}
+
+export interface TariffDiffItem {
+  category: 'telescopic_energy' | 'non_telescopic_energy' | 'fixed_charge' | 'levy_subsidy';
+  label: string;
+  unitRange?: string;
+  baseValue: number;
+  comparedValue: number;
+  delta: number;
+  percentageDelta: number;
+  formattedDelta: string;
+}
+

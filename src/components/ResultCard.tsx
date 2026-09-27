@@ -13,8 +13,11 @@ import {
   TrendingUp,
   Clock,
   Check,
+  Tag,
 } from 'lucide-react';
 import ShareModal from './ShareModal';
+import FeedbackWidget from './FeedbackWidget';
+import { APP_CONFIG } from '@/lib/config/flags';
 
 interface ResultCardProps {
   prediction: PredictionResult;
@@ -273,8 +276,31 @@ export default function ResultCard({
         </Link>
       </div>
 
+      {/* User Feedback Widget (Beta calibration) */}
+      <div className="pt-1 mb-5">
+        <FeedbackWidget
+          context="prediction_result"
+          units={prediction.projectedUnits}
+          predictedBill={prediction.estimatedBill}
+        />
+      </div>
+
+      {/* Tariff Version Indicator */}
+      <div className="flex items-center justify-between border-t border-slate-100 pt-3 pb-2 text-[11px] text-slate-500">
+        <div className="flex items-center gap-1.5 font-mono">
+          <Tag className="h-3 w-3 text-sky-600" />
+          <span>{APP_CONFIG.tariffVersionLabel}</span>
+        </div>
+        <Link
+          href="/tariff"
+          className="font-semibold text-sky-600 hover:text-sky-700 underline"
+        >
+          {lang === 'ml' ? 'നിരക്കുകൾ പരിശോധിക്കുക' : 'Verify Rates'}
+        </Link>
+      </div>
+
       {/* Reassurance Disclaimer at bottom */}
-      <div className="border-t border-slate-100 pt-4 text-center">
+      <div className="pt-2 text-center">
         <p className="text-[11px] text-slate-400 leading-relaxed">
           {t.disclaimer}
         </p>

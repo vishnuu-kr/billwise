@@ -88,6 +88,20 @@ export default function HistoryTracker() {
     refreshData();
   };
 
+  const [ratedRecordIds, setRatedRecordIds] = useState<Record<string, string>>({});
+
+  const handleRateAccuracy = (record: HistoryRecord, rating: 'accurate' | 'too_high' | 'too_low') => {
+    storageManager.saveFeedback({
+      context: 'history_actual_bill',
+      sentiment: rating === 'accurate' ? 'positive' : 'negative',
+      accuracyRating: rating,
+      units: record.consumedUnits,
+      predictedBill: record.predictedBill,
+      actualBill: record.actualBill,
+    });
+    setRatedRecordIds(prev => ({ ...prev, [record.id]: rating }));
+  };
+
   const handleSaveActualBill = (recordId: string) => {
     const parsed = parseFloat(actualInputVal);
     if (!isNaN(parsed) && parsed >= 0) {
@@ -315,9 +329,9 @@ export default function HistoryTracker() {
                   </div>
 
                   {/* Actual Bill Verification Sub-Row */}
-                  <div className="pl-11 flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100/60 text-xs">
+                  <div className="pl-11 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-100/60 text-xs">
                     {record.actualBill !== undefined ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                           <CheckCircle2 className="h-3 w-3" />
                           <span>Actual: ₹{record.actualBill.toLocaleString('en-IN')}</span>
@@ -335,6 +349,38 @@ export default function HistoryTracker() {
                         >
                           edit
                         </button>
+
+                        {/* Inline accuracy validation feedback */}
+                        {ratedRecordIds[record.id] ? (
+                          <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50/80 px-2 py-0.5 rounded-full">
+                            ✓ {lang === 'ml' ? 'വിലയിരുത്തൽ നൽകി' : 'Rating saved'}
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-1 text-[10px] text-slate-500 pl-1 border-l border-slate-200">
+                            <span>{lang === 'ml' ? 'കണക്ക്:' : 'Accuracy:'}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRateAccuracy(record, 'accurate')}
+                              className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 text-[10px] font-medium transition-colors"
+                            >
+                              {lang === 'ml' ? 'കൃത്യം' : 'Accurate'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRateAccuracy(record, 'too_high')}
+                              className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-amber-100 hover:text-amber-800 text-[10px] font-medium transition-colors"
+                            >
+                              {lang === 'ml' ? 'കൂടുതൽ' : 'Too High'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRateAccuracy(record, 'too_low')}
+                              className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-amber-100 hover:text-amber-800 text-[10px] font-medium transition-colors"
+                            >
+                              {lang === 'ml' ? 'കുറവ്' : 'Too Low'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ) : editingActualId === record.id ? (
                       <div className="flex items-center gap-1.5 w-full">

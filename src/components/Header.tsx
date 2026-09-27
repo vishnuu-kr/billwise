@@ -32,9 +32,14 @@ export default function Header() {
             <Zap className="h-5 w-5 fill-current" />
           </div>
           <div className="flex flex-col">
-            <span className="font-mono text-base font-bold tracking-tight text-slate-900">
-              BILLWISE
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-base font-bold tracking-tight text-slate-900">
+                BILLWISE
+              </span>
+              <span className="rounded-md bg-amber-100/90 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-800 tracking-wider">
+                BETA
+              </span>
+            </div>
             <span className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">
               Kerala Power
             </span>

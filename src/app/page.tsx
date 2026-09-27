@@ -1,12 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import ProductPreviewCard from '@/components/ProductPreviewCard';
 import ManglishQueryBar from '@/components/ManglishQueryBar';
+import OnboardingBanner from '@/components/OnboardingBanner';
+import { analytics } from '@/lib/observability/analytics';
 import {
   Camera,
+  Gauge,
   Calculator,
   ArrowRight,
   ShieldCheck,
@@ -17,8 +20,15 @@ import {
 export default function HomePage() {
   const { lang, t } = useLanguage();
 
+  useEffect(() => {
+    analytics.track('page_visit', { route: '/' });
+  }, []);
+
   return (
-    <div className="flex flex-col items-center px-4 sm:px-6 pt-8 sm:pt-14 max-w-5xl mx-auto space-y-10 sm:space-y-14">
+    <div className="flex flex-col items-center px-4 sm:px-6 pt-6 sm:pt-10 max-w-5xl mx-auto space-y-8 sm:space-y-12">
+      {/* Contextual Onboarding Guide for new visitors */}
+      <OnboardingBanner />
+
       {/* HERO SECTION */}
       <section className="text-center max-w-2xl mx-auto space-y-5">
         {/* Subtle Energy Pill */}
@@ -32,27 +42,42 @@ export default function HomePage() {
           Know your KSEB bill<br className="hidden sm:inline" /> before it arrives.
         </h1>
 
-        {/* Supporting Copy (Exact Prompt 3 requirement) */}
+        {/* Supporting Copy */}
         <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto leading-relaxed">
-          Upload your last bill, enter your latest meter reading, and see what your next bill could look like.
+          {lang === 'ml'
+            ? 'കഴിഞ്ഞ ബില്ലും ഇപ്പോഴത്തെ മീറ്റർ റീഡിംഗും നൽകി അടുത്ത ബിൽ തുക മുൻകൂട്ടി അറിയാം.'
+            : "Upload your last bill, check your meter, see what you'll probably pay."}
         </p>
 
         {/* Primary and Secondary CTAs */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
           <Link
             href="/scan"
+            onClick={() => analytics.track('flow_started', { flow: 'bill_ocr' })}
             className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-sky-600 px-6 py-4 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 active:scale-[0.98] transition-all touch-target"
           >
             <Camera className="h-4 w-4" />
-            <span>SCAN MY BILL</span>
+            <span>{lang === 'ml' ? 'ബിൽ സ്കാൻ ചെയ്യാം' : 'SCAN MY BILL'}</span>
           </Link>
 
           <Link
-            href="/manual"
+            href="/predict"
+            onClick={() => analytics.track('flow_started', { flow: 'direct_units' })}
             className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all touch-target"
           >
-            <Calculator className="h-4 w-4 text-slate-500" />
-            <span>CALCULATE MANUALLY</span>
+            <Gauge className="h-4 w-4 text-slate-500" />
+            <span>{lang === 'ml' ? 'യൂണിറ്റ് നേരിട്ട് നൽകാം' : 'I ALREADY KNOW MY UNITS'}</span>
+          </Link>
+        </div>
+
+        {/* Subtle Tertiary Link */}
+        <div className="pt-1">
+          <Link
+            href="/manual"
+            className="text-xs font-semibold text-slate-500 hover:text-slate-700 underline inline-flex items-center gap-1"
+          >
+            <Calculator className="h-3.5 w-3.5" />
+            <span>{lang === 'ml' ? 'കൃത്യമായ സ്ലാബ് കാൽക്കുലേറ്റർ ഉപയോഗിക്കാം' : 'Or calculate manually with exact slabs'}</span>
           </Link>
         </div>
 

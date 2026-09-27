@@ -1,4 +1,4 @@
-import { HistoryRecord, BudgetConfig } from '@/types';
+import { HistoryRecord, BudgetConfig, UserFeedbackRecord, FeedbackSummaryStats } from '@/types';
 
 const STORAGE_KEYS = {
   HISTORY: 'billwise_history_v1',
@@ -6,6 +6,8 @@ const STORAGE_KEYS = {
   LAST_READING: 'billwise_last_reading_v1',
   LANGUAGE: 'billwise_lang_v1',
   DISMISSED_NOTICES: 'billwise_notices_v1',
+  FEEDBACK: 'billwise_feedback_v1',
+  ONBOARDING: 'billwise_onboarding_completed',
 };
 
 // Initial realistic seed history for Kerala domestic user (based on actual reference bill)
@@ -282,6 +284,100 @@ export class StorageManager {
       lowestRecord,
       trendStatement,
     };
+  }
+
+  // ==========================================
+  // Phase 5: Feedback & Onboarding Methods
+  // ==========================================
+
+  public sanitizeFeedbackText(text: string): string {
+    if (!text) return '';
+    return text
+      .replace(/\b[6-9]\d{9}\b/g, '[REDACTED_PHONE]')
+      .replace(/\b\d{13}\b/g, '[REDACTED_CONSUMER_NO]')
+      .replace(/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g, '[REDACTED_EMAIL]')
+      .slice(0, 500); // Guard max length
+  }
+
+  getFeedback(): UserFeedbackRecord[] {
+    try {
+      const data = this.getItem(STORAGE_KEYS.FEEDBACK);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  saveFeedback(record: Omit<UserFeedbackRecord, 'id' | 'timestamp'>): UserFeedbackRecord {
+    const feedbackList = this.getFeedback();
+    const sanitizedRecord: UserFeedbackRecord = {
+      ...record,
+      id: `fb-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+      comment: record.comment ? this.sanitizeFeedbackText(record.comment) : undefined,
+    };
+
+    const updated = [sanitizedRecord, ...feedbackList].slice(0, 100); // keep up to 100 recent
+    try {
+      this.setItem(STORAGE_KEYS.FEEDBACK, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to save feedback', e);
+    }
+    return sanitizedRecord;
+  }
+
+  getFeedbackStats(): FeedbackSummaryStats {
+    const feedbackList = this.getFeedback();
+    if (feedbackList.length === 0) {
+      return {
+        totalFeedback: 0,
+        positiveCount: 0,
+        negativeCount: 0,
+        helpfulRatioPct: 100,
+        categoryBreakdown: {},
+        accuracyRatings: { accurate: 0, too_high: 0, too_low: 0 },
+      };
+    }
+
+    let positiveCount = 0;
+    let negativeCount = 0;
+    const categoryBreakdown: Record<string, number> = {};
+    const accuracyRatings = { accurate: 0, too_high: 0, too_low: 0 };
+
+    for (const item of feedbackList) {
+      if (item.sentiment === 'positive') positiveCount++;
+      if (item.sentiment === 'negative') negativeCount++;
+      if (item.category) {
+        categoryBreakdown[item.category] = (categoryBreakdown[item.category] || 0) + 1;
+      }
+      if (item.accuracyRating) {
+        accuracyRatings[item.accuracyRating] = (accuracyRatings[item.accuracyRating] || 0) + 1;
+      }
+    }
+
+    const totalEvaluated = positiveCount + negativeCount;
+    const helpfulRatioPct = totalEvaluated > 0 ? Math.round((positiveCount / totalEvaluated) * 100) : 100;
+
+    return {
+      totalFeedback: feedbackList.length,
+      positiveCount,
+      negativeCount,
+      helpfulRatioPct,
+      categoryBreakdown,
+      accuracyRatings,
+    };
+  }
+
+  clearFeedback(): void {
+    this.removeItem(STORAGE_KEYS.FEEDBACK);
+  }
+
+  isOnboardingCompleted(): boolean {
+    return this.getItem(STORAGE_KEYS.ONBOARDING) === 'true';
+  }
+
+  setOnboardingCompleted(completed: boolean = true): void {
+    this.setItem(STORAGE_KEYS.ONBOARDING, completed ? 'true' : 'false');
   }
 }
 
