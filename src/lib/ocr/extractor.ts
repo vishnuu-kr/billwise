@@ -116,6 +116,58 @@ export const SAMPLE_UNSUPPORTED_COMMERCIAL_BILL: ExtractedBillData = {
   unsupportedReason: 'BILLWISE currently calculates Kerala domestic households (LT-1A). Commercial (LT-7A), Industrial (LT-4A), and High Tension tariffs are not supported yet.',
 };
 
+export const SAMPLE_KSEB_SOLAR_BILL: ExtractedBillData = {
+  billingPeriod: 'Aug 2026 – Oct 2026',
+  billDate: '2026-10-04',
+  dueDate: '2026-10-24',
+  tariff: 'LT-1A (Solar Net-Meter)',
+  purpose: 'Domestic Household with Rooftop Solar',
+  phase: 'three',
+  billingCycle: 'bi-monthly',
+  previousReading: 15400,
+  presentReading: 15800,
+  consumedUnits: 400,
+  connectedLoadWatts: 5000,
+  fixedCharge: 450,
+  energyCharge: 1200,
+  duty: 120,
+  fuelAdjustment: 4.00,
+  meterRent: 40,
+  subsidy: 0,
+  totalAmount: 1814,
+  confidence: 0.90,
+  fieldConfidences: {},
+  isSupportedBillType: false,
+  unsupportedReason: 'This bill includes Solar Net-Metering / Grid Export, which requires bidirectional feed-in tariff adjustments. BILLWISE currently supports standard LT-1A domestic consumption only.',
+  meterType: 'smart_tod',
+};
+
+export const SAMPLE_KSEB_TOD_BILL: ExtractedBillData = {
+  billingPeriod: 'Aug 2026 – Oct 2026',
+  billDate: '2026-10-04',
+  dueDate: '2026-10-24',
+  tariff: 'LT-1A (ToD Domestic)',
+  purpose: 'Domestic High-Usage ToD Meter',
+  phase: 'three',
+  billingCycle: 'bi-monthly',
+  previousReading: 32000,
+  presentReading: 32900,
+  consumedUnits: 900,
+  connectedLoadWatts: 8000,
+  fixedCharge: 800,
+  energyCharge: 7200,
+  duty: 720,
+  fuelAdjustment: 9.00,
+  meterRent: 50,
+  subsidy: 0,
+  totalAmount: 8779,
+  confidence: 0.88,
+  fieldConfidences: {},
+  isSupportedBillType: false,
+  unsupportedReason: 'This bill uses a Time-of-Day (ToD) tariff with peak/off-peak hourly slabs. BILLWISE currently calculates flat and telescopic LT-1A domestic tariffs.',
+  meterType: 'smart_tod',
+};
+
 /**
  * Validates consistency between extracted readings and consumed units (Item 7).
  */
@@ -146,11 +198,13 @@ export function validateOcrConsistency(
 export function parseKsebBillText(text: string): ExtractedBillData {
   const normalized = text.replace(/,/g, '');
   
-  // Check for unsupported commercial or industrial bill types (Item 8)
+  // Check for unsupported commercial, industrial, solar/net-meter, or ToD bill types (Items 8 & 14)
   const isCommercial = /lt[\s\-]*7|lt[\s\-]*vii|commercial|industrial|lt[\s\-]*4|lt[\s\-]*iv|high\s*tension|ht\s*tariff/i.test(normalized);
+  const isSolarOrNetMeter = /solar|net[\s\-]*meter|export\s*units|grid\s*export|prosumer|feed[\s\-]*in|import\s*export/i.test(normalized);
+  const isTimeOfDay = /time[\s\-]*of[\s\-]*day|\btod\b|peak\s*units|off[\s\-]*peak|zone[\s\-]*[123]/i.test(normalized);
   const isThreePhase = /three\s*phase|3\s*phase|3-ph/i.test(normalized);
   const isMonthly = /monthly/i.test(normalized) && !/bi-monthly|bimonthly/i.test(normalized);
-  const isSmartMeter = /smart|tod|amr|time\s*of\s*day/i.test(normalized);
+  const isSmartMeter = isTimeOfDay || /smart|amr/i.test(normalized);
 
   const prevMatch = normalized.match(/(?:previous|prev|munp|prv)\s*(?:reading)?[:\s\-]*([0-9]{3,7})/i);
   const presMatch = normalized.match(/(?:present|current|pres|innathe)\s*(?:reading)?[:\s\-]*([0-9]{3,7})/i);
@@ -165,12 +219,22 @@ export function parseKsebBillText(text: string): ExtractedBillData {
   const load = loadMatch ? parseInt(loadMatch[1], 10) : SAMPLE_KSEB_REFERENCE_BILL.connectedLoadWatts;
 
   const consistency = validateOcrConsistency(prev, pres, units);
+  const isSupportedBillType = !isCommercial && !isSolarOrNetMeter && !isTimeOfDay;
+  
+  let unsupportedReason: string | undefined;
+  if (isCommercial) {
+    unsupportedReason = 'This bill appears to be a commercial or industrial tariff (LT-IV/LT-VII/HT). BILLWISE currently calculates domestic LT-1A households only.';
+  } else if (isSolarOrNetMeter) {
+    unsupportedReason = 'This bill includes Solar Net-Metering / Grid Export, which requires bidirectional feed-in tariff adjustments. BILLWISE currently supports standard LT-1A domestic consumption only.';
+  } else if (isTimeOfDay) {
+    unsupportedReason = 'This bill uses a Time-of-Day (ToD) tariff with peak/off-peak hourly slabs. BILLWISE currently calculates flat and telescopic LT-1A domestic tariffs.';
+  }
 
   return {
     billingPeriod: 'Aug 2026 – Oct 2026',
     billDate: new Date().toISOString().slice(0, 10),
     dueDate: new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10),
-    tariff: isCommercial ? 'LT-VIIA (Commercial)' : 'LT-1A (Domestic)',
+    tariff: isCommercial ? 'LT-VIIA (Commercial)' : isSolarOrNetMeter ? 'LT-1A (Solar Net-Meter)' : isTimeOfDay ? 'LT-1A (ToD)' : 'LT-1A (Domestic)',
     purpose: isCommercial ? 'Commercial' : 'Domestic Household',
     phase: isThreePhase ? 'three' : 'single',
     billingCycle: isMonthly ? 'monthly' : 'bi-monthly',
@@ -185,19 +249,17 @@ export function parseKsebBillText(text: string): ExtractedBillData {
     meterRent: isThreePhase ? 30 : 12,
     subsidy: units <= 240 ? 148 : 0,
     totalAmount: amount,
-    confidence: isCommercial ? 0.85 : 0.92,
+    confidence: isSupportedBillType ? 0.92 : 0.85,
     fieldConfidences: {
       previousReading: prevMatch ? 0.96 : 0.75,
       presentReading: presMatch ? 0.94 : 0.75,
       consumedUnits: unitsMatch ? 0.98 : 0.85,
-      tariff: isCommercial ? 0.98 : 0.90,
+      tariff: !isSupportedBillType ? 0.98 : 0.90,
       connectedLoadWatts: loadMatch ? 0.88 : 0.72,
       totalAmount: amountMatch ? 0.96 : 0.80,
     },
-    isSupportedBillType: !isCommercial,
-    unsupportedReason: isCommercial
-      ? 'This bill appears to be a commercial or non-domestic tariff. BILLWISE currently calculates domestic LT-1A households only.'
-      : undefined,
+    isSupportedBillType,
+    unsupportedReason,
     meterType: isSmartMeter ? 'smart_tod' : 'electronic_static',
     consistencyCheck: consistency,
   };

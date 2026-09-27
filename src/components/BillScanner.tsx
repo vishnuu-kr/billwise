@@ -103,7 +103,7 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
     setRotationAngle(prev => (prev + 90) % 360);
   };
 
-  const handleFieldChange = (field: keyof ExtractedBillData, value: any) => {
+  const handleFieldChange = (field: keyof ExtractedBillData, value: ExtractedBillData[keyof ExtractedBillData]) => {
     setExtractedData(prev => {
       const updated = { ...prev, [field]: value };
       if (field === 'presentReading' || field === 'previousReading') {

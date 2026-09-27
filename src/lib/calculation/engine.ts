@@ -4,6 +4,11 @@ import {
   SlabCalculationDetail,
   TariffVersion,
   BillDifferenceBreakdown,
+  BillingCycle,
+  InputSanityReport,
+  ActualBillBreakdown,
+  BillReconciliationResult,
+  ComponentReconciliationItem,
 } from '@/types';
 import { tariffRepo } from '@/lib/tariffs';
 
@@ -330,5 +335,212 @@ export function calculateBillDifference(
     primaryDriverMl,
     explanationText,
     explanationTextMl,
+  };
+}
+
+/**
+ * Validates consumer input plausibility and flags edge cases before running calculations.
+ */
+export function validateInputSanity(input: {
+  units: number;
+  billingCycle?: BillingCycle;
+  daysElapsed?: number;
+  previousReading?: number;
+  presentReading?: number;
+}): InputSanityReport {
+  const { units, previousReading, presentReading, daysElapsed } = input;
+
+  if (previousReading !== undefined && presentReading !== undefined && presentReading < previousReading) {
+    return {
+      isPlausible: false,
+      warningLevel: 'error',
+      warningMessage: 'Current reading is lower than previous reading. An electricity meter cannot run backward unless replaced or rolled over.',
+      warningMessageMl: 'ഇപ്പോഴത്തെ റീഡിംഗ് കഴിഞ്ഞ റീഡിംഗിനേക്കാൾ കുറവാണ്. മീറ്റർ മാറ്റിസ്ഥാപിക്കാതെ റീഡിംഗ് കുറയാൻ സാധ്യതയില്ല.',
+    };
+  }
+
+  if (units === 0) {
+    return {
+      isPlausible: true,
+      warningLevel: 'info',
+      warningMessage: 'Zero units consumption. Fixed charges and statutory duty will still apply for maintaining the active connection (e.g. for vacant homes).',
+      warningMessageMl: 'പൂജ്യം യൂണിറ്റ് ഉപയോഗം. വീട് ഒഴിഞ്ഞുകിടന്നാലും സർവീസ് ലൈൻ നിലനിർത്തുന്നതിനുള്ള മിനിമം ഫിക്സഡ് ചാർജ് ബാധകമാണ്.',
+    };
+  }
+
+  if (units > 5000) {
+    return {
+      isPlausible: false,
+      warningLevel: 'error',
+      warningMessage: `${units.toLocaleString()} units is extremely high for residential LT-1A. Please verify that this is not an industrial/commercial installation or entry typo.`,
+      warningMessageMl: `${units.toLocaleString()} യൂണിറ്റ് ഗാർഹിക കണക്ഷന് അസാധാരണമാംവിധം കൂടുതലാണ്. റീഡിംഗിൽ തെറ്റില്ലെന്ന് ഉറപ്പാക്കുക.`,
+    };
+  }
+
+  if (units > 1500) {
+    return {
+      isPlausible: true,
+      warningLevel: 'warning',
+      warningMessage: `${units} units exceeds typical residential monthly/bi-monthly averages in Kerala. Please confirm your meter digits.`,
+      warningMessageMl: `${units} യൂണിറ്റ് കേരളത്തിലെ സാധാരണ വീടുകളിലെ ശരാശരിയേക്കാൾ വളരെ കൂടുതലാണ്. അക്കങ്ങൾ പരിശോധിക്കുക.`,
+    };
+  }
+
+  if (daysElapsed !== undefined) {
+    if (daysElapsed < 2) {
+      return {
+        isPlausible: true,
+        warningLevel: 'info',
+        warningMessage: 'Less than 2 days elapsed in this billing cycle. Projections will have higher uncertainty until more days accumulate.',
+        warningMessageMl: 'ബില്ലിംഗ് സൈക്കിളിൽ രണ്ട് ദിവസത്തിൽ താഴെ മാത്രമാണ് കഴിഞ്ഞിട്ടുള്ളത്. കൂടുതൽ ദിവസത്തെ റീഡിംഗ് ലഭ്യമാകുമ്പോൾ കൃത്യത വർദ്ധിക്കും.',
+      };
+    }
+    if (daysElapsed > 90) {
+      return {
+        isPlausible: true,
+        warningLevel: 'warning',
+        warningMessage: `Cycle duration (${daysElapsed} days) exceeds standard 60-day bi-monthly schedule. KSEB may apply multi-month slab apportionment.`,
+        warningMessageMl: `${daysElapsed} ദിവസം സാധാരണ രണ്ട് മാസത്തെ (60 ദിവസം) സൈക്കിളിനേക്കാൾ കൂടുതലാണ്. സ്ലാബുകൾ വിഭജിക്കപ്പെടാൻ സാധ്യതയുണ്ട്.`,
+      };
+    }
+  }
+
+  return {
+    isPlausible: true,
+    warningLevel: 'none',
+  };
+}
+
+/**
+ * Compares a BILLWISE calculated bill result component-by-component against an actual KSEB bill.
+ * Highlights line-item variances (e.g. 1p vs 2p fuel surcharge, fractional round-offs, subsidies).
+ */
+export function reconcileBillComponents(
+  calculated: BillCalculationResult,
+  actual: ActualBillBreakdown
+): BillReconciliationResult {
+  const components: ComponentReconciliationItem[] = [];
+
+  // 1. Energy Charge
+  const actualEnergy = actual.grossEnergyCharge ?? calculated.grossEnergyCharge;
+  const energyDiff = Number((calculated.grossEnergyCharge - actualEnergy).toFixed(2));
+  components.push({
+    componentKey: 'energy',
+    nameEn: 'Energy Charges',
+    nameMl: 'വൈദ്യുതി ചാർജ്ജ്',
+    calculatedAmount: calculated.grossEnergyCharge,
+    actualAmount: actualEnergy,
+    differenceAmount: energyDiff,
+    isMatch: Math.abs(energyDiff) < 0.5,
+    explanationEn: Math.abs(energyDiff) < 0.5 ? 'Matches official tariff schedule' : `Variance of ₹${Math.abs(energyDiff)} in energy consumption calculation.`,
+    explanationMl: Math.abs(energyDiff) < 0.5 ? 'ഔദ്യോഗിക നിരക്കുമായി കൃത്യമായി യോജിക്കുന്നു' : `ഊർജ്ജ ചാർജ്ജിൽ ₹${Math.abs(energyDiff)} വ്യത്യാസം.`,
+  });
+
+  // 2. Fixed Charge
+  const actualFixed = actual.grossFixedCharge ?? calculated.grossFixedCharge;
+  const fixedDiff = Number((calculated.grossFixedCharge - actualFixed).toFixed(2));
+  components.push({
+    componentKey: 'fixed',
+    nameEn: 'Fixed Charges',
+    nameMl: 'ഫിക്സഡ് ചാർജ്ജ്',
+    calculatedAmount: calculated.grossFixedCharge,
+    actualAmount: actualFixed,
+    differenceAmount: fixedDiff,
+    isMatch: Math.abs(fixedDiff) < 0.5,
+    explanationEn: Math.abs(fixedDiff) < 0.5 ? 'Matches LT-1A phase fixed charge' : `Fixed charge variance of ₹${Math.abs(fixedDiff)}.`,
+    explanationMl: Math.abs(fixedDiff) < 0.5 ? 'ഫിക്സഡ് ചാർജ്ജ് കൃത്യമാണ്' : `ഫിക്സഡ് ചാർജ്ജിൽ ₹${Math.abs(fixedDiff)} വ്യത്യാസം.`,
+  });
+
+  // 3. Duty
+  const actualDuty = actual.electricityDuty ?? calculated.electricityDuty;
+  const dutyDiff = Number((calculated.electricityDuty - actualDuty).toFixed(2));
+  components.push({
+    componentKey: 'duty',
+    nameEn: 'Electricity Duty (10%)',
+    nameMl: 'വൈദ്യുതി ഡ്യൂട്ടി (10%)',
+    calculatedAmount: calculated.electricityDuty,
+    actualAmount: actualDuty,
+    differenceAmount: dutyDiff,
+    isMatch: Math.abs(dutyDiff) < 0.5,
+    explanationEn: Math.abs(dutyDiff) < 0.5 ? '10% Kerala Duty rate applied accurately' : `Duty variance of ₹${Math.abs(dutyDiff)}.`,
+    explanationMl: Math.abs(dutyDiff) < 0.5 ? '10% ഡ്യൂട്ടി കൃത്യമായി കണക്കാക്കി' : `ഡ്യൂട്ടി തുകയിൽ ₹${Math.abs(dutyDiff)} വ്യത്യാസം.`,
+  });
+
+  // 4. Fuel Surcharge / FAC
+  const actualFac = actual.fuelAdjustment ?? calculated.fuelAdjustment;
+  const facDiff = Number((calculated.fuelAdjustment - actualFac).toFixed(2));
+  components.push({
+    componentKey: 'fac',
+    nameEn: 'Fuel Surcharge (FAC)',
+    nameMl: 'ഇന്ധന സർചാർജ്ജ് (FAC)',
+    calculatedAmount: calculated.fuelAdjustment,
+    actualAmount: actualFac,
+    differenceAmount: facDiff,
+    isMatch: Math.abs(facDiff) < 0.5,
+    explanationEn: Math.abs(facDiff) < 0.5
+      ? 'Matches fuel surcharge rate'
+      : `Difference of ₹${Math.abs(facDiff)} caused by 1p vs 2p fuel adjustment variation.`,
+    explanationMl: Math.abs(facDiff) < 0.5
+      ? 'ഇന്ധന സർചാർജ്ജ് കൃത്യമാണ്'
+      : `1 പൈസ / 2 പൈസ വ്യതിയാനം കാരണം ₹${Math.abs(facDiff)} വ്യത്യാസം.`,
+  });
+
+  // 5. Meter Rent
+  const actualRent = actual.meterRent ?? calculated.meterRent;
+  const rentDiff = Number((calculated.meterRent - actualRent).toFixed(2));
+  components.push({
+    componentKey: 'rent',
+    nameEn: 'Meter Rent',
+    nameMl: 'മീറ്റർ വാടക',
+    calculatedAmount: calculated.meterRent,
+    actualAmount: actualRent,
+    differenceAmount: rentDiff,
+    isMatch: Math.abs(rentDiff) < 0.5,
+    explanationEn: Math.abs(rentDiff) < 0.5 ? 'Standard bi-monthly meter rent' : `Meter rent variance of ₹${Math.abs(rentDiff)}.`,
+    explanationMl: Math.abs(rentDiff) < 0.5 ? 'മീറ്റർ വാടക കൃത്യമാണ്' : `മീറ്റർ വാടകയിൽ ₹${Math.abs(rentDiff)} വ്യത്യാസം.`,
+  });
+
+  // 6. Subsidies
+  const actualSubsidy = actual.totalSubsidies ?? calculated.totalSubsidies;
+  const subsidyDiff = Number((calculated.totalSubsidies - actualSubsidy).toFixed(2));
+  components.push({
+    componentKey: 'subsidy',
+    nameEn: 'Kerala Govt. Subsidy',
+    nameMl: 'സർക്കാർ സബ്സിഡി',
+    calculatedAmount: calculated.totalSubsidies,
+    actualAmount: actualSubsidy,
+    differenceAmount: subsidyDiff,
+    isMatch: Math.abs(subsidyDiff) < 0.5,
+    explanationEn: Math.abs(subsidyDiff) < 0.5 ? 'Applicable domestic subsidies applied' : `Subsidy variance of ₹${Math.abs(subsidyDiff)}.`,
+    explanationMl: Math.abs(subsidyDiff) < 0.5 ? 'സബ്സിഡി ഇളവ് കൃത്യമാണ്' : `സബ്സിഡിയിൽ ₹${Math.abs(subsidyDiff)} വ്യത്യാസം.`,
+  });
+
+  const totalDifference = Number((calculated.total - actual.total).toFixed(2));
+  const isExactMatch = Math.abs(totalDifference) === 0;
+
+  let primaryVarianceInsight = 'Calculated amount matches the actual bill across all components.';
+  let primaryVarianceInsightMl = 'കണക്കാക്കിയ തുക യഥാർത്ഥ ബില്ലുമായി പൂർണ്ണമായി പൊരുത്തപ്പെടുന്നു.';
+
+  if (!isExactMatch) {
+    if (Math.round(Math.abs(facDiff)) === Math.abs(totalDifference) && Math.abs(facDiff) >= 1) {
+      primaryVarianceInsight = `The exact ₹${Math.abs(totalDifference)} difference originates solely from a variation in the Fuel Adjustment Charge rate (1p vs 2p per unit).`;
+      primaryVarianceInsightMl = `ബില്ലിലെ കൃത്യമായ ₹${Math.abs(totalDifference)} വ്യത്യാസം പൂർണ്ണമായും ഇന്ധന സർചാർജ്ജ് നിരക്കിലെ (യൂണിറ്റിന് 1p vs 2p) മാറ്റം മൂലമാണ്.`;
+    } else if (Math.abs(totalDifference) <= 2) {
+      primaryVarianceInsight = `Minimal ₹${Math.abs(totalDifference)} discrepancy due to fractional paisa round-off rules applied on intermediate line items.`;
+      primaryVarianceInsightMl = `പൈസ റൗണ്ടിംഗ് വ്യത്യാസങ്ങൾ കാരണമുള്ള ചെറിയ ₹${Math.abs(totalDifference)} മാറ്റം.`;
+    } else {
+      primaryVarianceInsight = `Variance of ₹${Math.abs(totalDifference)} across energy slabs or statutory adjustments.`;
+      primaryVarianceInsightMl = `ഊർജ്ജ സ്ലാബുകളിലോ നികുതികളിലോ വന്ന ₹${Math.abs(totalDifference)} വ്യത്യാസം.`;
+    }
+  }
+
+  return {
+    calculatedTotal: calculated.total,
+    actualTotal: actual.total,
+    totalDifference,
+    isExactMatch,
+    components,
+    primaryVarianceInsight,
+    primaryVarianceInsightMl,
   };
 }

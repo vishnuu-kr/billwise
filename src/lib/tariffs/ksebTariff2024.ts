@@ -1,4 +1,4 @@
-import { TariffVersion } from '@/types';
+import { TariffVersion, TariffSlab, TariffVersionValidationResult } from '@/types';
 
 export const CURRENT_KSEB_TARIFF_VERSION: TariffVersion = {
   id: 'kseb-kserc-2024-v1',
@@ -114,3 +114,92 @@ export const PREVIOUS_KSEB_TARIFF_2023: TariffVersion = {
   isCurrent: false,
   notes: 'Previous tariff order superseding 2022 rates.',
 };
+
+export const ALL_TARIFF_VERSIONS: TariffVersion[] = [
+  CURRENT_KSEB_TARIFF_VERSION,
+  PREVIOUS_KSEB_TARIFF_2023,
+];
+
+/**
+ * Validates the schema and business integrity of a tariff configuration.
+ * Ensures slabs are strictly increasing, rates are non-negative, and dates are valid.
+ */
+export function validateTariffVersion(tariff: TariffVersion): TariffVersionValidationResult {
+  const errors: string[] = [];
+
+  if (!tariff.id || typeof tariff.id !== 'string') {
+    errors.push('Tariff ID must be a non-empty string.');
+  }
+  if (!tariff.versionName) {
+    errors.push('Version name is required.');
+  }
+  if (!tariff.effectiveFrom || isNaN(Date.parse(tariff.effectiveFrom))) {
+    errors.push('effectiveFrom must be a valid ISO date string.');
+  }
+  if (tariff.effectiveTo && isNaN(Date.parse(tariff.effectiveTo))) {
+    errors.push('effectiveTo must be a valid ISO date string if provided.');
+  }
+  if (tariff.effectiveTo && tariff.effectiveFrom && tariff.effectiveTo < tariff.effectiveFrom) {
+    errors.push('effectiveTo cannot be earlier than effectiveFrom.');
+  }
+
+  // Slabs validation
+  const validateSlabs = (slabs: TariffSlab[], slabType: string) => {
+    if (!Array.isArray(slabs) || slabs.length === 0) {
+      errors.push(`${slabType} must contain at least one slab.`);
+      return;
+    }
+    slabs.forEach((slab, index) => {
+      if (slab.ratePerUnit < 0) {
+        errors.push(`${slabType}[${index}]: Rate per unit cannot be negative.`);
+      }
+      if (slab.maxUnits !== null && slab.maxUnits < slab.minUnits) {
+        errors.push(`${slabType}[${index}]: maxUnits cannot be less than minUnits.`);
+      }
+    });
+  };
+
+  validateSlabs(tariff.telescopicSlabsBiMonthly, 'telescopicSlabsBiMonthly');
+  validateSlabs(tariff.telescopicSlabsMonthly, 'telescopicSlabsMonthly');
+  validateSlabs(tariff.nonTelescopicSlabsBiMonthly, 'nonTelescopicSlabsBiMonthly');
+  validateSlabs(tariff.nonTelescopicSlabsMonthly, 'nonTelescopicSlabsMonthly');
+
+  // Duty & Levies
+  if (tariff.electricityDutyRate < 0 || tariff.electricityDutyRate > 1) {
+    errors.push('electricityDutyRate must be between 0 and 1 (e.g. 0.10 for 10%).');
+  }
+  if (tariff.fuelAdjustmentRatePerUnit < 0) {
+    errors.push('fuelAdjustmentRatePerUnit cannot be negative.');
+  }
+  if (tariff.meterRentSinglePhase < 0 || tariff.meterRentThreePhase < 0) {
+    errors.push('Meter rent charges cannot be negative.');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
+/**
+ * Returns the appropriate KSERC tariff version based on the bill or calculation date.
+ * If no matching historical order is found, safely falls back to CURRENT_KSEB_TARIFF_VERSION.
+ */
+export function getTariffForDate(dateString?: string): TariffVersion {
+  if (!dateString) return CURRENT_KSEB_TARIFF_VERSION;
+  
+  const parsed = Date.parse(dateString);
+  if (isNaN(parsed)) return CURRENT_KSEB_TARIFF_VERSION;
+
+  const targetDate = dateString.slice(0, 10);
+  const matched = ALL_TARIFF_VERSIONS.find(t => {
+    const from = t.effectiveFrom;
+    const to = t.effectiveTo;
+    if (to) {
+      return targetDate >= from && targetDate <= to;
+    }
+    return targetDate >= from;
+  });
+
+  return matched || CURRENT_KSEB_TARIFF_VERSION;
+}

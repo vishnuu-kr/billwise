@@ -267,3 +267,67 @@ export interface BudgetConfig {
 }
 
 export type SupportedLanguage = 'en' | 'ml';
+
+// ==========================================
+// Phase 4: Production Reconciliation & Hardening Types
+// ==========================================
+
+export interface ActualBillBreakdown {
+  grossEnergyCharge?: number;
+  grossFixedCharge?: number;
+  electricityDuty?: number;
+  fuelAdjustment?: number;
+  meterRent?: number;
+  totalSubsidies?: number;
+  roundOff?: number;
+  total: number;
+}
+
+export interface ComponentReconciliationItem {
+  componentKey: 'energy' | 'fixed' | 'duty' | 'fac' | 'rent' | 'subsidy' | 'roundoff' | 'total';
+  nameEn: string;
+  nameMl: string;
+  calculatedAmount: number;
+  actualAmount: number;
+  differenceAmount: number;
+  isMatch: boolean;
+  explanationEn: string;
+  explanationMl: string;
+}
+
+export interface BillReconciliationResult {
+  calculatedTotal: number;
+  actualTotal: number;
+  totalDifference: number;
+  isExactMatch: boolean;
+  components: ComponentReconciliationItem[];
+  primaryVarianceInsight: string;
+  primaryVarianceInsightMl: string;
+}
+
+export interface InputSanityReport {
+  isPlausible: boolean;
+  warningLevel: 'none' | 'info' | 'warning' | 'error';
+  warningMessage?: string;
+  warningMessageMl?: string;
+}
+
+export interface TariffVersionValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+export type AnalyticsEventName =
+  | 'scan_started'
+  | 'scan_completed'
+  | 'scan_failed'
+  | 'ocr_corrected'
+  | 'meter_scan_started'
+  | 'meter_scan_completed'
+  | 'prediction_generated'
+  | 'manual_calculation'
+  | 'what_if_used'
+  | 'budget_used'
+  | 'history_recorded'
+  | 'actual_bill_recorded'
+  | 'language_changed';
