@@ -3,6 +3,7 @@
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import BudgetController from '@/components/BudgetController';
+import CardSkeleton from '@/components/CardSkeleton';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -36,7 +37,13 @@ function BudgetContent() {
 
 export default function BudgetPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-slate-500">Loading budget controller...</div>}>
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10">
+          <CardSkeleton title="Preparing budget controller..." />
+        </div>
+      }
+    >
       <BudgetContent />
     </Suspense>
   );

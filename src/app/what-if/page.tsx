@@ -3,6 +3,7 @@
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import WhatIfSimulator from '@/components/WhatIfSimulator';
+import CardSkeleton from '@/components/CardSkeleton';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -32,7 +33,13 @@ function WhatIfContent() {
 
 export default function WhatIfPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-slate-500">Loading simulator...</div>}>
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10">
+          <CardSkeleton title="Preparing what-if simulator..." />
+        </div>
+      }
+    >
       <WhatIfContent />
     </Suspense>
   );

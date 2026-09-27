@@ -94,9 +94,11 @@ export default function WhatIfSimulator({ initialUnits = 240 }: WhatIfSimulatorP
           <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
           <div>
             <span className="font-bold text-red-950">
-              500-Unit Telescopic Cliff Crossed:
+              {lang === 'ml' ? '500 യൂണിറ്റ് പരിധി കഴിഞ്ഞു:' : '500-Unit Telescopic Cliff Crossed:'}
             </span>{' '}
-            Your entire bill has shifted from telescopic slabs to a flat ₹{result.slabBreakdown[0]?.ratePerUnit.toFixed(2)}/unit rate.
+            {lang === 'ml'
+              ? `നിങ്ങളുടെ മുഴുവൻ ബില്ലും ഫ്ലാറ്റ് നിരക്കിലേക്ക് (യൂണിറ്റിന് ₹${result.slabBreakdown[0]?.ratePerUnit.toFixed(2)}) മാറി.`
+              : `Your entire bill has shifted from telescopic slabs to a flat ₹${result.slabBreakdown[0]?.ratePerUnit.toFixed(2)}/unit rate.`}
           </div>
         </div>
       ) : isAtOrAboveSubsidyCeiling ? (
@@ -104,16 +106,20 @@ export default function WhatIfSimulator({ initialUnits = 240 }: WhatIfSimulatorP
           <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
           <div>
             <span className="font-bold text-amber-950">
-              240-Unit Subsidy Threshold Exceeded:
+              {lang === 'ml' ? '240 യൂണിറ്റ് സബ്സിഡി പരിധി കഴിഞ്ഞു:' : '240-Unit Subsidy Threshold Exceeded:'}
             </span>{' '}
-            Kerala Government subsidies (₹148 benefit) are discontinued once bi-monthly consumption passes 240 units.
+            {lang === 'ml'
+              ? 'രണ്ട് മാസത്തെ ഉപയോഗം 240 യൂണിറ്റിൽ കൂടുതലായാൽ സർക്കാർ സബ്സിഡി (₹148 ഇളവ്) ലഭിക്കില്ല.'
+              : 'Kerala Government subsidies (₹148 benefit) are discontinued once bi-monthly consumption passes 240 units.'}
           </div>
         </div>
       ) : (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-900 flex items-center gap-2">
           <Zap className="h-4 w-4 text-emerald-600 shrink-0" />
           <span>
-            Within subsidised slab bracket (Eligible for ₹{result.totalSubsidies} Government rebate).
+            {lang === 'ml'
+              ? `സബ്സിഡി പരിധിക്കുള്ളിലാണ് (₹${result.totalSubsidies} സർക്കാർ ഇളവ് ലഭ്യമാണ്).`
+              : `Within subsidised slab bracket (Eligible for ₹${result.totalSubsidies} Government rebate).`}
           </span>
         </div>
       )}
@@ -156,7 +162,7 @@ export default function WhatIfSimulator({ initialUnits = 240 }: WhatIfSimulatorP
             {lang === 'ml' ? 'ആകെ പ്രതീക്ഷിക്കുന്ന തുക' : 'Total Estimated Bill'}
           </span>
           <div className="mt-0.5 text-xs text-slate-500">
-            Bi-monthly (60 days) • Single phase LT-1A
+            {lang === 'ml' ? 'രണ്ട് മാസം (60 ദിവസം) • സിംഗിൾ ഫേസ് LT-1A' : 'Bi-monthly (60 days) • Single phase LT-1A'}
           </div>
         </div>
         <div className="text-right">
@@ -164,7 +170,9 @@ export default function WhatIfSimulator({ initialUnits = 240 }: WhatIfSimulatorP
             ₹{result.total.toLocaleString('en-IN')}
           </div>
           <div className="text-[11px] text-slate-500">
-            ~₹{Math.round(result.total / 2).toLocaleString('en-IN')} / month
+            {lang === 'ml'
+              ? `~₹${Math.round(result.total / 2).toLocaleString('en-IN')} / മാസം`
+              : `~₹${Math.round(result.total / 2).toLocaleString('en-IN')} / month`}
           </div>
         </div>
       </div>

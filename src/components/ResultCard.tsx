@@ -113,7 +113,9 @@ export default function ResultCard({
         <div className="flex justify-between text-xs font-medium text-slate-600">
           <span>{t.billingPeriod}</span>
           <span className="font-mono text-slate-700 num-tabular">
-            {prediction.daysElapsed} of {prediction.totalCycleDays} days ({prediction.daysRemaining} days left)
+            {lang === 'ml'
+              ? `${prediction.daysElapsed}/${prediction.totalCycleDays} ദിവസങ്ങൾ (${prediction.daysRemaining} ദിവസം ബാക്കി)`
+              : `${prediction.daysElapsed} of ${prediction.totalCycleDays} days (${prediction.daysRemaining} days left)`}
           </span>
         </div>
         <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
@@ -131,14 +133,32 @@ export default function ResultCard({
             <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <div className="font-bold text-amber-950 text-sm">
-                {prediction.approachingSlab.warningMessage}
+                {lang === 'ml'
+                  ? (prediction.approachingSlab.currentSlabLimit === 240
+                      ? `240 യൂണിറ്റ് സബ്സിഡി പരിധി അടുക്കുന്നു (${prediction.approachingSlab.unitsRemainingInSlab} യൂണിറ്റ് ബാക്കി)`
+                      : prediction.approachingSlab.currentSlabLimit === 500
+                      ? `500 യൂണിറ്റ് ടെലിസ്കോപ്പിക് പരിധി അടുക്കുന്നു (${prediction.approachingSlab.unitsRemainingInSlab} യൂണിറ്റ് ബാക്കി)`
+                      : `${prediction.approachingSlab.currentSlabLimit} യൂണിറ്റിലെ അടുത്ത സ്ലാബ് അടുക്കുന്നു`)
+                  : prediction.approachingSlab.warningMessage}
               </div>
               <p className="text-amber-800 leading-relaxed">
-                At your current pace of {prediction.unitsPerDay} units/day, you have{' '}
-                <strong className="font-semibold text-amber-950">
-                  {prediction.approachingSlab.unitsRemainingInSlab} units remaining
-                </strong>{' '}
-                (approx {prediction.approachingSlab.estimatedDaysRemaining ?? 5} days).
+                {lang === 'ml' ? (
+                  <>
+                    പ്രതിദിനം {prediction.unitsPerDay} യൂണിറ്റ് വീതം ഉപയോഗിച്ചാൽ, ഈ സ്ലാബിൽ{' '}
+                    <strong className="font-semibold text-amber-950">
+                      {prediction.approachingSlab.unitsRemainingInSlab} യൂണിറ്റുകൾ
+                    </strong>{' '}
+                    കൂടി ബാക്കിയുണ്ട് (ഏകദേശം {prediction.approachingSlab.estimatedDaysRemaining ?? 5} ദിവസങ്ങൾ).
+                  </>
+                ) : (
+                  <>
+                    At your current pace of {prediction.unitsPerDay} units/day, you have{' '}
+                    <strong className="font-semibold text-amber-950">
+                      {prediction.approachingSlab.unitsRemainingInSlab} units remaining
+                    </strong>{' '}
+                    (approx {prediction.approachingSlab.estimatedDaysRemaining ?? 5} days).
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -148,7 +168,9 @@ export default function ResultCard({
       {/* Discrepancy Note if applicable */}
       {prediction.calculatedBillResult.discrepancyNote && (
         <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 leading-relaxed">
-          <p className="font-medium text-slate-800 mb-0.5">Bill Reconciliation Note:</p>
+          <p className="font-medium text-slate-800 mb-0.5">
+            {lang === 'ml' ? 'ബിൽ പരിശോധനാ കുറിപ്പ്:' : 'Bill Reconciliation Note:'}
+          </p>
           <p>{prediction.calculatedBillResult.discrepancyNote}</p>
         </div>
       )}

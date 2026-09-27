@@ -1,18 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { calculateBill } from '@/lib/calculation/engine';
-import { Phase, BillingCycle } from '@/types';
+import { Phase, BillingCycle, ExtractedBillData } from '@/types';
 import {
   Calculator,
   Gauge,
   ArrowRight,
-  Sliders,
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  Info,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -23,17 +22,35 @@ export default function ManualPage() {
   // Mode: units vs meter readings
   const [mode, setMode] = useState<'units' | 'readings'>('units');
 
-  // Fields
+  // Core values
   const [units, setUnits] = useState<number>(240);
   const [previousReading, setPreviousReading] = useState<number>(10055);
   const [presentReading, setPresentReading] = useState<number>(10295);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('bi-monthly');
   
-  // Progressive disclosure technical fields
-  const [showTechnical, setShowTechnical] = useState<boolean>(false);
+  // Advanced technical parameters (hidden by default)
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [phase, setPhase] = useState<Phase>('single');
   const [connectedLoadWatts, setConnectedLoadWatts] = useState<number>(982);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Auto-populate from any previously scanned bill in session if available
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('billwise_scanned_bill');
+      if (stored) {
+        const parsed: ExtractedBillData = JSON.parse(stored);
+        if (parsed.consumedUnits) setUnits(parsed.consumedUnits);
+        if (parsed.previousReading) setPreviousReading(parsed.previousReading);
+        if (parsed.presentReading) setPresentReading(parsed.presentReading);
+        if (parsed.billingCycle) setBillingCycle(parsed.billingCycle);
+        if (parsed.phase) setPhase(parsed.phase);
+        if (parsed.connectedLoadWatts) setConnectedLoadWatts(parsed.connectedLoadWatts);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const calculatedUnits = mode === 'units'
     ? units
@@ -44,16 +61,15 @@ export default function ManualPage() {
     setErrorMessage(null);
 
     if (mode === 'readings' && presentReading < previousReading) {
-      setErrorMessage('Current reading cannot be lower than previous reading.');
+      setErrorMessage('Current reading cannot be lower than previous reading. Please check the digits.');
       return;
     }
 
-    if (calculatedUnits < 0) {
-      setErrorMessage('Units cannot be negative.');
+    if (calculatedUnits < 0 || isNaN(calculatedUnits)) {
+      setErrorMessage('Please enter a valid positive number of units.');
       return;
     }
 
-    // Redirect to result page
     router.push(
       `/result?units=${calculatedUnits}&cycle=${billingCycle}&phase=${phase}&load=${connectedLoadWatts}`
     );
@@ -64,17 +80,17 @@ export default function ManualPage() {
       {/* Title */}
       <div className="text-center space-y-1.5">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-          {lang === 'ml' ? 'മാനുവൽ കാൽക്കുലേറ്റർ' : 'Manual Entry'}
+          {lang === 'ml' ? 'മാനുവൽ കണക്കുകൂട്ടൽ' : 'Manual Calculator'}
         </span>
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-          {lang === 'ml' ? 'ഏതാണ് എളുപ്പം?' : 'What do you know?'}
+          {lang === 'ml' ? 'നിങ്ങൾക്ക് എന്തറിയാം?' : 'What do you know?'}
         </h1>
         <p className="text-xs sm:text-sm text-slate-600">
-          Start with what you have. No need to look up complex utility codes.
+          No need to look up tariff codes or connected load terminology.
         </p>
       </div>
 
-      {/* Mode Selector Toggle */}
+      {/* Two Clear Choices */}
       <div className="grid grid-cols-2 gap-2.5 rounded-2xl bg-slate-100 p-1.5 border border-slate-200/80">
         <button
           type="button"
@@ -106,7 +122,7 @@ export default function ManualPage() {
       {/* Form Card */}
       <form onSubmit={handleSubmit} className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-sm space-y-5">
         {mode === 'units' ? (
-          /* Units Input */
+          /* Simple Units Input */
           <div className="space-y-2">
             <label className="text-xs font-semibold text-slate-700">
               How many units (kWh) did you use?
@@ -115,19 +131,22 @@ export default function ManualPage() {
               type="number"
               inputMode="numeric"
               min="0"
-              max="2000"
+              max="2500"
               value={units}
               onChange={e => setUnits(Number(e.target.value))}
               className="w-full rounded-2xl border-2 border-sky-500 bg-white p-4 font-mono text-3xl font-extrabold text-slate-900 focus:outline-none"
               placeholder="e.g. 240"
             />
+            {/* Quick unit pills */}
             <div className="flex flex-wrap gap-1.5 pt-1">
-              {[80, 150, 200, 240, 300, 450].map(u => (
+              {[80, 150, 200, 240, 300, 400, 500].map(u => (
                 <button
                   key={u}
                   type="button"
                   onClick={() => setUnits(u)}
-                  className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-mono text-slate-700 hover:bg-slate-200"
+                  className={`rounded-lg px-2.5 py-1 text-xs font-mono transition-colors ${
+                    units === u ? 'bg-sky-600 text-white font-bold' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
                 >
                   {u} units
                 </button>
@@ -135,12 +154,12 @@ export default function ManualPage() {
             </div>
           </div>
         ) : (
-          /* Meter Readings Input */
+          /* Simple Meter Readings Input */
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-slate-600">
-                  {t.previousReading}
+                  Previous reading
                 </label>
                 <input
                   type="number"
@@ -153,7 +172,7 @@ export default function ManualPage() {
 
               <div>
                 <label className="text-xs font-semibold text-sky-800">
-                  {t.currentReading}
+                  Current reading
                 </label>
                 <input
                   type="number"
@@ -165,8 +184,8 @@ export default function ManualPage() {
               </div>
             </div>
 
-            <div className="rounded-xl bg-sky-50/70 p-3 flex items-center justify-between text-xs">
-              <span className="text-sky-950 font-medium">Derived consumption:</span>
+            <div className="rounded-xl bg-sky-50/70 p-3.5 flex items-center justify-between text-xs">
+              <span className="text-sky-950 font-medium">Electricity used this cycle:</span>
               <span className="font-mono text-base font-extrabold text-sky-800 num-tabular">
                 {calculatedUnits} {t.units}
               </span>
@@ -174,10 +193,10 @@ export default function ManualPage() {
           </div>
         )}
 
-        {/* Billing Cycle Option */}
+        {/* Billing Period Choice */}
         <div className="space-y-2 pt-2 border-t border-slate-100">
           <label className="text-xs font-semibold text-slate-700">
-            {t.billingCycle}
+            Billing Period
           </label>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -189,7 +208,7 @@ export default function ManualPage() {
                   : 'border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
-              {t.biMonthly}
+              Bi-monthly (Standard 60 days)
             </button>
 
             <button
@@ -201,44 +220,44 @@ export default function ManualPage() {
                   : 'border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
-              {t.monthly}
+              Monthly (30 days)
             </button>
           </div>
         </div>
 
-        {/* Progressive Disclosure: Technical details */}
+        {/* Progressive Disclosure: Technical details (collapsed by default) */}
         <div className="border-t border-slate-100 pt-3">
           <button
             type="button"
-            onClick={() => setShowTechnical(!showTechnical)}
-            className="flex items-center justify-between w-full text-xs font-semibold text-slate-600 hover:text-sky-600 transition-colors"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center justify-between w-full text-xs font-semibold text-slate-500 hover:text-sky-700 transition-colors"
           >
-            <span>{showTechnical ? '− Hide connection technical options' : '+ Advanced: Phase & connected load'}</span>
-            {showTechnical ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            <span>{showAdvanced ? '− Hide connection options' : '+ Advanced: Phase & connected load'}</span>
+            {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
 
-          {showTechnical && (
+          {showAdvanced && (
             <div className="mt-3 grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-4 border border-slate-100 text-xs">
               <div>
-                <label className="font-medium text-slate-600">{t.phase}</label>
+                <label className="font-medium text-slate-600">Connection Phase</label>
                 <select
                   value={phase}
                   onChange={e => setPhase(e.target.value as Phase)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 font-medium text-slate-800"
                 >
-                  <option value="single">Single phase (Common)</option>
+                  <option value="single">Single phase (Most homes)</option>
                   <option value="three">Three phase</option>
                 </select>
               </div>
 
               <div>
-                <label className="font-medium text-slate-600">{t.connectedLoad}</label>
+                <label className="font-medium text-slate-600">Connected Load (Watts)</label>
                 <input
                   type="number"
                   value={connectedLoadWatts}
                   onChange={e => setConnectedLoadWatts(Number(e.target.value))}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-slate-800"
-                  placeholder="Watts (e.g. 982)"
+                  placeholder="e.g. 982"
                 />
               </div>
             </div>
@@ -252,10 +271,10 @@ export default function ManualPage() {
           </div>
         )}
 
-        {/* Submit */}
+        {/* Calculate Action */}
         <button
           type="submit"
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-sky-600 py-4 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 active:scale-[0.98] transition-all touch-target"
+          className="w-full flex items-center justify-center gap-2 rounded-2xl bg-sky-600 py-4 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 active:scale-[0.98] transition-all touch-target"
         >
           <span>Calculate Bill</span>
           <ArrowRight className="h-4 w-4" />

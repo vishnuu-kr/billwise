@@ -40,25 +40,30 @@ Calculate yours free on BILLWISE: https://billwise.app`;
           </h3>
           <button
             onClick={onClose}
-            className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            className="flex items-center justify-center rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-target"
+            aria-label="Close share modal"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Clean Visual Card Preview */}
         <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-5 text-center shadow-sm">
           <div className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase">
-            NEXT KSEB BILL
+            {lang === 'ml' ? 'അടുത്ത KSEB ബിൽ' : 'NEXT KSEB BILL'}
           </div>
           <div className="mt-2 text-4xl font-extrabold text-slate-900 num-tabular">
             ₹{prediction.estimatedBill.toLocaleString('en-IN')}
           </div>
           <div className="mt-1 text-xs text-slate-600">
-            Expected range ₹{prediction.likelyRangeMin.toLocaleString('en-IN')} – ₹{prediction.likelyRangeMax.toLocaleString('en-IN')}
+            {lang === 'ml'
+              ? `സാധ്യതാ പരിധി ₹${prediction.likelyRangeMin.toLocaleString('en-IN')} – ₹${prediction.likelyRangeMax.toLocaleString('en-IN')}`
+              : `Expected range ₹${prediction.likelyRangeMin.toLocaleString('en-IN')} – ₹${prediction.likelyRangeMax.toLocaleString('en-IN')}`}
           </div>
           <div className="mt-2 inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-[11px] font-medium text-sky-700">
-            {prediction.projectedUnits} units projected
+            {lang === 'ml'
+              ? `${prediction.projectedUnits} യൂണിറ്റ് പ്രതീക്ഷിക്കുന്നു`
+              : `${prediction.projectedUnits} units projected`}
           </div>
           <div className="mt-3 text-[10px] font-mono text-slate-400">
             billwise.app • Zero privacy tracking
@@ -72,7 +77,7 @@ Calculate yours free on BILLWISE: https://billwise.app`;
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 active:scale-[0.98] transition-all touch-target"
           >
             <Share2 className="h-4 w-4" />
-            <span>Share to WhatsApp</span>
+            <span>{lang === 'ml' ? 'വാട്ട്‌സ്ആപ്പിൽ പങ്കുവെക്കാം' : 'Share to WhatsApp'}</span>
           </button>
 
           <button
@@ -82,12 +87,12 @@ Calculate yours free on BILLWISE: https://billwise.app`;
             {copied ? (
               <>
                 <Check className="h-4 w-4 text-emerald-600" />
-                <span>Copied to Clipboard!</span>
+                <span>{lang === 'ml' ? 'കോപ്പി ചെയ്തു!' : 'Copied to Clipboard!'}</span>
               </>
             ) : (
               <>
                 <Copy className="h-4 w-4 text-slate-500" />
-                <span>Copy Summary Text</span>
+                <span>{lang === 'ml' ? 'ടെക്സ്റ്റ് കോപ്പി ചെയ്യാം' : 'Copy Summary Text'}</span>
               </>
             )}
           </button>

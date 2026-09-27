@@ -96,11 +96,11 @@ export function predictUsage(input: PredictionInput): PredictionResult {
 
   let approachingSlab: PredictionResult['approachingSlab'] = null;
 
-  // Find the nearest threshold that projectedUnits or currentUnits is approaching
+  // Find the next upcoming threshold that currentUnits or projectedUnits has not yet fully passed
   for (const threshold of thresholds) {
-    if (projectedUnits >= threshold - 35 && projectedUnits <= threshold + 25) {
-      const unitsRemaining = Math.max(0, threshold - currentUnits);
-      const daysToThreshold = unitsPerDay > 0 ? Math.round(unitsRemaining / unitsPerDay) : null;
+    if (currentUnits < threshold && projectedUnits >= threshold - 35) {
+      const unitsRemaining = threshold - currentUnits;
+      const daysToThreshold = unitsPerDay > 0 ? Math.max(1, Math.round(unitsRemaining / unitsPerDay)) : null;
       
       let warningMessage = '';
       if (threshold === 240 || threshold === 120) {
@@ -108,7 +108,7 @@ export function predictUsage(input: PredictionInput): PredictionResult {
       } else if (threshold === 500 || threshold === 250) {
         warningMessage = `Approaching the 500-unit telescopic cliff (${unitsRemaining} units left). Crossing 500 units shifts your entire bill to non-telescopic rates.`;
       } else {
-        warningMessage = `Approaching a higher usage band at ${threshold} units (${unitsRemaining} units remaining at ~${unitsPerDay} units/day).`;
+        warningMessage = `Approaching a higher usage band at ${threshold} units (${unitsRemaining} units remaining at current pace).`;
       }
 
       approachingSlab = {
@@ -118,6 +118,17 @@ export function predictUsage(input: PredictionInput): PredictionResult {
         unitsRemainingInSlab: unitsRemaining,
         estimatedDaysRemaining: daysToThreshold,
         warningMessage,
+      };
+      break;
+    } else if (currentUnits >= 240 && currentUnits <= 260 && threshold === 240) {
+      // Just crossed subsidy ceiling
+      approachingSlab = {
+        isApproaching: true,
+        currentSlabLimit: 240,
+        nextSlabRate: 5.90,
+        unitsRemainingInSlab: 0,
+        estimatedDaysRemaining: 0,
+        warningMessage: 'You have reached or crossed the 240-unit limit. State subsidies (₹148) are discontinued above 240 units.',
       };
       break;
     }

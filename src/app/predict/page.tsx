@@ -9,6 +9,7 @@ import { storageManager } from '@/lib/storage';
 import { PredictionResult } from '@/types';
 import MeterVisualGuide from '@/components/MeterVisualGuide';
 import ResultCard from '@/components/ResultCard';
+import CardSkeleton from '@/components/CardSkeleton';
 import {
   Zap,
   Gauge,
@@ -18,6 +19,8 @@ import {
   RefreshCw,
   Sliders,
   CheckCircle2,
+  HelpCircle,
+  RotateCcw,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -25,7 +28,7 @@ function PredictContent() {
   const searchParams = useSearchParams();
   const { lang, t } = useLanguage();
 
-  // URL / State parameters
+  // Meter inputs
   const [prevReading, setPrevReading] = useState<number>(10295);
   const [currentReading, setCurrentReading] = useState<string>('10412');
   const [daysElapsed, setDaysElapsed] = useState<number>(30);
@@ -36,11 +39,12 @@ function PredictContent() {
   const [oldMeterFinal, setOldMeterFinal] = useState<number>(10350);
   const [newMeterInitial, setNewMeterInitial] = useState<number>(0);
 
-  // Prediction result state
+  // Status & results
   const [prediction, setPrediction] = useState<PredictionResult | null>(null);
+  const [isLowerError, setIsLowerError] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Load initial params from URL if present
+  // Read URL query params on initial mount
   useEffect(() => {
     const pReading = searchParams.get('prevReading');
     const cReading = searchParams.get('reading');
@@ -49,7 +53,6 @@ function PredictContent() {
     if (pReading) setPrevReading(Number(pReading));
     if (cReading) setCurrentReading(cReading);
 
-    // If units directly provided (e.g. from Manglish query or manual entry)
     if (uParam) {
       const units = Number(uParam);
       const res = predictUsage({
@@ -61,73 +64,89 @@ function PredictContent() {
       });
       setPrediction(res);
     } else {
-      // Run prediction with default values
-      handleCalculate();
+      runCalculation(
+        pReading ? Number(pReading) : 10295,
+        cReading || '10412',
+        30,
+        false
+      );
     }
   }, [searchParams]);
 
-  // Derived units consumed
-  const unitCalc = calculateConsumedUnits({
-    previousReading: prevReading,
-    presentReading: currentReading ? Number(currentReading) : prevReading,
-    isMeterReplaced,
-    oldMeterFinalReading: oldMeterFinal,
-    newMeterInitialReading: newMeterInitial,
-    billingCycle: 'bi-monthly',
-    phase: 'single',
-  });
-
-  const handleCalculate = () => {
+  const runCalculation = (
+    prev: number,
+    currStr: string,
+    days: number,
+    replaced: boolean
+  ) => {
     setValidationError(null);
+    setIsLowerError(false);
 
-    const curNum = Number(currentReading);
-    if (isNaN(curNum)) {
-      setValidationError('Please enter a valid numeric meter reading.');
+    const curr = Number(currStr);
+    if (isNaN(curr) || currStr.trim() === '') {
+      setValidationError('Please enter your current meter reading numbers.');
+      setPrediction(null);
       return;
     }
 
-    if (!isMeterReplaced && curNum < prevReading) {
-      setValidationError(
-        lang === 'ml'
-          ? 'ഇന്നത്തെ റീഡിംഗ് കഴിഞ്ഞ റീഡിംഗിനേക്കാൾ കുറവാണ്. ദയവായി അക്കങ്ങൾ പരിശോധിക്കുക അല്ലെങ്കിൽ മീറ്റർ മാറ്റിയിരുന്നോ എന്ന് വ്യക്തമാക്കുക.'
-          : 'Current reading is lower than previous reading. Check the digits or specify if your meter was replaced.'
-      );
+    if (!replaced && curr < prev) {
+      setIsLowerError(true);
+      setPrediction(null);
       return;
     }
 
     try {
-      const result = predictUsage({
-        previousReading: prevReading,
-        currentReading: curNum,
-        daysElapsed,
+      const res = predictUsage({
+        previousReading: prev,
+        currentReading: curr,
+        daysElapsed: days,
         totalCycleDays,
         billingCycle: totalCycleDays === 30 ? 'monthly' : 'bi-monthly',
         phase: 'single',
       });
 
-      setPrediction(result);
+      setPrediction(res);
 
-      // Save to local history automatically
+      // Persist reading in local device storage
       storageManager.addRecord({
         dateLabel: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-        meterReading: curNum,
-        consumedUnits: result.currentUnits,
-        projectedUnits: result.projectedUnits,
-        predictedBill: result.estimatedBill,
+        meterReading: curr,
+        consumedUnits: res.currentUnits,
+        projectedUnits: res.projectedUnits,
+        predictedBill: res.estimatedBill,
         billingCycle: totalCycleDays === 30 ? 'monthly' : 'bi-monthly',
         source: 'reading',
       });
     } catch (e: any) {
-      setValidationError(e.message || 'Calculation error occurred.');
+      setValidationError(e.message || 'Error occurred calculating prediction.');
+      setPrediction(null);
     }
   };
 
+  const handleCurrentChange = (val: string) => {
+    setCurrentReading(val);
+    runCalculation(prevReading, val, daysElapsed, isMeterReplaced);
+  };
+
+  const handlePrevChange = (val: number) => {
+    setPrevReading(val);
+    runCalculation(val, currentReading, daysElapsed, isMeterReplaced);
+  };
+
+  const handleDaysChange = (val: number) => {
+    setDaysElapsed(val);
+    runCalculation(prevReading, currentReading, val, isMeterReplaced);
+  };
+
+  const currNum = Number(currentReading) || 0;
+  const consumedSoFar = Math.max(0, currNum - prevReading);
+
   return (
     <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10 space-y-8">
-      {/* Header */}
+      {/* Title */}
       <div className="text-center space-y-1.5">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-          {lang === 'ml' ? 'ബിൽ പ്രവചനം' : 'Bill Prediction'}
+          {lang === 'ml' ? 'മീറ്റർ പരിശോധന' : 'Step 2: Meter Reading'}
         </span>
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
           {t.checkMeterTitle}
@@ -137,94 +156,147 @@ function PredictContent() {
         </p>
       </div>
 
-      {/* Visual Meter Guide Illustration */}
+      {/* Visual Digital Meter Guide */}
       <MeterVisualGuide currentReadingVal={currentReading} />
 
-      {/* Reading Input Form */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-sm space-y-5">
+      {/* The Core Meter Experience Card */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+        {/* Readings Inputs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Previous Reading */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-600">
-              {t.previousReading}
+              LAST READING (On Bill)
             </label>
             <input
               type="number"
               inputMode="numeric"
               value={prevReading}
-              onChange={e => setPrevReading(Number(e.target.value))}
-              className="w-full rounded-xl border border-slate-300 bg-slate-50 p-3 font-mono font-bold text-slate-900 focus:border-sky-500 focus:bg-white focus:outline-none"
+              onChange={e => handlePrevChange(Number(e.target.value))}
+              className="w-full rounded-2xl border border-slate-300 bg-slate-50 p-3.5 font-mono text-xl font-bold text-slate-900 focus:border-sky-500 focus:bg-white focus:outline-none"
             />
-            <span className="text-[10px] text-slate-400">From last KSEB bill</span>
+            <span className="text-[10px] text-slate-400">From your previous KSEB bill</span>
           </div>
 
           {/* Current Reading */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-sky-800 flex items-center justify-between">
-              <span>{t.currentReading}</span>
+              <span>NOW (On Meter)</span>
               <span className="text-[10px] text-sky-600 font-normal">Next to &apos;kWh&apos;</span>
             </label>
             <input
               type="number"
               inputMode="numeric"
               value={currentReading}
-              onChange={e => setCurrentReading(e.target.value)}
-              className="w-full rounded-xl border-2 border-sky-500 bg-white p-3 font-mono text-lg font-bold text-slate-900 focus:outline-none"
-              placeholder="e.g. 10412"
+              onChange={e => handleCurrentChange(e.target.value)}
+              className="w-full rounded-2xl border-2 border-sky-500 bg-white p-3.5 font-mono text-2xl font-extrabold text-slate-900 focus:outline-none"
+              placeholder="10412"
             />
-            <span className="text-[10px] text-slate-400">Recorded today</span>
+            <span className="text-[10px] text-slate-400">Digits currently on your meter</span>
           </div>
         </div>
 
-        {/* Current Units Consumed Difference Card */}
-        <div className="rounded-2xl bg-sky-50/70 border border-sky-100 p-4 flex items-center justify-between">
-          <div>
-            <div className="text-xs font-medium text-sky-950">
-              {t.electricityUsedLabel}
+        {/* ERROR STATE: Current < Previous */}
+        {isLowerError && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 space-y-3 text-xs text-red-950">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-bold text-sm text-red-950">
+                  Your new reading is lower than the previous reading.
+                </h4>
+                <p className="mt-1 text-red-800 leading-relaxed">
+                  Your meter records cumulative electricity used, so the current reading cannot decrease unless the meter was replaced or rolled over.
+                </p>
+              </div>
             </div>
-            <div className="text-[11px] text-sky-800">
-              {unitCalc.units} units consumed so far
-            </div>
-          </div>
-          <div className="font-mono text-2xl font-extrabold text-sky-800 num-tabular">
-            {unitCalc.units} <span className="text-xs font-medium">{t.units}</span>
-          </div>
-        </div>
 
-        {/* Meter Replaced Accordion Option */}
+            <div className="flex flex-wrap gap-2 pt-1 pl-7">
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentReading(String(prevReading + 100));
+                  runCalculation(prevReading, String(prevReading + 100), daysElapsed, false);
+                }}
+                className="rounded-xl border border-red-300 bg-white px-3.5 py-2 font-semibold text-red-800 hover:bg-red-50 transition-colors"
+              >
+                Edit current reading
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsMeterReplaced(true)}
+                className="rounded-xl bg-red-700 px-3.5 py-2 font-semibold text-white hover:bg-red-800 transition-colors"
+              >
+                My meter was replaced
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* SUCCESS DERIVED CONSUMPTION (Prompt 8 requirement) */}
+        {!isLowerError && (
+          <div className="rounded-2xl bg-sky-50/80 border border-sky-100 p-5 space-y-2">
+            <div className="text-xs font-semibold text-sky-950 uppercase tracking-wide">
+              You&apos;ve used {consumedSoFar} units since your last reading
+            </div>
+
+            {/* Arithmetic clarification (secondary, kept calm) */}
+            <div className="flex items-center gap-3 text-xs font-mono text-sky-900 pt-1">
+              <span>{currNum.toLocaleString()} (now)</span>
+              <span>−</span>
+              <span>{prevReading.toLocaleString()} (last)</span>
+              <span>=</span>
+              <span className="font-bold text-sky-950 text-sm">
+                {consumedSoFar} {t.units}
+              </span>
+            </div>
+
+            <p className="text-[11px] text-sky-800/80 pt-1 leading-relaxed">
+              Your meter shows total electricity recorded since installation. We calculate this period&apos;s usage by subtracting the previous reading.
+            </p>
+          </div>
+        )}
+
+        {/* Meter Replaced Option */}
         <div>
           <button
             type="button"
             onClick={() => setIsMeterReplaced(!isMeterReplaced)}
-            className="text-xs font-semibold text-slate-600 hover:text-sky-600 transition-colors"
+            className="text-xs font-semibold text-slate-500 hover:text-sky-700 transition-colors"
           >
-            {isMeterReplaced ? '− Hide meter replacement' : `+ ${t.meterReplacedQuestion}`}
+            {isMeterReplaced ? '− Close meter replacement' : `+ Was your meter replaced recently?`}
           </button>
 
           {isMeterReplaced && (
-            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-3 text-xs">
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3 text-xs">
               <p className="text-slate-600">
-                If your meter was replaced during this cycle, enter the final reading of the old meter and starting reading of the new meter.
+                Enter the final units recorded on the old removed meter and starting reading on the newly installed meter:
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-500">{t.oldMeterFinal}</label>
+                  <label className="text-slate-500">Old meter final reading</label>
                   <input
                     type="number"
                     inputMode="numeric"
                     value={oldMeterFinal}
-                    onChange={e => setOldMeterFinal(Number(e.target.value))}
-                    className="mt-1 w-full rounded border border-slate-300 p-1.5 font-mono text-slate-900"
+                    onChange={e => {
+                      setOldMeterFinal(Number(e.target.value));
+                      runCalculation(prevReading, currentReading, daysElapsed, true);
+                    }}
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="text-slate-500">{t.newMeterInitial}</label>
+                  <label className="text-slate-500">New meter initial reading</label>
                   <input
                     type="number"
                     inputMode="numeric"
                     value={newMeterInitial}
-                    onChange={e => setNewMeterInitial(Number(e.target.value))}
-                    className="mt-1 w-full rounded border border-slate-300 p-1.5 font-mono text-slate-900"
+                    onChange={e => {
+                      setNewMeterInitial(Number(e.target.value));
+                      runCalculation(prevReading, currentReading, daysElapsed, true);
+                    }}
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-slate-900"
                   />
                 </div>
               </div>
@@ -232,10 +304,10 @@ function PredictContent() {
           )}
         </div>
 
-        {/* Days Elapsed in Cycle */}
+        {/* Days Elapsed in Current Cycle */}
         <div className="space-y-2 border-t border-slate-100 pt-4">
           <div className="flex justify-between text-xs font-semibold text-slate-700">
-            <span>Billing cycle elapsed time</span>
+            <span>How many days since your last bill?</span>
             <span className="font-mono text-sky-700 num-tabular">
               {daysElapsed} of {totalCycleDays} days
             </span>
@@ -245,48 +317,37 @@ function PredictContent() {
             min="5"
             max={totalCycleDays}
             value={daysElapsed}
-            onChange={e => setDaysElapsed(Number(e.target.value))}
-            className="w-full accent-sky-600"
+            onChange={e => handleDaysChange(Number(e.target.value))}
+            className="w-full accent-sky-600 cursor-pointer"
           />
           <div className="flex justify-between text-[10px] text-slate-400">
-            <span>5 days into cycle</span>
-            <span>Mid-cycle (30d)</span>
-            <span>Full cycle (60d)</span>
+            <span>Early (5d)</span>
+            <span>Halfway (~30d)</span>
+            <span>Full Cycle (60d)</span>
           </div>
         </div>
 
-        {/* Validation Error Message */}
         {validationError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900 flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-            <span>{validationError}</span>
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900">
+            {validationError}
           </div>
         )}
-
-        {/* Calculate CTA */}
-        <button
-          onClick={handleCalculate}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-sky-600 py-4 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 active:scale-[0.98] transition-all touch-target"
-        >
-          <Zap className="h-4 w-4 fill-current" />
-          <span>{t.predictMyBill}</span>
-        </button>
       </div>
 
-      {/* RESULT SECTION IF CALCULATED */}
-      {prediction && (
+      {/* RESULT SECTION */}
+      {prediction && !isLowerError && (
         <section className="space-y-6 pt-2">
           <ResultCard prediction={prediction} previousBillAmount={1148} />
         </section>
       )}
 
-      {/* Alternative Manual Link */}
+      {/* Manual direct unit calculation link */}
       <div className="text-center pt-2 pb-6">
         <Link
           href="/manual"
-          className="text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
+          className="text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors"
         >
-          {lang === 'ml' ? 'യൂണിറ്റ് മാത്രം അറിയാമോ? ഇവിടെ കണക്കാക്കാം' : 'Just know your total units? Calculate directly'}
+          {lang === 'ml' ? 'യൂണിറ്റ് നേരിട്ട് നൽകി കണക്കാക്കാം' : 'Already know your total units? Calculate directly without readings'}
         </Link>
       </div>
     </div>
@@ -295,7 +356,13 @@ function PredictContent() {
 
 export default function PredictPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-slate-500">Loading prediction engine...</div>}>
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10">
+          <CardSkeleton title="Preparing meter prediction engine..." />
+        </div>
+      }
+    >
       <PredictContent />
     </Suspense>
   );

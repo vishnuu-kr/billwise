@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { calculateBill } from '@/lib/calculation/engine';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import BillExplanation from '@/components/BillExplanation';
+import CardSkeleton from '@/components/CardSkeleton';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
@@ -42,7 +43,13 @@ function ExplainContent() {
 
 export default function ExplainPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-slate-500">Loading bill breakdown...</div>}>
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10">
+          <CardSkeleton title="Deconstructing bill charges..." />
+        </div>
+      }
+    >
       <ExplainContent />
     </Suspense>
   );

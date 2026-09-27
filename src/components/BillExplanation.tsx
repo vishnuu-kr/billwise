@@ -32,8 +32,12 @@ export default function BillExplanation({ calculation }: BillExplanationProps) {
       color: 'bg-sky-600',
       icon: Zap,
       note: calculation.isTelescopicApplied
-        ? 'Billed across telescopic tiers (0-80, 81-160, 161-200, 201-250 units).'
-        : 'Non-telescopic flat rate applied (consumption > 500 units bi-monthly).',
+        ? (lang === 'ml'
+            ? 'ടെലിസ്കോപ്പിക് സ്ലാബ് നിരക്കുകൾ പ്രകാരം (0-80, 81-160, 161-200, 201-250 യൂണിറ്റ്).'
+            : 'Billed across telescopic tiers (0-80, 81-160, 161-200, 201-250 units).')
+        : (lang === 'ml'
+            ? 'നോൺ-ടെലിസ്കോപ്പിക് ഫ്ലാറ്റ് നിരക്ക് ബാധകം (500 യൂണിറ്റിൽ കൂടുതൽ).'
+            : 'Non-telescopic flat rate applied (consumption > 500 units bi-monthly).'),
     },
     {
       label: t.fixedCharges,
@@ -41,7 +45,9 @@ export default function BillExplanation({ calculation }: BillExplanationProps) {
       amount: calculation.grossFixedCharge,
       color: 'bg-indigo-500',
       icon: Building,
-      note: 'Bi-monthly charge for maintaining service connection and line capacity.',
+      note: lang === 'ml'
+        ? 'കണക്ഷനും വൈദ്യുതി ലൈൻ ശേഷിയും നിലനിർത്താനുള്ള രണ്ട് മാസ ചാർജ്.'
+        : 'Bi-monthly charge for maintaining service connection and line capacity.',
     },
     {
       label: t.dutyCharges,
@@ -49,7 +55,9 @@ export default function BillExplanation({ calculation }: BillExplanationProps) {
       amount: calculation.electricityDuty,
       color: 'bg-amber-500',
       icon: Scale,
-      note: '10% statutory state duty levied on electricity consumption.',
+      note: lang === 'ml'
+        ? 'വൈദ്യുതി ഉപയോഗത്തിന്മേൽ ഈടാക്കുന്ന 10% സംസ്ഥാന നിയമാനുസൃത നികുതി.'
+        : '10% statutory state duty levied on electricity consumption.',
     },
     {
       label: t.fuelAdjustmentCharges,
@@ -57,7 +65,9 @@ export default function BillExplanation({ calculation }: BillExplanationProps) {
       amount: calculation.fuelAdjustment,
       color: 'bg-slate-400',
       icon: Fuel,
-      note: 'Fuel cost variance adjustment per KSERC directives.',
+      note: lang === 'ml'
+        ? 'KSERC നിർദ്ദേശപ്രകാരമുള്ള ഇന്ധന സർചാർജ്.'
+        : 'Fuel cost variance adjustment per KSERC directives.',
     },
     {
       label: t.meterRentCharges,
@@ -65,7 +75,9 @@ export default function BillExplanation({ calculation }: BillExplanationProps) {
       amount: calculation.meterRent,
       color: 'bg-slate-400',
       icon: Gauge,
-      note: 'Periodic lease charge for utility meter.',
+      note: lang === 'ml'
+        ? 'മീറ്റർ വാടകയും ജി.എസ്.ടിയും.'
+        : 'Periodic lease charge for utility meter.',
     },
   ];
 
@@ -105,13 +117,16 @@ export default function BillExplanation({ calculation }: BillExplanationProps) {
         </div>
         <div className="flex items-center justify-between text-[11px] text-slate-500">
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-sky-600 inline-block" /> Energy ({calculation.explanation.energySharePct}%)
+            <span className="h-2 w-2 rounded-full bg-sky-600 inline-block" />
+            {lang === 'ml' ? `ഉപയോഗം (${calculation.explanation.energySharePct}%)` : `Energy (${calculation.explanation.energySharePct}%)`}
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-indigo-500 inline-block" /> Fixed
+            <span className="h-2 w-2 rounded-full bg-indigo-500 inline-block" />
+            {lang === 'ml' ? 'ഫിക്സഡ്' : 'Fixed'}
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-amber-500 inline-block" /> Duty (10%)
+            <span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />
+            {lang === 'ml' ? 'ഡ്യൂട്ടി (10%)' : 'Duty (10%)'}
           </span>
         </div>
       </div>
@@ -141,7 +156,7 @@ export default function BillExplanation({ calculation }: BillExplanationProps) {
                   ₹{item.amount.toFixed(2)}
                 </div>
                 <div className="text-[10px] text-slate-400">
-                  {share}% of bill
+                  {lang === 'ml' ? `ബില്ലിന്റെ ${share}%` : `${share}% of bill`}
                 </div>
               </div>
             </div>
@@ -201,16 +216,18 @@ export default function BillExplanation({ calculation }: BillExplanationProps) {
         {showTechnical && (
           <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
             <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Slab-by-Slab Telescopic Computation ({calculation.effectiveTariffVersion})
+              {lang === 'ml'
+                ? `സ്ലാബ് തിരിച്ചുള്ള കണക്കുകൂട്ടൽ (${calculation.effectiveTariffVersion})`
+                : `Slab-by-Slab Telescopic Computation (${calculation.effectiveTariffVersion})`}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="pb-1.5 font-medium">Slab Range</th>
-                    <th className="pb-1.5 font-medium text-center">Units</th>
-                    <th className="pb-1.5 font-medium text-right">Rate</th>
-                    <th className="pb-1.5 font-medium text-right">Amount</th>
+                    <th className="pb-1.5 font-medium">{lang === 'ml' ? 'സ്ലാബ് പരിധി' : 'Slab Range'}</th>
+                    <th className="pb-1.5 font-medium text-center">{lang === 'ml' ? 'യൂണിറ്റ്' : 'Units'}</th>
+                    <th className="pb-1.5 font-medium text-right">{lang === 'ml' ? 'നിരക്ക്' : 'Rate'}</th>
+                    <th className="pb-1.5 font-medium text-right">{lang === 'ml' ? 'തുക' : 'Amount'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-mono">
@@ -223,7 +240,7 @@ export default function BillExplanation({ calculation }: BillExplanationProps) {
                     </tr>
                   ))}
                   <tr className="font-bold border-t border-slate-200">
-                    <td className="pt-2 font-sans">Gross Energy Total</td>
+                    <td className="pt-2 font-sans">{lang === 'ml' ? 'ആകെ ഉപയോഗ നിരക്ക്' : 'Gross Energy Total'}</td>
                     <td className="pt-2 text-center">{calculation.units}</td>
                     <td></td>
                     <td className="pt-2 text-right text-sky-700">₹{calculation.grossEnergyCharge.toFixed(2)}</td>
@@ -233,7 +250,7 @@ export default function BillExplanation({ calculation }: BillExplanationProps) {
             </div>
 
             <p className="text-[11px] text-slate-500 leading-relaxed border-t border-slate-200 pt-2">
-              Formula: {calculation.explanation.formulaSummary}
+              {lang === 'ml' ? 'സൂത്രവാക്യം:' : 'Formula:'} {calculation.explanation.formulaSummary}
             </p>
           </div>
         )}

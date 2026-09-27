@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateBill } from '../src/lib/calculation/engine';
+import { CURRENT_KSEB_TARIFF_VERSION } from '../src/lib/tariffs/ksebTariff2024';
 
 describe('Regression Test: Real Kerala Household Reference Bill Fixture', () => {
   /**
@@ -63,10 +64,23 @@ describe('Regression Test: Real Kerala Household Reference Bill Fixture', () => 
     expect(bill.discrepancyNote).toContain('1,150');
   });
 
-  it('provides transparent explanation for every rupee', () => {
-    const bill = calculateBill(referenceInput);
-    expect(bill.explanation.summary).toContain('240 units');
-    expect(bill.explanation.subsidyBenefitText).toContain('148');
-    expect(bill.explanation.dutyExplanation).toContain('97.40');
+  it('mathematically reconciles the ₹2 difference between ₹1,148 and ₹1,150 via fuel surcharge rate', () => {
+    const bill1p = calculateBill(referenceInput); // default 1p / unit FAC
+    
+    // Test with 2p / unit FAC (as used in some third-party web calculators)
+    const customTariff2p = {
+      ...bill1p,
+      fuelAdjustmentRatePerUnit: 0.02,
+    };
+    const bill2p = calculateBill(referenceInput, {
+      ...CURRENT_KSEB_TARIFF_VERSION,
+      fuelAdjustmentRatePerUnit: 0.02,
+    });
+
+    expect(bill1p.fuelAdjustment).toBe(2.40);
+    expect(bill2p.fuelAdjustment).toBe(4.80);
+    expect(bill1p.total).toBe(1148);
+    expect(bill2p.total).toBe(1150);
+    expect(bill2p.total - bill1p.total).toBe(2);
   });
 });

@@ -65,7 +65,9 @@ export default function UsagePage() {
           {lang === 'ml' ? 'ഉപയോഗത്തിൽ വന്ന മാറ്റങ്ങൾ' : 'What changed this cycle?'}
         </h1>
         <p className="mt-1 text-xs text-slate-600">
-          Compare your current billing cycle against the previous period.
+          {lang === 'ml'
+            ? 'കഴിഞ്ഞ ബില്ലിംഗ് കാലയളവുമായി ഇപ്പോഴത്തെ ഉപയോഗം താരതമ്യം ചെയ്യാം.'
+            : 'Compare your current billing cycle against the previous period.'}
         </p>
       </div>
 
@@ -73,7 +75,7 @@ export default function UsagePage() {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            Bi-Monthly Comparison
+            {lang === 'ml' ? 'രണ്ട് മാസ താരതമ്യം' : 'Bi-Monthly Comparison'}
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700">
             <ArrowUpRight className="h-3.5 w-3.5" /> +{pctChange}%
@@ -82,39 +84,62 @@ export default function UsagePage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-2xl bg-sky-50/70 p-4 border border-sky-100">
-            <div className="text-xs font-medium text-sky-800">This Cycle</div>
-            <div className="mt-1 font-mono text-2xl sm:text-3xl font-extrabold text-slate-900 num-tabular">
-              {currentUnits} <span className="text-xs font-medium text-slate-500">units</span>
+            <div className="text-xs font-medium text-sky-800">
+              {lang === 'ml' ? 'ഈ തവണ' : 'This Cycle'}
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Estimated</div>
+            <div className="mt-1 font-mono text-2xl sm:text-3xl font-extrabold text-slate-900 num-tabular">
+              {currentUnits} <span className="text-xs font-medium text-slate-500">{lang === 'ml' ? 'യൂണിറ്റ്' : 'units'}</span>
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">
+              {lang === 'ml' ? 'പ്രതീക്ഷിക്കുന്നത്' : 'Estimated'}
+            </div>
           </div>
 
           <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
-            <div className="text-xs font-medium text-slate-500">Previous Cycle</div>
-            <div className="mt-1 font-mono text-2xl sm:text-3xl font-extrabold text-slate-700 num-tabular">
-              {previousUnits} <span className="text-xs font-medium text-slate-500">units</span>
+            <div className="text-xs font-medium text-slate-500">
+              {lang === 'ml' ? 'കഴിഞ്ഞ തവണ' : 'Previous Cycle'}
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Reference bill</div>
+            <div className="mt-1 font-mono text-2xl sm:text-3xl font-extrabold text-slate-700 num-tabular">
+              {previousUnits} <span className="text-xs font-medium text-slate-500">{lang === 'ml' ? 'യൂണിറ്റ്' : 'units'}</span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              {lang === 'ml' ? 'മുൻ ബിൽ' : 'Reference bill'}
+            </div>
           </div>
         </div>
 
         <div className="rounded-xl bg-amber-50/80 border border-amber-200 p-3.5 text-xs text-amber-900">
-          <p className="font-semibold text-amber-950">
-            Consumption increased by {unitDiff} units (+{pctChange}%).
-          </p>
-          <p className="mt-0.5 text-amber-800 leading-relaxed">
-            Crossing 240 units also transitioned your account above the government subsidy threshold, increasing your payable bill amount by approximately ₹298.
-          </p>
+          {lang === 'ml' ? (
+            <>
+              <p className="font-semibold text-amber-950">
+                ഉപയോഗം {unitDiff} യൂണിറ്റുകൾ (+{pctChange}%) വർദ്ധിച്ചു.
+              </p>
+              <p className="mt-0.5 text-amber-800 leading-relaxed">
+                240 യൂണിറ്റ് കഴിഞ്ഞതിനാൽ സർക്കാർ സബ്സിഡി ഇളവ് നഷ്ടപ്പെടുകയും ബിൽ തുകയിൽ ഏകദേശം ₹298 വർദ്ധനവ് വരികയും ചെയ്തു.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold text-amber-950">
+                Consumption increased by {unitDiff} units (+{pctChange}%).
+              </p>
+              <p className="mt-0.5 text-amber-800 leading-relaxed">
+                Crossing 240 units also transitioned your account above the government subsidy threshold, increasing your payable bill amount by approximately ₹298.
+              </p>
+            </>
+          )}
         </div>
       </div>
 
       {/* Likely Contributors Section */}
       <div className="space-y-3">
         <h3 className="font-bold text-slate-900 text-sm">
-          Possible contributors to your increase
+          {lang === 'ml' ? 'ഉപയോഗം കൂടാൻ സാധ്യതയുള്ള കാരണങ്ങൾ' : 'Possible contributors to your increase'}
         </h3>
         <p className="text-xs text-slate-500">
-          Statistical likelihood based on typical Kerala residential consumption patterns:
+          {lang === 'ml'
+            ? 'കേരളത്തിലെ സാധാരണ വീടുകളിലെ വൈദ്യുതി ഉപയോഗ രീതികളെ അടിസ്ഥാനമാക്കിയുള്ളത്:'
+            : 'Statistical likelihood based on typical Kerala residential consumption patterns:'}
         </p>
 
         <div className="space-y-2.5">
@@ -148,20 +173,22 @@ export default function UsagePage() {
       </div>
 
       {/* Action to Appliance Estimator */}
-      <div className="rounded-2xl bg-sky-50 border border-sky-100 p-4 flex items-center justify-between">
+      <div className="rounded-2xl bg-sky-50 border border-sky-100 p-4 flex items-center justify-between gap-3">
         <div>
           <h4 className="font-semibold text-slate-900 text-xs">
-            Want exact appliance breakdown?
+            {lang === 'ml' ? 'ഉപകരണങ്ങളുടെ കണക്ക് കൃത്യമായി അറിയണോ?' : 'Want exact appliance breakdown?'}
           </h4>
           <p className="text-[11px] text-slate-600">
-            Enter your household appliance hours in the estimator.
+            {lang === 'ml'
+              ? 'നിങ്ങളുടെ വീട്ടുപകരണങ്ങളുടെ ഉപയോഗ സമയം നൽകി പരിശോധിക്കാം.'
+              : 'Enter your household appliance hours in the estimator.'}
           </p>
         </div>
         <Link
           href="/appliances"
-          className="rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-sky-500 transition-colors shrink-0"
+          className="rounded-xl bg-sky-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-sky-500 transition-colors shrink-0 touch-target flex items-center justify-center"
         >
-          Open Estimator
+          {lang === 'ml' ? 'എസ്റ്റിമേറ്റർ തുറക്കാം' : 'Open Estimator'}
         </Link>
       </div>
     </div>

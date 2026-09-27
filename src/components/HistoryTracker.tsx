@@ -53,10 +53,10 @@ export default function HistoryTracker() {
       const content = evt.target?.result as string;
       const success = storageManager.importData(content);
       if (success) {
-        setImportStatus('Data imported successfully!');
+        setImportStatus(lang === 'ml' ? 'വിവരങ്ങൾ വിജയകരമായി ചേർത്തു!' : 'Data imported successfully!');
         refreshData();
       } else {
-        setImportStatus('Failed to import: invalid JSON format.');
+        setImportStatus(lang === 'ml' ? 'ഡാറ്റ ചേർക്കാനായില്ല: ഫയൽ ഫോർമാറ്റ് പരിശോധിക്കുക.' : 'Failed to import: invalid JSON format.');
       }
       setTimeout(() => setImportStatus(null), 3000);
     };
@@ -64,7 +64,10 @@ export default function HistoryTracker() {
   };
 
   const handleClear = () => {
-    if (confirm('Are you sure you want to clear your local history and saved budget?')) {
+    const confirmMsg = lang === 'ml'
+      ? 'നിങ്ങളുടെ സേവ് ചെയ്ത മുൻകാല വിവരങ്ങളും ബജറ്റും പൂർണ്ണമായി ഒഴിവാക്കണോ?'
+      : 'Are you sure you want to clear your local history and saved budget?';
+    if (confirm(confirmMsg)) {
       storageManager.clearAllData();
       refreshData();
     }
@@ -90,12 +93,12 @@ export default function HistoryTracker() {
             title="Export JSON"
           >
             <Download className="h-3.5 w-3.5" />
-            <span>Export</span>
+            <span>{lang === 'ml' ? 'ഡൗൺലോഡ്' : 'Export'}</span>
           </button>
 
           <label className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">
             <Upload className="h-3.5 w-3.5" />
-            <span>Import</span>
+            <span>{lang === 'ml' ? 'അപ്‌ലോഡ്' : 'Import'}</span>
             <input type="file" accept=".json" onChange={handleImport} className="hidden" />
           </label>
         </div>
@@ -122,7 +125,9 @@ export default function HistoryTracker() {
         </div>
 
         <div className="text-right">
-          <div className="text-xs text-slate-500 font-medium">Average Bill</div>
+          <div className="text-xs text-slate-500 font-medium">
+            {lang === 'ml' ? 'ശരാശരി ബിൽ' : 'Average Bill'}
+          </div>
           <div className="mt-1 font-mono text-xl font-bold text-sky-700 num-tabular">
             ₹{stats.averageBill.toLocaleString('en-IN')}
           </div>
@@ -140,7 +145,9 @@ export default function HistoryTracker() {
       {/* Chart View Toggle (Units vs Bill) */}
       <div className="flex items-center justify-between">
         <h4 className="font-semibold text-slate-900 text-sm">
-          {viewMode === 'units' ? 'Consumption Trend' : 'Bill Amount Trend'}
+          {lang === 'ml'
+            ? (viewMode === 'units' ? 'ഉപയോഗ പ്രവണത' : 'ബിൽ തുക പ്രവണത')
+            : (viewMode === 'units' ? 'Consumption Trend' : 'Bill Amount Trend')}
         </h4>
         <div className="inline-flex rounded-lg border border-slate-200 p-0.5 text-xs">
           <button
@@ -157,7 +164,7 @@ export default function HistoryTracker() {
               viewMode === 'bill' ? 'bg-sky-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Rupees (₹)
+            {lang === 'ml' ? 'രൂപ (₹)' : 'Rupees (₹)'}
           </button>
         </div>
       </div>
@@ -191,8 +198,8 @@ export default function HistoryTracker() {
       {/* Detailed Records List */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider">
-          <span>Billing Records</span>
-          <span>{history.length} cycles</span>
+          <span>{lang === 'ml' ? 'ബില്ലിംഗ് വിവരങ്ങൾ' : 'Billing Records'}</span>
+          <span>{history.length} {lang === 'ml' ? 'തവണകൾ' : 'cycles'}</span>
         </div>
 
         <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl bg-white overflow-hidden">
@@ -207,7 +214,9 @@ export default function HistoryTracker() {
                     {record.dateLabel}
                   </div>
                   <div className="text-[11px] text-slate-500">
-                    {record.meterReading ? `Reading: ${record.meterReading.toLocaleString()}` : record.notes}
+                    {record.meterReading
+                      ? `${lang === 'ml' ? 'റീഡിംഗ്:' : 'Reading:'} ${record.meterReading.toLocaleString()}`
+                      : record.notes}
                   </div>
                 </div>
               </div>
@@ -229,17 +238,17 @@ export default function HistoryTracker() {
       <div className="flex items-center justify-between pt-2">
         <Link
           href="/predict"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700 touch-target"
         >
           <Plus className="h-4 w-4" />
-          <span>Add new reading</span>
+          <span>{lang === 'ml' ? 'പുതിയ റീഡിംഗ് നൽകാം' : 'Add new reading'}</span>
         </Link>
 
         <button
           onClick={handleClear}
-          className="text-[11px] text-slate-400 hover:text-red-500 transition-colors"
+          className="text-[11px] text-slate-400 hover:text-red-500 transition-colors touch-target py-2 px-1"
         >
-          Clear local history
+          {lang === 'ml' ? 'ചരിത്രം ഒഴിവാക്കുക' : 'Clear local history'}
         </button>
       </div>
     </div>

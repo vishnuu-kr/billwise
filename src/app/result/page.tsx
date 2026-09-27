@@ -6,6 +6,7 @@ import { predictUsage } from '@/lib/prediction/engine';
 import { calculateBill } from '@/lib/calculation/engine';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import ResultCard from '@/components/ResultCard';
+import CardSkeleton from '@/components/CardSkeleton';
 import Link from 'next/link';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 
@@ -50,7 +51,13 @@ function ResultContent() {
 
 export default function ResultPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm text-slate-500">Loading prediction result...</div>}>
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10">
+          <CardSkeleton title="Calculating projected bill..." />
+        </div>
+      }
+    >
       <ResultContent />
     </Suspense>
   );
