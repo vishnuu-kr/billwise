@@ -1,6 +1,9 @@
 import { HistoryRecord, BudgetConfig, UserFeedbackRecord, FeedbackSummaryStats } from '@/types';
 
+export const CURRENT_SCHEMA_VERSION = 1;
+
 const STORAGE_KEYS = {
+  SCHEMA_VERSION: 'billwise_schema_version',
   HISTORY: 'billwise_history_v1',
   BUDGET: 'billwise_budget_v1',
   LAST_READING: 'billwise_last_reading_v1',
@@ -378,6 +381,52 @@ export class StorageManager {
 
   setOnboardingCompleted(completed: boolean = true): void {
     this.setItem(STORAGE_KEYS.ONBOARDING, completed ? 'true' : 'false');
+  }
+
+  // ==========================================
+  // Schema Versioning & Self-Healing Migration
+  // ==========================================
+
+  getSchemaVersion(): number {
+    try {
+      const v = this.getItem(STORAGE_KEYS.SCHEMA_VERSION);
+      return v ? parseInt(v, 10) : 1;
+    } catch {
+      return 1;
+    }
+  }
+
+  migrateSchema(targetVersion: number = CURRENT_SCHEMA_VERSION): {
+    oldVersion: number;
+    newVersion: number;
+    success: boolean;
+  } {
+    const oldVersion = this.getSchemaVersion();
+    if (oldVersion >= targetVersion) {
+      return { oldVersion, newVersion: oldVersion, success: true };
+    }
+
+    try {
+      // Step-by-step migrations
+      if (oldVersion < 1) {
+        // Migration to v1: Ensure valid JSON in history & budget
+        const rawHistory = this.getItem(STORAGE_KEYS.HISTORY);
+        if (rawHistory) {
+          try {
+            JSON.parse(rawHistory);
+          } catch {
+            // Self-healing: Reset corrupted history to empty array
+            this.setItem(STORAGE_KEYS.HISTORY, JSON.stringify([]));
+          }
+        }
+      }
+
+      this.setItem(STORAGE_KEYS.SCHEMA_VERSION, targetVersion.toString());
+      return { oldVersion, newVersion: targetVersion, success: true };
+    } catch (e) {
+      console.error('Schema migration failed, retaining current schema', e);
+      return { oldVersion, newVersion: oldVersion, success: false };
+    }
   }
 }
 

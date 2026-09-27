@@ -14,10 +14,13 @@ import {
   Clock,
   Check,
   Tag,
+  Smartphone,
+  Info,
 } from 'lucide-react';
 import ShareModal from './ShareModal';
 import FeedbackWidget from './FeedbackWidget';
 import { APP_CONFIG } from '@/lib/config/flags';
+import { storageManager } from '@/lib/storage';
 
 interface ResultCardProps {
   prediction: PredictionResult;
@@ -223,31 +226,49 @@ export default function ResultCard({
         </div>
       )}
 
-      {/* Tariff Transparency (Item 22) */}
+      {/* Tariff Transparency & Visibility (Section 13) */}
       <div className="border-t border-slate-100 pt-3 mb-6">
         <button
           type="button"
           onClick={() => setShowTariffDetails(!showTariffDetails)}
           className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center justify-between w-full py-1"
         >
-          <span>{lang === 'ml' ? 'ഉപയോഗിച്ച താരിഫ് വിവരങ്ങൾ' : 'View tariff rules used'}</span>
+          <span>{lang === 'ml' ? 'ഉപയോഗിച്ച താരിഫ് വിവരങ്ങൾ' : 'Tariff rules used'}</span>
           <span className="font-mono text-slate-400">{showTariffDetails ? '▲ Hide' : '▼ Inspect'}</span>
         </button>
         {showTariffDetails && (
           <div className="mt-2 rounded-xl bg-slate-50 p-3.5 text-[11px] text-slate-600 space-y-1.5 font-mono border border-slate-100">
             <div>Schedule: {prediction.calculatedBillResult.effectiveTariffVersion} (LT-1A Domestic)</div>
+            <div>Period: Effective from 2024-11-01 to Present (Active)</div>
             <div>Cycle: {prediction.calculatedBillResult.billingCycle} • Phase: {prediction.calculatedBillResult.phase}</div>
             <div>Connected Load: {prediction.calculatedBillResult.connectedLoadWatts} W</div>
-            <div>Fuel Adjustment (FAC): ₹{prediction.calculatedBillResult.fuelAdjustment.toFixed(2)} (1p/unit)</div>
+            <div>Fuel Adjustment (FAC): ₹{prediction.calculatedBillResult.fuelAdjustment.toFixed(2)} (1p/unit baseline)</div>
             <div>Electricity Duty: 10% statutory state duty (₹{prediction.calculatedBillResult.electricityDuty.toFixed(2)})</div>
             {prediction.calculatedBillResult.totalSubsidies > 0 ? (
-              <div className="text-emerald-700 font-bold">Government Subsidy: ₹{prediction.calculatedBillResult.totalSubsidies} applied</div>
+              <div className="text-emerald-700 font-bold">Government Subsidy: ₹{prediction.calculatedBillResult.totalSubsidies} applied (up to 240 units limit)</div>
             ) : (
-              <div className="text-slate-400">Subsidies: None (above 240 units limit)</div>
+              <div className="text-slate-400">Subsidies: None (above 240 units bi-monthly ceiling)</div>
             )}
           </div>
         )}
       </div>
+
+      {/* Smart Need-More-Data Contextual Notice (Section 20) */}
+      {(!hasPreviousBill || storageManager.getHistory().length <= 1) && (
+        <div className="mb-6 rounded-2xl bg-sky-50/80 border border-sky-100 p-3 text-xs text-sky-900 flex items-start gap-2.5">
+          <Info className="h-4 w-4 text-sky-600 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="font-semibold block text-xs text-sky-950">
+              {lang === 'ml' ? 'കൂടുതൽ വിവരങ്ങൾ ആവശ്യമാണ്' : 'Early estimate based on initial reading'}
+            </span>
+            <span className="text-[11px] text-sky-800 leading-relaxed block">
+              {lang === 'ml'
+                ? 'നിങ്ങളുടെ ആദ്യ റീഡിംഗ് അടിസ്ഥാനമാക്കിയുള്ളതാണ് ഈ കണക്ക്. അടുത്ത സൈക്കിളിൽ ഒരു റീഡിംഗ് കൂടി ചേർക്കുമ്പോൾ കൂടുതൽ കൃത്യമായ കണക്കുകൂട്ടൽ ലഭിക്കും.'
+                : 'Your estimate is based on one previous bill. Add one more reading next cycle for a more personalized estimate.'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Three Primary Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 mb-6">
@@ -277,12 +298,34 @@ export default function ResultCard({
       </div>
 
       {/* User Feedback Widget (Beta calibration) */}
-      <div className="pt-1 mb-5">
+      <div className="pt-1 mb-4">
         <FeedbackWidget
           context="prediction_result"
           units={prediction.projectedUnits}
           predictedBill={prediction.estimatedBill}
         />
+      </div>
+
+      {/* Subtle PWA Install Suggestion (Section 25) */}
+      <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 mb-5 flex items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5">
+          <Smartphone className="h-4 w-4 text-slate-500 shrink-0" />
+          <div>
+            <span className="font-semibold text-slate-800 block text-xs">
+              {lang === 'ml' ? 'ഹോം സ്ക്രീനിൽ വെക്കാം' : 'Keep BILLWISE on your phone'}
+            </span>
+            <span className="text-[11px] text-slate-500 block">
+              {lang === 'ml' ? 'ആപ്പ് സ്റ്റോറുകൾ ഇല്ലാതെ വേഗത്തിൽ മീറ്റർ പരിശോധിക്കാം' : 'Access your meter estimates anytime without app stores'}
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => alert(lang === 'ml' ? 'ബ്രൗസർ മെനുവിൽ നിന്ന് (⋮) "Add to Home screen" ക്ലിക്ക് ചെയ്യുക' : 'Tap your browser menu (⋮ or Share) and select "Add to Home Screen"')}
+          className="shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+        >
+          {lang === 'ml' ? 'ഇൻസ്റ്റാൾ' : 'Add to Home'}
+        </button>
       </div>
 
       {/* Tariff Version Indicator */}
