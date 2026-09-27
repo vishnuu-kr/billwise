@@ -93,16 +93,38 @@ class PrivacyFirstAnalytics {
     }
 
     // Map events to funnel stages
-    if (event === 'page_visit') {
+    if (event === 'page_visit' || event === 'app_opened') {
       this.incrementStage('visit');
-    } else if (['flow_started', 'scan_started', 'meter_scan_started'].includes(event)) {
+    } else if (['flow_started', 'scan_started', 'meter_scan_started', 'manual_entry'].includes(event)) {
       this.incrementStage('input_selected');
     } else if (['result_viewed', 'prediction_generated', 'manual_calculation'].includes(event)) {
       this.incrementStage('result_viewed');
     } else if (['what_if_used', 'budget_used'].includes(event)) {
       this.incrementStage('simulator_used');
-    } else if (['history_recorded', 'actual_bill_recorded', 'share_clicked', 'feedback_submitted'].includes(event)) {
+    } else if (['history_recorded', 'actual_bill_recorded', 'share_clicked', 'feedback_submitted', 'prediction_feedback'].includes(event)) {
       this.incrementStage('retention_action');
+    }
+
+    // Phase 6: Asynchronous server beacon transmission (non-blocking, zero personal data)
+    if (this.isBrowser()) {
+      try {
+        fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event,
+            timestamp: payload.timestamp,
+            appVersion: payload.properties?.appVersion || '0.6.0-beta',
+            feature: payload.properties?.feature,
+            locale: payload.properties?.locale || 'en',
+          }),
+          keepalive: true,
+        }).catch(() => {
+          // Silent catch: network failures must never break the client
+        });
+      } catch {
+        // Silent catch
+      }
     }
   }
 

@@ -11,6 +11,7 @@ import {
   ComponentReconciliationItem,
 } from '@/types';
 import { tariffRepo } from '@/lib/tariffs';
+import { SITE_CONFIG } from '@/lib/config/site';
 
 /**
  * Validates and extracts consumed units from BillInput
@@ -247,6 +248,7 @@ export function calculateBill(
     
     isTelescopicApplied,
     effectiveTariffVersion: tariff.versionName,
+    calculationEngineVersion: SITE_CONFIG.calculationEngineVersion,
     slabBreakdown,
     explanation: {
       summary,

@@ -1,4 +1,5 @@
 import { HistoryRecord, BudgetConfig, UserFeedbackRecord, FeedbackSummaryStats } from '@/types';
+import { SITE_CONFIG } from '@/lib/config/site';
 
 export const CURRENT_SCHEMA_VERSION = 1;
 
@@ -25,6 +26,9 @@ const SEED_HISTORY: HistoryRecord[] = [
     actualBill: 1012,
     billingCycle: 'bi-monthly',
     source: 'manual',
+    tariffVersionId: SITE_CONFIG.activeTariffId,
+    calculationEngineVersion: SITE_CONFIG.calculationEngineVersion,
+    predictionModelVersion: SITE_CONFIG.predictionModelVersion,
     notes: 'Pre-monsoon cycle',
   },
   {
@@ -37,6 +41,9 @@ const SEED_HISTORY: HistoryRecord[] = [
     actualBill: 1148,
     billingCycle: 'bi-monthly',
     source: 'scan',
+    tariffVersionId: SITE_CONFIG.activeTariffId,
+    calculationEngineVersion: SITE_CONFIG.calculationEngineVersion,
+    predictionModelVersion: SITE_CONFIG.predictionModelVersion,
     notes: 'Reference fixture bill',
   },
 ];
@@ -107,6 +114,9 @@ export class StorageManager {
   addRecord(record: Omit<HistoryRecord, 'id' | 'timestamp'>): HistoryRecord {
     const records = this.getHistory();
     const newRecord: HistoryRecord = {
+      calculationEngineVersion: SITE_CONFIG.calculationEngineVersion,
+      predictionModelVersion: SITE_CONFIG.predictionModelVersion,
+      tariffVersionId: SITE_CONFIG.activeTariffId,
       ...record,
       id: `hist-${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -326,6 +336,19 @@ export class StorageManager {
     } catch (e) {
       console.error('Failed to save feedback', e);
     }
+
+    // Phase 6: Asynchronous server feedback ingestion (non-blocking, client never waits)
+    if (this.isBrowser()) {
+      try {
+        fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sanitizedRecord),
+          keepalive: true,
+        }).catch(() => {});
+      } catch {}
+    }
+
     return sanitizedRecord;
   }
 

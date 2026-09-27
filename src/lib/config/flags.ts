@@ -1,12 +1,15 @@
+import { SITE_CONFIG } from './site';
+
 export const APP_CONFIG = {
-  appName: 'BILLWISE',
-  version: '0.5.0-beta',
-  releaseStage: 'public-beta',
-  tariffVersionLabel: 'KSERC Nov 2024 (LT-1A)',
-  activeTariffId: 'kseb-kserc-2024-v1',
-  supportEmail: 'feedback@billwise.app',
+  appName: SITE_CONFIG.name,
+  version: SITE_CONFIG.appVersion,
+  releaseStage: SITE_CONFIG.releaseStage,
+  tariffVersionLabel: SITE_CONFIG.activeTariffLabel,
+  activeTariffId: SITE_CONFIG.activeTariffId,
+  supportEmail: SITE_CONFIG.supportEmail,
   zeroPiiGuarantee: true,
   buildDate: '2026-09-27',
+  domain: SITE_CONFIG.domain,
 } as const;
 
 export const FEATURE_FLAGS = {
@@ -18,6 +21,13 @@ export const FEATURE_FLAGS = {
   enableOnboardingGuide: true,
   enableTariffAuditConsole: true,
   showBetaBadge: true,
+  // Staged feature rollout percentages (0, 10, 50, 100) as per Section 39
+  rolloutPercentages: {
+    meterOcr: 100,
+    billOcr: 100,
+    remoteTelemetry: 100,
+    experimentalPrediction: 0, // Disabled in production
+  },
 } as const;
 
 export type FeatureFlagKey = keyof typeof FEATURE_FLAGS;

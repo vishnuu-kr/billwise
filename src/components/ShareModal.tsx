@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { PredictionResult } from '@/types';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { SITE_CONFIG, getShareUrl } from '@/lib/config/site';
 import { X, Check, Copy, Share2 } from 'lucide-react';
 
 interface ShareModalProps {
@@ -18,7 +19,7 @@ export default function ShareModal({ prediction, onClose }: ShareModalProps) {
 Next KSEB Bill: ₹${prediction.estimatedBill.toLocaleString('en-IN')}
 Likely range: ₹${prediction.likelyRangeMin.toLocaleString('en-IN')} – ₹${prediction.likelyRangeMax.toLocaleString('en-IN')}
 Projected: ${prediction.projectedUnits} units (${prediction.unitsPerDay} units/day)
-Calculate yours free on BILLWISE: https://billwise.app`;
+Calculate yours free on BILLWISE: ${getShareUrl(prediction.projectedUnits)}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(shareText);
@@ -66,7 +67,7 @@ Calculate yours free on BILLWISE: https://billwise.app`;
               : `${prediction.projectedUnits} units projected`}
           </div>
           <div className="mt-3 text-[10px] font-mono text-slate-400">
-            billwise.app • Zero privacy tracking
+            {SITE_CONFIG.domain.replace(/^https?:\/\//, '')} • Zero tracking
           </div>
         </div>
 

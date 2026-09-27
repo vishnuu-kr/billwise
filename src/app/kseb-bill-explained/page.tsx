@@ -2,12 +2,13 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { HelpCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { getCanonicalUrl } from '@/lib/config/site';
 
 export const metadata: Metadata = {
   title: 'KSEB Bill Explained — Where Does Your Electricity Money Go?',
   description: 'Understand the exact line items on your KSEB bill: Energy charges, Fixed charges, 10% Electricity Duty, Meter rent, Fuel adjustment, and Subsidies.',
   alternates: {
-    canonical: 'https://billwise.app/kseb-bill-explained',
+    canonical: getCanonicalUrl('/kseb-bill-explained'),
   },
 };
 

@@ -2,12 +2,13 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Gauge, CheckCircle2, ArrowRight } from 'lucide-react';
+import { getCanonicalUrl } from '@/lib/config/site';
 
 export const metadata: Metadata = {
   title: 'How to Calculate KSEB Bill from Current Meter Reading',
   description: 'Step-by-step guide to reading your digital KSEB static electricity meter. Find your cumulative kWh, calculate units consumed, and estimate your bill.',
   alternates: {
-    canonical: 'https://billwise.app/kseb-meter-reading',
+    canonical: getCanonicalUrl('/kseb-meter-reading'),
   },
 };
 

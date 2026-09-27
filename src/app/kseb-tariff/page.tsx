@@ -3,12 +3,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Layers, ArrowRight } from 'lucide-react';
 import { CURRENT_KSEB_TARIFF_VERSION } from '@/lib/tariffs/ksebTariff2024';
+import { getCanonicalUrl } from '@/lib/config/site';
 
 export const metadata: Metadata = {
   title: 'KSEB Tariff Rates & Slabs 2026 — Kerala Electricity Board Schedule',
   description: 'Complete breakdown of KSEB domestic LT-1A tariff slabs, fixed charges, 10% duty, fuel adjustments, and subsidies effective from the latest KSERC tariff order.',
   alternates: {
-    canonical: 'https://billwise.app/kseb-tariff',
+    canonical: getCanonicalUrl('/kseb-tariff'),
   },
 };
 

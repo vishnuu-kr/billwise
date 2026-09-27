@@ -4,8 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { tariffRepo } from '@/lib/tariffs';
 import { CURRENT_KSEB_TARIFF_VERSION, PREVIOUS_KSEB_TARIFF_2023 } from '@/lib/tariffs/ksebTariff2024';
 import { computeTariffDiff } from '@/lib/tariffs/diff';
+import { getActiveTariffStatus } from '@/lib/tariffs/status';
 import { analytics } from '@/lib/observability/analytics';
 import { storageManager } from '@/lib/storage';
+import { SITE_CONFIG } from '@/lib/config/site';
 import {
   TariffVersion,
   TariffDiffItem,
@@ -44,6 +46,9 @@ export default function AdminPage() {
 
   const [activeTab, setActiveTab] = useState<AdminTab>('tariffs');
 
+  // Tariff Currency Status
+  const tariffStatus = getActiveTariffStatus();
+
   // Tariff Editor State
   const [versions, setVersions] = useState<TariffVersion[]>(tariffRepo.getAllVersions());
   const [auditLogs, setAuditLogs] = useState(tariffRepo.getAuditLogs());
@@ -66,19 +71,72 @@ export default function AdminPage() {
   }, [baseDiffVersion, compDiffVersion]);
 
   useEffect(() => {
+    // 1. Local fallback data
     setFunnelData(analytics.getFunnelMetrics());
     setFeedbackList(storageManager.getFeedback());
     setFeedbackStats(storageManager.getFeedbackStats());
+
+    // 2. Query live server telemetry endpoint
+    fetch('/api/events')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data && data.totalEvents > 0) {
+          const stages = [
+            { stage: 'visit', label: '1. App Visit / Landing', count: data.funnelStages?.app_opened || 1 },
+            { stage: 'input_selected', label: '2. Input Flow Started', count: data.funnelStages?.flow_started || 0 },
+            { stage: 'result_viewed', label: '3. Bill Estimate Generated', count: data.funnelStages?.prediction_generated || 0 },
+            { stage: 'simulator_used', label: '4. What-If / Budget Used', count: data.funnelStages?.what_if_used || 0 },
+            { stage: 'retention_action', label: '5. Retention / Feedback', count: data.funnelStages?.retention_action || 0 },
+          ];
+          const totalVisitors = stages[0].count || 1;
+          let prev = totalVisitors;
+          let maxDrop = -1;
+          let highestDrop = 'None';
+          const calculatedStages = stages.map((st, idx) => {
+            const conversionFromPrevious = idx === 0 ? 100 : prev > 0 ? Math.round((st.count / prev) * 100) : 0;
+            const overallConversion = totalVisitors > 0 ? Math.round((st.count / totalVisitors) * 100) : 0;
+            if (idx > 0 && prev - st.count > maxDrop) {
+              maxDrop = prev - st.count;
+              highestDrop = `${stages[idx - 1].label} ➔ ${st.label}`;
+            }
+            prev = st.count;
+            return {
+              ...st,
+              conversionFromPrevious,
+              overallConversion,
+            };
+          });
+          setFunnelData({
+            totalVisitors,
+            stages: calculatedStages,
+            highestDropOffStage: highestDrop,
+          });
+        }
+      })
+      .catch(() => {});
+
+    // 3. Query live server feedback endpoint
+    fetch('/api/feedback')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data && data.stats && data.stats.totalFeedback > 0) {
+          setFeedbackStats(data.stats);
+          if (Array.isArray(data.recent) && data.recent.length > 0) {
+            setFeedbackList(data.recent);
+          }
+        }
+      })
+      .catch(() => {});
   }, [activeTab]);
 
-  // Default demonstration admin PIN for testing/evaluation: "kseb2026"
+  // Demonstration operator passkey for evaluating the console: "kseb2026"
   const handleAuthenticate = (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
     if (passkeyInput === 'kseb2026' || passkeyInput === 'admin123') {
       setIsAuthenticated(true);
     } else {
-      setAuthError('Invalid Admin Passkey. Access denied.');
+      setAuthError('Invalid Operator Passkey. Access denied.');
     }
   };
 
@@ -93,7 +151,7 @@ export default function AdminPage() {
 
   const handleSaveDraft = () => {
     if (!isAuthenticated) {
-      setValidationError('Authorization required to modify tariff configuration.');
+      setValidationError('Operator authorization required to simulate tariff modifications.');
       return;
     }
 
@@ -107,21 +165,32 @@ export default function AdminPage() {
       }
     }
 
-    tariffRepo.saveVersion(selectedVersion, 'Authorized Admin');
+    tariffRepo.saveVersion(selectedVersion, 'Authorized Operator');
     setVersions(tariffRepo.getAllVersions());
     setAuditLogs(tariffRepo.getAuditLogs());
-    setSaveStatus('Tariff changes validated, saved, and recorded in immutable audit log.');
+    setSaveStatus('Simulation: In-memory tariff updated for this session.');
     setTimeout(() => setSaveStatus(null), 3500);
   };
 
   const handlePublish = (versionId: string) => {
     if (!isAuthenticated) return;
-    tariffRepo.setPublished(versionId, 'Authorized Admin');
+    tariffRepo.setPublished(versionId, 'Authorized Operator');
     setVersions(tariffRepo.getAllVersions());
     setAuditLogs(tariffRepo.getAuditLogs());
     setSelectedVersion(tariffRepo.getCurrentTariff());
-    setSaveStatus('Tariff schedule activated as current live production rates.');
+    setSaveStatus('Session simulation: Tariff schedule activated in local memory.');
     setTimeout(() => setSaveStatus(null), 3500);
+  };
+
+  const handleExportCandidateTariff = () => {
+    const json = JSON.stringify(selectedVersion, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `candidate-tariff-${selectedVersion.id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleExportFeedback = () => {
@@ -135,9 +204,12 @@ export default function AdminPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleClearFeedback = () => {
+  const handleClearFeedback = async () => {
     if (!isAuthenticated) return;
-    if (confirm('Clear all stored user feedback entries?')) {
+    if (confirm('Clear all stored user feedback entries across server and client?')) {
+      try {
+        await fetch('/api/feedback', { method: 'DELETE' });
+      } catch {}
       storageManager.clearFeedback();
       setFeedbackList([]);
       setFeedbackStats(storageManager.getFeedbackStats());
@@ -156,25 +228,34 @@ export default function AdminPage() {
               <Lock className="h-3 w-3 text-amber-600" />
             )}
             <span>
-              {isAuthenticated ? 'Admin Session Authenticated' : 'Protected Tariff & Operations Console (Read-Only Preview)'}
+              {isAuthenticated ? 'Operator Console Authenticated (Local Session)' : 'Operator Diagnostics Console (Read-Only Preview)'}
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 mt-2">
-            Operations & Tariff Console
+            Operations & Diagnostics Console
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Maintain versioned KSERC tariff schedules, inspect user conversion funnels, review beta feedback, and audit changes.
+            Audit versioned KSERC tariff schedules, inspect aggregated telemetry, review user feedback, and export candidate tariff patches.
           </p>
         </div>
 
         {isAuthenticated && activeTab === 'tariffs' && (
-          <button
-            onClick={handleSaveDraft}
-            className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 transition-colors"
-          >
-            <Save className="h-4 w-4" />
-            <span>Save & Publish</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCandidateTariff}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition-colors"
+            >
+              <Download className="h-4 w-4" />
+              <span>Export Ingestion JSON</span>
+            </button>
+            <button
+              onClick={handleSaveDraft}
+              className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 transition-colors"
+            >
+              <Save className="h-4 w-4" />
+              <span>Simulate in Memory</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -185,10 +266,10 @@ export default function AdminPage() {
             <Lock className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <h3 className="font-bold text-amber-950 text-sm">
-                Administrative Authentication Required for Modifications
+                Operator Passkey Required for Interactive Editing
               </h3>
               <p className="text-xs text-amber-800 leading-relaxed">
-                You can explore tariff schedules, rate diffs, and funnels in read-only mode. Enter the passkey to edit schedules or clear telemetry.
+                You can review current tariff configurations, diffs, and funnels in read-only mode. Enter the local operator passkey to simulate tariff modifications or purge telemetry.
               </p>
             </div>
           </div>
@@ -198,7 +279,7 @@ export default function AdminPage() {
               <Key className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
               <input
                 type="password"
-                placeholder="Enter Admin Passkey (Demo: kseb2026)"
+                placeholder="Enter Operator Passkey (Demo: kseb2026)"
                 value={passkeyInput}
                 onChange={e => setPasskeyInput(e.target.value)}
                 className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-xs font-mono font-medium text-slate-900 focus:border-sky-500 focus:outline-none"
@@ -219,12 +300,12 @@ export default function AdminPage() {
       ) : (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs text-emerald-950 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-emerald-700" />
-            <span>Authorized Session Active. Any modifications will be recorded in immutable audit logs.</span>
+            <ShieldCheck className="h-4 w-4 text-emerald-700 shrink-0" />
+            <span>Operator Session Active. In-browser rate changes will simulate calculations for this browser tab only. Production deployments require CI verification.</span>
           </div>
           <button
             onClick={() => setIsAuthenticated(false)}
-            className="text-[11px] font-semibold text-emerald-800 underline hover:text-emerald-950"
+            className="text-[11px] font-semibold text-emerald-800 underline hover:text-emerald-950 whitespace-nowrap ml-3"
           >
             Lock Session
           </button>
@@ -323,6 +404,76 @@ export default function AdminPage() {
       {/* TAB 1: TARIFF EDITOR */}
       {activeTab === 'tariffs' && (
         <div className="space-y-6">
+          {/* Authoritative Tariff & FAC Status Card */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Live System Tariff Status
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      tariffStatus.status === 'CURRENT'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    {tariffStatus.status}
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-slate-900 mt-1">
+                  {tariffStatus.versionName}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportCandidateTariff}
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Export JSON Schema</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 space-y-1">
+                <span className="text-[11px] font-medium text-slate-500">FAC Baseline Surcharge</span>
+                <div className="font-mono text-base font-bold text-slate-900">
+                  ₹{tariffStatus.facRateRupees.toFixed(2)}/unit ({tariffStatus.facRatePaise}p)
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  Effective from {tariffStatus.facEffectiveDate}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 space-y-1">
+                <span className="text-[11px] font-medium text-slate-500">FAC Review Schedule</span>
+                <div className="font-mono text-base font-bold text-slate-900">
+                  {tariffStatus.daysSinceFacVerification} days elapsed
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  {tariffStatus.isFacReviewRequired ? 'Review recommended (>60d)' : 'Verified within tolerance'}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 space-y-1">
+                <span className="text-[11px] font-medium text-slate-500">Source Document</span>
+                <div className="font-sans text-xs font-semibold text-slate-800 line-clamp-1">
+                  {tariffStatus.sourceDocument}
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  Validated against official gazette orders
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-3 text-xs text-slate-600">
+              <span className="font-semibold text-slate-800">Verification Statement: </span>
+              {tariffStatus.verificationStatement}
+            </div>
+          </div>
           {/* Version Selector Tabs */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -817,21 +968,16 @@ export default function AdminPage() {
 
             <div className="space-y-3">
               {[
-                { label: 'Domain & Canonical DNS', desc: 'Custom domain and canonical URL headers ready', status: 'Verified' },
-                { label: 'HTTPS / TLS 1.3', desc: 'Secure transport layer enforced across all routes', status: 'Verified' },
-                { label: 'Environment Variables', desc: 'NEXT_PUBLIC_SITE_URL configured, zero exposed secrets', status: 'Verified' },
-                { label: 'Active Tariff Version', desc: 'KSERC Nov 2024 LT-1A schedule loaded as current', status: 'Verified' },
-                { label: 'FAC Rate Calibration', desc: 'Fuel Adjustment Charge tracked as monthly variable parameter', status: 'Verified' },
-                { label: 'OCR & Guardrails', desc: 'Defensive unit consistency check and zero-dead-end fallback active', status: 'Verified' },
-                { label: 'Automated Tests', desc: '64 passing unit tests including reference fixture regression', status: 'Verified' },
-                { label: 'Production Build', desc: '26+ static routes compile successfully in Next.js Turbopack', status: 'Verified' },
-                { label: 'Installable PWA', desc: 'Service worker registers offline cache, manifest.json valid', status: 'Verified' },
-                { label: 'SEO & Meta Tags', desc: 'robots.txt, sitemap.ts, OpenGraph cards configured', status: 'Verified' },
-                { label: 'Anonymous Funnel', desc: 'Zero-PII event pipeline tracking user lifecycle drop-offs', status: 'Verified' },
-                { label: 'Sanitized Error Logging', desc: 'Telemetry strictly strips consumer numbers, phones, and emails', status: 'Verified' },
-                { label: 'Zero-PII Local Privacy', desc: 'Readings and history stored in client-side localStorage only', status: 'Verified' },
-                { label: 'Local Backup & Restore', desc: 'JSON export and import capabilities working smoothly', status: 'Verified' },
-                { label: 'Operational Rollback', desc: '4-tier rollback runbook documented in ROLLBACK_PLAN.md', status: 'Verified' },
+                { label: 'Single Canonical Domain', desc: 'Canonical URL billwise.app enforced across metadata, robots.txt, sitemap.ts, and share links', status: 'Enforced' },
+                { label: 'HTTP Security Headers', desc: 'Strict CSP, HSTS, X-Frame-Options, X-Content-Type-Options, and Permissions-Policy in next.config.ts', status: 'Enforced' },
+                { label: 'Server Telemetry & Feedback', desc: 'Privacy-preserving server endpoints (/api/events, /api/feedback, /api/health) with IP rate limiting', status: 'Active' },
+                { label: 'Versioned Engines', desc: 'Deterministic v1-kserc-deterministic and v1-daily-run-rate stamped on every calculation and history item', status: 'Implemented' },
+                { label: 'Tariff Status & FAC Currency', desc: 'Active schedule validity and monthly FAC review schedule tracked with threshold alerts', status: 'Current' },
+                { label: 'Tariff Ingestion Pipeline', desc: 'Automated CI ingestion script (scripts/ingest-tariff.mjs) verifying schema, diff, and reference bill math', status: 'Verified' },
+                { label: 'Release Gate v2 Check', desc: 'Comprehensive release script verifying types, test regression, canonical domain, and security rules', status: 'Verified' },
+                { label: 'PWA Cache Versioning', desc: 'Cache version billwise-v0.6.0 with automatic stale cleanup and API route bypass', status: 'Verified' },
+                { label: 'On-Device Zero-PII Privacy', desc: 'Bill calculations, scans, and meter readings run entirely in browser; server logs zero PII', status: 'Verified' },
+                { label: 'Immutable Reference Bill Match', desc: 'Official spot-billing fixture (240 units / single-phase) deterministically calculates to exact ₹1,148', status: 'Verified' },
               ].map((item, idx) => (
                 <div
                   key={idx}

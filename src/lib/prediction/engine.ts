@@ -1,5 +1,6 @@
 import { PredictionInput, PredictionResult } from '@/types';
 import { calculateBill, calculateConsumedUnits } from '@/lib/calculation/engine';
+import { SITE_CONFIG } from '@/lib/config/site';
 
 /**
  * Predicts cycle consumption, bill range, and slab threshold warnings.
@@ -176,6 +177,7 @@ export function predictUsage(input: PredictionInput): PredictionResult {
       increasedOneUnitCost,
       remainingDays: daysRemaining,
     },
+    predictionModelVersion: SITE_CONFIG.predictionModelVersion,
     calculatedBillResult,
   };
 }

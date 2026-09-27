@@ -2,12 +2,13 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Zap, ArrowRight, TrendingUp } from 'lucide-react';
+import { getCanonicalUrl } from '@/lib/config/site';
 
 export const metadata: Metadata = {
   title: 'KSEB Bill Predictor — Know Your Next Bill Before It Arrives',
   description: 'Predict your next KSEB electricity bill from your current meter reading and daily consumption rate. Avoid high tariff slabs and budget effectively.',
   alternates: {
-    canonical: 'https://billwise.app/kseb-bill-predictor',
+    canonical: getCanonicalUrl('/kseb-bill-predictor'),
   },
 };
 

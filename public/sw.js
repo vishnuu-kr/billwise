@@ -1,10 +1,12 @@
-const CACHE_NAME = 'billwise-v1';
+const CACHE_NAME = 'billwise-v0.6.0';
 const OFFLINE_URLS = [
   '/',
   '/predict',
   '/manual',
   '/what-if',
   '/tariff',
+  '/history',
+  '/feedback',
   '/manifest.json',
   '/favicon.ico',
 ];
@@ -35,6 +37,9 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  // Never cache API or telemetry routes
+  if (url.pathname.startsWith('/api/')) return;
 
   event.respondWith(
     caches.match(event.request).then(cached => {

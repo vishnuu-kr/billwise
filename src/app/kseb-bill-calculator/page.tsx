@@ -2,12 +2,13 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Zap, ArrowRight, ShieldCheck, HelpCircle } from 'lucide-react';
+import { getCanonicalUrl } from '@/lib/config/site';
 
 export const metadata: Metadata = {
   title: 'KSEB Bill Calculator 2026 — Kerala Electricity Tariff LT-1A',
   description: 'Calculate your bi-monthly KSEB electricity bill using latest KSERC tariff slabs. Accurate domestic LT-1A telescopic calculation with duty and subsidies.',
   alternates: {
-    canonical: 'https://billwise.app/kseb-bill-calculator',
+    canonical: getCanonicalUrl('/kseb-bill-calculator'),
   },
 };
 

@@ -24,10 +24,13 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
+import { SITE_CONFIG } from "@/lib/config/site";
+
 export const metadata: Metadata = {
-  title: "BILLWISE — Know your KSEB bill before it arrives",
-  description: "The simplest electricity intelligence for Kerala households. Predict your next KSEB electricity bill, understand your tariff slabs, and avoid high cost bands without technical jargon.",
-  applicationName: "BILLWISE",
+  metadataBase: new URL(SITE_CONFIG.domain),
+  title: SITE_CONFIG.title,
+  description: SITE_CONFIG.description,
+  applicationName: SITE_CONFIG.name,
   keywords: [
     "KSEB bill calculator",
     "KSEB bill prediction",
@@ -38,23 +41,23 @@ export const metadata: Metadata = {
     "KSEB bill check"
   ],
   authors: [{ name: "BILLWISE Kerala" }],
-  creator: "BILLWISE",
+  creator: SITE_CONFIG.name,
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
     apple: "/icon-192.png",
   },
   openGraph: {
-    title: "BILLWISE — Know your KSEB bill before it arrives",
+    title: SITE_CONFIG.title,
     description: "Scan your previous bill, check your meter, and know your exact expected KSEB bill range in seconds.",
-    url: "https://billwise.app",
-    siteName: "BILLWISE",
+    url: SITE_CONFIG.domain,
+    siteName: SITE_CONFIG.name,
     locale: "en_IN",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "BILLWISE — Know your KSEB bill before it arrives",
+    title: SITE_CONFIG.title,
     description: "Instant KSEB bill prediction and slab alerts for Kerala homes.",
   },
 };

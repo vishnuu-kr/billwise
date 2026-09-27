@@ -109,6 +109,7 @@ export interface BillCalculationResult {
   // Explanation & metadata
   isTelescopicApplied: boolean;
   effectiveTariffVersion: string;
+  calculationEngineVersion: string;
   slabBreakdown: SlabCalculationDetail[];
   explanation: {
     summary: string;
@@ -164,6 +165,7 @@ export interface PredictionResult {
     remainingDays: number;
   };
 
+  predictionModelVersion: string;
   calculatedBillResult: BillCalculationResult;
 }
 
@@ -244,6 +246,9 @@ export interface HistoryRecord {
   actualBill?: number;
   billingCycle: BillingCycle;
   source: 'scan' | 'manual' | 'prediction' | 'reading';
+  tariffVersionId?: string;
+  calculationEngineVersion?: string;
+  predictionModelVersion?: string;
   notes?: string;
 }
 
@@ -326,15 +331,18 @@ export type AnalyticsEventName =
   | 'meter_scan_completed'
   | 'prediction_generated'
   | 'manual_calculation'
+  | 'manual_entry'
   | 'what_if_used'
   | 'budget_used'
   | 'history_recorded'
   | 'actual_bill_recorded'
   | 'language_changed'
   | 'page_visit'
+  | 'app_opened'
   | 'flow_started'
   | 'result_viewed'
   | 'share_clicked'
+  | 'prediction_feedback'
   | 'feedback_submitted';
 
 // ==========================================
