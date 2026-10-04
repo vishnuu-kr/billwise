@@ -4,10 +4,22 @@
   "description": "Know your KSEB bill before it arrives. Mobile-first bill prediction and tariff alerts for Kerala households.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0284c7",
+  "background_color": "#F7F7F5",
+  "theme_color": "#F7F7F5",
   "orientation": "portrait-primary",
   "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/icon-192.svg",
       "sizes": "192x192",

@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { PredictionResult } from '@/types';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { SITE_CONFIG, getShareUrl } from '@/lib/config/site';
-import { X, Check, Copy, Share2 } from 'lucide-react';
+import { getShareUrl } from '@/lib/config/site';
+import { Check, Copy, Share2, X } from 'lucide-react';
 
 interface ShareModalProps {
   prediction: PredictionResult;
@@ -12,14 +12,14 @@ interface ShareModalProps {
 }
 
 export default function ShareModal({ prediction, onClose }: ShareModalProps) {
-  const { lang, t } = useLanguage();
+  const { lang } = useLanguage();
   const [copied, setCopied] = useState(false);
 
-  const shareText = `⚡ BILLWISE Estimate:
+  const shareText = `BILLWISE Estimate:
 Next KSEB Bill: ₹${prediction.estimatedBill.toLocaleString('en-IN')}
 Likely range: ₹${prediction.likelyRangeMin.toLocaleString('en-IN')} – ₹${prediction.likelyRangeMax.toLocaleString('en-IN')}
 Projected: ${prediction.projectedUnits} units (${prediction.unitsPerDay} units/day)
-Calculate yours free on BILLWISE: ${getShareUrl(prediction.projectedUnits)}`;
+Calculate yours: ${getShareUrl(prediction.projectedUnits)}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(shareText);
@@ -33,69 +33,78 @@ Calculate yours free on BILLWISE: ${getShareUrl(prediction.projectedUnits)}`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-xl space-y-5">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h3 className="font-bold text-slate-900 text-sm">
-            {lang === 'ml' ? 'എസ്റ്റിമേറ്റ് പങ്കുവെക്കാം' : 'Share Bill Estimate'}
+    <div
+      className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center p-0 sm:p-4 animate-fade-in"
+      style={{ background: 'rgba(0, 0, 0, 0.36)', backdropFilter: 'blur(4px)' }}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
+
+      {/* iOS Action Sheet Container */}
+      <div className="relative z-10 w-full sm:max-w-sm ios-sheet sm:rounded-3xl p-5 pb-8 sm:pb-6 space-y-4">
+        {/* Grab Handle */}
+        <div className="sm:hidden flex justify-center pb-2">
+          <div className="ios-sheet-handle" />
+        </div>
+
+        <div className="flex items-center justify-between pb-1">
+          <h3 className="text-base font-semibold text-[#1C1C1E]">
+            {lang === 'ml' ? 'എസ്റ്റിമേറ്റ് പങ്കുവെക്കാം' : 'Share Estimate'}
           </h3>
           <button
             onClick={onClose}
-            className="flex items-center justify-center rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-target"
-            aria-label="Close share modal"
+            className="w-7 h-7 rounded-full bg-black/[0.05] flex items-center justify-center text-[#8E8E93] hover:text-[#1C1C1E] active:scale-95 transition-all"
+            aria-label="Close"
           >
-            <X className="h-5 w-5" />
+            <X style={{ width: '15px', height: '15px' }} />
           </button>
         </div>
 
-        {/* Clean Visual Card Preview */}
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-5 text-center shadow-sm">
-          <div className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase">
-            {lang === 'ml' ? 'അടുത്ത KSEB ബിൽ' : 'NEXT KSEB BILL'}
-          </div>
-          <div className="mt-2 text-4xl font-extrabold text-slate-900 num-tabular">
+        {/* Clean Native Preview */}
+        <div className="rounded-2xl bg-black/[0.03] p-4 text-center space-y-1">
+          <span className="text-[11px] font-medium text-[#8E8E93] block">
+            {lang === 'ml' ? 'അടുത്ത KSEB ബിൽ' : 'Next KSEB bill'}
+          </span>
+          <div className="num-hero text-3xl font-semibold text-[#1C1C1E]">
             ₹{prediction.estimatedBill.toLocaleString('en-IN')}
           </div>
-          <div className="mt-1 text-xs text-slate-600">
-            {lang === 'ml'
-              ? `സാധ്യതാ പരിധി ₹${prediction.likelyRangeMin.toLocaleString('en-IN')} – ₹${prediction.likelyRangeMax.toLocaleString('en-IN')}`
-              : `Expected range ₹${prediction.likelyRangeMin.toLocaleString('en-IN')} – ₹${prediction.likelyRangeMax.toLocaleString('en-IN')}`}
-          </div>
-          <div className="mt-2 inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-[11px] font-medium text-sky-700">
-            {lang === 'ml'
-              ? `${prediction.projectedUnits} യൂണിറ്റ് പ്രതീക്ഷിക്കുന്നു`
-              : `${prediction.projectedUnits} units projected`}
-          </div>
-          <div className="mt-3 text-[10px] font-mono text-slate-400">
-            {SITE_CONFIG.domain.replace(/^https?:\/\//, '')} • Zero tracking
-          </div>
+          <p className="text-[12px] text-[#6E6E73]">
+            ₹{prediction.likelyRangeMin.toLocaleString('en-IN')} – ₹{prediction.likelyRangeMax.toLocaleString('en-IN')} · {prediction.projectedUnits} units
+          </p>
         </div>
 
-        {/* Share Buttons */}
-        <div className="space-y-2">
+        {/* Action Buttons */}
+        <div className="space-y-2 pt-1">
           <button
             onClick={handleWhatsApp}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 active:scale-[0.98] transition-all touch-target"
+            className="w-full h-12 rounded-xl bg-[#25D366] text-white text-[14px] font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
           >
-            <Share2 className="h-4 w-4" />
-            <span>{lang === 'ml' ? 'വാട്ട്‌സ്ആപ്പിൽ പങ്കുവെക്കാം' : 'Share to WhatsApp'}</span>
+            <Share2 style={{ width: '16px', height: '16px' }} />
+            <span>{lang === 'ml' ? 'WhatsApp-ൽ അയക്കുക' : 'Share to WhatsApp'}</span>
           </button>
 
           <button
             onClick={handleCopy}
-            className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors touch-target"
+            className="w-full h-12 rounded-xl bg-black/[0.05] text-[#1C1C1E] text-[14px] font-medium flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
           >
             {copied ? (
               <>
-                <Check className="h-4 w-4 text-emerald-600" />
-                <span>{lang === 'ml' ? 'കോപ്പി ചെയ്തു!' : 'Copied to Clipboard!'}</span>
+                <Check style={{ width: '16px', height: '16px', color: '#34C759' }} />
+                <span>{lang === 'ml' ? 'കോപ്പി ചെയ്തു!' : 'Copied to Clipboard'}</span>
               </>
             ) : (
               <>
-                <Copy className="h-4 w-4 text-slate-500" />
-                <span>{lang === 'ml' ? 'ടെക്സ്റ്റ് കോപ്പി ചെയ്യാം' : 'Copy Summary Text'}</span>
+                <Copy style={{ width: '16px', height: '16px', color: '#6E6E73' }} />
+                <span>{lang === 'ml' ? 'ടെക്സ്റ്റ് കോപ്പി ചെയ്യുക' : 'Copy Text'}</span>
               </>
             )}
+          </button>
+
+          <button
+            onClick={onClose}
+            className="w-full h-12 rounded-xl bg-transparent text-[#8E8E93] text-[14px] font-medium flex items-center justify-center active:scale-[0.98] transition-all"
+          >
+            {lang === 'ml' ? 'റദ്ദാക്കുക' : 'Cancel'}
           </button>
         </div>
       </div>

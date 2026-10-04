@@ -63,7 +63,7 @@ export default function FeedbackWidget({
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-emerald-200/90 bg-emerald-50/80 p-4 text-center">
+      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-50/70 p-4 text-center">
         <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-emerald-800">
           <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           <span>
@@ -82,11 +82,11 @@ export default function FeedbackWidget({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-4 space-y-3">
+    <div className="rounded-2xl border border-[var(--separator)] bg-[var(--surface-sunken)] p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-slate-500" />
-          <span className="text-xs font-semibold text-slate-700">
+          <MessageSquare className="h-4 w-4 text-[var(--secondary)]" />
+          <span className="text-xs font-semibold text-[var(--foreground)]">
             {lang === 'ml' ? 'ഈ കണക്കുകൂട്ടൽ കൃത്യമാണോ?' : 'Was this estimate helpful?'}
           </span>
         </div>
@@ -97,8 +97,8 @@ export default function FeedbackWidget({
             onClick={() => handleVote('positive')}
             className={`inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all touch-target ${
               sentiment === 'positive'
-                ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-2xs'
+                : 'border-[var(--separator)] bg-[var(--surface)] text-[var(--foreground)] hover:border-black/20'
             }`}
             aria-label="Mark estimate as helpful"
           >
@@ -111,8 +111,8 @@ export default function FeedbackWidget({
             onClick={() => handleVote('negative')}
             className={`inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all touch-target ${
               sentiment === 'negative'
-                ? 'border-rose-400 bg-rose-50 text-rose-700'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                ? 'border-rose-400 bg-rose-50 text-rose-800 shadow-2xs'
+                : 'border-[var(--separator)] bg-[var(--surface)] text-[var(--foreground)] hover:border-black/20'
             }`}
             aria-label="Report estimate discrepancy"
           >
@@ -123,15 +123,15 @@ export default function FeedbackWidget({
       </div>
 
       {showCommentBox && (
-        <form onSubmit={handleDetailedSubmit} className="pt-2 border-t border-slate-200/80 space-y-3">
+        <form onSubmit={handleDetailedSubmit} className="pt-2 border-t border-[var(--separator)] space-y-3">
           <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-slate-600">
+            <label className="text-[11px] font-semibold text-[var(--secondary)]">
               {lang === 'ml' ? 'എന്താണ് പ്രശ്നം?' : 'What seemed off?'}
             </label>
             <select
               value={category}
               onChange={e => setCategory(e.target.value as UserFeedbackCategory)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:border-sky-500 focus:outline-none"
+              className="w-full rounded-xl border border-[var(--separator)] bg-[var(--surface)] px-3 py-2 text-xs font-medium text-[var(--foreground)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)] transition-colors"
             >
               <option value="too_high">
                 {lang === 'ml' ? 'തുക സാധാരണയേക്കാൾ കൂടുതലായി തോന്നുന്നു' : 'Estimate is higher than my usual bill'}
@@ -155,9 +155,9 @@ export default function FeedbackWidget({
           </div>
 
           <div className="space-y-1">
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <div className="flex items-center justify-between text-[11px] text-[var(--secondary)]">
               <span>{lang === 'ml' ? 'കുറിപ്പ് (ഓപ്ഷണൽ)' : 'Optional notes'}</span>
-              <span>{comment.length}/300</span>
+              <span className="font-mono num-tabular">{comment.length}/300</span>
             </div>
             <textarea
               rows={2}
@@ -169,19 +169,19 @@ export default function FeedbackWidget({
               }
               value={comment}
               onChange={e => setComment(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs text-slate-900 focus:border-sky-500 focus:outline-none"
+              className="w-full rounded-xl border border-[var(--separator)] bg-[var(--surface)] p-2.5 text-xs text-[var(--foreground)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)] resize-none transition-colors"
             />
           </div>
 
           <div className="flex items-center justify-between pt-1">
-            <div className="flex items-center gap-1 text-[10px] text-slate-500">
+            <div className="flex items-center gap-1 text-[10px] text-[var(--secondary)]">
               <ShieldAlert className="h-3 w-3 text-amber-600 shrink-0" />
               <span>{lang === 'ml' ? 'ഫോൺ/കൺസ്യൂമർ നമ്പർ നൽകരുത്' : 'No personal info or phone numbers'}</span>
             </div>
 
             <button
               type="submit"
-              className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+              className="ios-btn-primary px-4 py-2 text-xs font-semibold"
             >
               {lang === 'ml' ? 'അയക്കൂ' : 'Send Feedback'}
             </button>

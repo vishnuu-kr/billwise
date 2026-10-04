@@ -3,15 +3,16 @@
 import React, { useState } from 'react';
 import { storageManager } from '@/lib/storage';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { ShieldCheck, Lock, Trash2, CheckCircle2, EyeOff } from 'lucide-react';
+import { Trash2, Check, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 
 export default function PrivacyPage() {
   const { lang } = useLanguage();
   const [deleted, setDeleted] = useState(false);
+  const [showTechnical, setShowTechnical] = useState(false);
 
   const handleDeleteData = () => {
-    if (confirm('This will wipe all locally stored readings and budgets from your browser. Continue?')) {
+    if (confirm(lang === 'ml' ? 'സേവ് ചെയ്ത വിവരങ്ങൾ ഒഴിവാക്കണോ?' : 'Wipe all saved readings and budgets from your device?')) {
       storageManager.clearAllData();
       setDeleted(true);
       setTimeout(() => setDeleted(false), 3000);
@@ -19,69 +20,127 @@ export default function PrivacyPage() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl px-4 sm:px-6 pt-6 sm:pt-10 space-y-8">
+    <div className="max-w-[430px] mx-auto px-4 pt-3 pb-4 space-y-6">
+      {/* Back Link */}
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[#6E6E73] hover:text-[#1C1C1E] active:opacity-60 transition-colors"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <span>{lang === 'ml' ? 'ഹോം' : 'Home'}</span>
+      </Link>
+
       {/* Title */}
-      <div>
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-800">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-          <span>Zero-Knowledge Privacy Architecture</span>
-        </div>
-        <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900 mt-2">
-          {lang === 'ml' ? 'നിങ്ങളുടെ സ്വകാര്യത, ഞങ്ങളുടെ ബാധ്യത' : 'Privacy by Design'}
+      <div className="space-y-1">
+        <span className="text-[12px] font-medium text-[#8E8E93] block">
+          {lang === 'ml' ? 'സുരക്ഷ & സ്വകാര്യത' : 'Privacy & Security'}
+        </span>
+        <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-[#1C1C1E]">
+          {lang === 'ml' ? 'ഡാറ്റ സ്വകാര്യത' : 'Privacy guarantee'}
         </h1>
-        <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-          BILLWISE is designed specifically so you never have to trust us with personal data. We do not require signups, phone numbers, or account details.
+        <p className="text-[15px] font-normal text-[#6E6E73] leading-relaxed pt-1">
+          {lang === 'ml'
+            ? 'നിങ്ങളുടെ വിവരങ്ങൾ നിങ്ങളുടെ ഫോണിൽ മാത്രം സൂക്ഷിക്കുന്നു.'
+            : 'Your electricity data never leaves your device.'}
         </p>
       </div>
 
-      {/* Core Privacy Commitments */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-2">
-          <EyeOff className="h-5 w-5 text-sky-600" />
-          <h3 className="font-bold text-slate-900 text-sm">No PII Required</h3>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            We never ask for your 13-digit consumer number, phone number, name, email, or physical home address.
-          </p>
+      <div className="space-y-5">
+        {/* GROUP 1: WHAT STAYS ON YOUR DEVICE */}
+        <div className="space-y-2">
+          <span className="text-[12px] font-semibold text-[#8E8E93] uppercase tracking-wider block px-1">
+            {lang === 'ml' ? 'ഡിവൈസിൽ സൂക്ഷിക്കുന്നത്' : 'What stays on your device'}
+          </span>
+          <div className="ios-grouped-list p-4 space-y-2 text-[14px] text-[#6E6E73] leading-relaxed">
+            <p>
+              • <strong className="text-[#1C1C1E]">Meter readings:</strong> Past and present readings are stored exclusively in your browser’s localStorage.
+            </p>
+            <p>
+              • <strong className="text-[#1C1C1E]">Bill scans:</strong> Image OCR processing runs directly on your device CPU. No bill images or photos are ever uploaded to any cloud server.
+            </p>
+            <p>
+              • <strong className="text-[#1C1C1E]">Budget goals:</strong> Spending targets stay on this device only.
+            </p>
+          </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-2">
-          <Lock className="h-5 w-5 text-sky-600" />
-          <h3 className="font-bold text-slate-900 text-sm">On-Device Storage</h3>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            All your readings and budget targets remain on your own device&apos;s localStorage. We have no remote user database.
-          </p>
+        {/* GROUP 2: WHAT GETS SENT */}
+        <div className="space-y-2">
+          <span className="text-[12px] font-semibold text-[#8E8E93] uppercase tracking-wider block px-1">
+            {lang === 'ml' ? 'പുറത്തേക്ക് അയക്കുന്നത്' : 'What gets sent'}
+          </span>
+          <div className="ios-grouped-list p-4 space-y-1 text-[14px] text-[#6E6E73] leading-relaxed">
+            <p className="text-[#1C1C1E] font-medium">Nothing.</p>
+            <p>Zero bytes of billing data or photos leave your phone.</p>
+          </div>
         </div>
-      </div>
 
-      {/* Detailed Disclosure */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-sm space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
-        <h3 className="font-bold text-slate-900 text-base">
-          What happens when you scan a bill?
-        </h3>
-        <p>
-          When you take a photo or upload a bill image, the image is parsed in-memory on your device. Only technical metering numbers (previous reading, present reading, tariff code) are extracted.
-        </p>
-        <p>
-          Images are never retained on our servers after extraction. You can inspect and edit every extracted field before using it.
-        </p>
-      </div>
+        {/* GROUP 3: WHAT WE DON'T COLLECT */}
+        <div className="space-y-2">
+          <span className="text-[12px] font-semibold text-[#8E8E93] uppercase tracking-wider block px-1">
+            {lang === 'ml' ? 'ശേഖരിക്കാത്തവ' : 'What we do not collect'}
+          </span>
+          <div className="ios-grouped-list p-4 space-y-2 text-[14px] text-[#6E6E73] leading-relaxed">
+            <p>• No consumer number, phone number, name, or address.</p>
+            <p>• No login credentials or account profiles.</p>
+            <p>• No third-party ad trackers or behavioural cookies.</p>
+          </div>
+        </div>
 
-      {/* Delete My Data Action Card */}
-      <div className="rounded-3xl border border-red-100 bg-red-50/60 p-6 space-y-3">
-        <h3 className="font-bold text-red-950 text-base">
-          Wipe Local Device Data
-        </h3>
-        <p className="text-xs sm:text-sm text-red-900 leading-relaxed">
-          Clear all locally saved readings, history records, and custom budget limits immediately.
-        </p>
+        {/* GROUP 4: DELETE YOUR DATA */}
+        <div className="space-y-2">
+          <span className="text-[12px] font-semibold text-[#8E8E93] uppercase tracking-wider block px-1">
+            {lang === 'ml' ? 'ഡാറ്റ ഒഴിവാക്കാം' : 'Delete your data'}
+          </span>
+          <div className="ios-grouped-list p-4 space-y-3">
+            <p className="text-[13px] text-[#6E6E73]">
+              {lang === 'ml'
+                ? 'നിങ്ങളുടെ ഉപകരണത്തിൽ ശേഖരിച്ച എല്ലാ റീഡിംഗുകളും ബജറ്റുകളും ഉടൻ തന്നെ നീക്കം ചെയ്യാം.'
+                : 'Instantly wipe all reading history and preferences stored on this device.'}
+            </p>
+            <button
+              onClick={handleDeleteData}
+              className="ios-btn-secondary text-[#FF3B30] border-[#FF3B30]/30 w-full"
+            >
+              <Trash2 style={{ width: '16px', height: '16px' }} />
+              <span>{lang === 'ml' ? 'ഡാറ്റ പൂർണ്ണമായി ഒഴിവാക്കൂ' : 'Wipe all device data'}</span>
+            </button>
+            {deleted && (
+              <p className="text-[12px] text-[#34C759] flex items-center gap-1 font-medium">
+                <Check style={{ width: '14px', height: '14px' }} />
+                <span>Local data erased.</span>
+              </p>
+            )}
+          </div>
+        </div>
 
-        <button
-          onClick={handleDeleteData}
-          className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-red-500 active:scale-[0.98] transition-all touch-target"
-        >
-          <Trash2 className="h-4 w-4" />
-          <span>{deleted ? 'All local data wiped!' : 'Delete my data'}</span>
-        </button>
+        {/* TECHNICAL ACCORDION */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => setShowTechnical(prev => !prev)}
+            className="flex items-center justify-between w-full text-[13px] text-[#6E6E73] hover:text-[#1C1C1E] transition-colors py-2"
+          >
+            <span>Technical architecture details</span>
+            <ChevronDown
+              style={{
+                width: '14px',
+                height: '14px',
+                transform: showTechnical ? 'rotate(180deg)' : 'none',
+                transition: 'transform 150ms ease',
+              }}
+            />
+          </button>
+          {showTechnical && (
+            <div className="ios-surface-1 p-4 mt-2 text-[12px] text-[#6E6E73] space-y-2">
+              <p>Storage Engine: Browser LocalStorage (Web Storage API)</p>
+              <p>Image Processing: Canvas 2D Context + WebAssembly OCR</p>
+              <p>Network Calls: Strictly limited to static application assets (HTML/JS/CSS)</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

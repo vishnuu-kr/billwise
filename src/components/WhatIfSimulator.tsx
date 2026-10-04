@@ -1,310 +1,299 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useDeferredValue } from 'react';
+import dynamic from 'next/dynamic';
 import { calculateBill } from '@/lib/calculation/engine';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { Sliders, AlertTriangle, ArrowRight, Zap, PiggyBank, Gauge, Info } from 'lucide-react';
+import { ArrowRight, SlidersHorizontal, AlertTriangle, CheckCircle2, Sun, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { KsebOdometer } from '@/components/ui/KsebOdometer';
+import { ElasticSlider } from '@/components/ui/ElasticSlider';
+import { DynamicIslandBanner } from '@/components/ui/DynamicIslandBanner';
+import { KsebSlabStorageMeter } from '@/components/ui/KsebSlabStorageMeter';
+import { ScribbleCheckbox } from '@/components/ui/ScribbleCheckbox';
+import { PullCordSwitch } from '@/components/ui/PullCordSwitch';
+
+const SolarBalanceScale = dynamic(
+  () => import('@/components/ui/SolarBalanceScale').then((m) => m.SolarBalanceScale),
+  { ssr: false }
+);
+const SundialPicker = dynamic(
+  () => import('@/components/ui/SundialPicker').then((m) => m.SundialPicker),
+  { ssr: false }
+);
 
 interface WhatIfSimulatorProps {
   initialUnits?: number;
 }
 
 export default function WhatIfSimulator({ initialUnits = 240 }: WhatIfSimulatorProps) {
-  const { lang, t } = useLanguage();
-  const [controlMode, setControlMode] = useState<'units' | 'budget'>('units');
-  const [sliderUnits, setSliderUnits] = useState<number>(initialUnits);
+  const { lang } = useLanguage();
+  const [units, setUnits] = useState<number>(initialUnits);
+  const deferredUnits = useDeferredValue(units);
 
-  // Pure deterministic recalculation for the current unit setting
-  const result = useMemo(() => {
+  // Checkbox states for energy-saving actions
+  const [tip1, setTip1] = useState(false);
+  const [tip2, setTip2] = useState(false);
+  const [tip3, setTip3] = useState(false);
+
+  // Solar simulation toggle
+  const [showSolar, setShowSolar] = useState(false);
+  const [solarUnits, setSolarUnits] = useState(180);
+  const [solarHour, setSolarHour] = useState(12);
+
+  // Skeuomorphic eco cord switch state
+  const [ecoShift, setEcoShift] = useState(false);
+  const handleEcoShiftToggle = (state: boolean) => {
+    setEcoShift(state);
+    setUnits((prev) => Math.max(40, state ? prev - 30 : prev + 30));
+  };
+
+  // Reference base calculation
+  const baseCalc = useMemo(() => {
     return calculateBill({
-      units: sliderUnits,
+      units: initialUnits,
       billingCycle: 'bi-monthly',
       phase: 'single',
     });
-  }, [sliderUnits]);
+  }, [initialUnits]);
 
-  // Budget state synchronized with result.total
-  const [budgetLimit, setBudgetLimit] = useState<number>(result.total);
+  // Dynamic simulation calculation using deferred value for 60fps interaction
+  const simCalc = useMemo(() => {
+    return calculateBill({
+      units: deferredUnits,
+      billingCycle: 'bi-monthly',
+      phase: 'single',
+    });
+  }, [deferredUnits]);
 
-  // Find target units from a given rupee budget using monotonic binary search
-  const solveUnitsForBudget = (targetRupees: number): number => {
-    let low = 0;
-    let high = 1500;
-    let best = 0;
+  const diffRupees = simCalc.total - baseCalc.total;
+  const isMore = diffRupees > 0;
+  const dailyPace = (units / 60).toFixed(1);
 
-    while (low <= high) {
-      const mid = Math.floor((low + high) / 2);
-      const calc = calculateBill({ units: mid, billingCycle: 'bi-monthly', phase: 'single' });
-      if (calc.total <= targetRupees) {
-        best = mid;
-        low = mid + 1;
-      } else {
-        high = mid - 1;
-      }
-    }
-    return best;
-  };
-
-  const handleUnitsChange = (newUnits: number) => {
-    setSliderUnits(newUnits);
-    const updated = calculateBill({ units: newUnits, billingCycle: 'bi-monthly', phase: 'single' });
-    setBudgetLimit(updated.total);
-  };
-
-  const handleBudgetChange = (newBudget: number) => {
-    setBudgetLimit(newBudget);
-    const derivedUnits = solveUnitsForBudget(newBudget);
-    setSliderUnits(derivedUnits);
-  };
-
-  // Meaningful thresholds in KSEB LT-1A bi-monthly
-  const isAtOrAboveSubsidyCeiling = sliderUnits > 240;
-  const isAtOrAboveTelescopicCliff = sliderUnits > 500;
-  const dailyPace = (sliderUnits / 60).toFixed(1);
+  const presets = [120, 180, 240, 300, 360, 480];
 
   return (
-    <div className="w-full max-w-xl mx-auto rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
-      {/* Title */}
-      <div>
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-          <Sliders className="h-4 w-4 text-sky-600" />
-          <span>{lang === 'ml' ? 'ഉപയോഗ സിമുലേറ്റർ' : 'Bi-Directional Simulator'}</span>
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5">
-          {lang === 'ml' ? 'മാറ്റങ്ങൾ മുൻകൂട്ടി പരിശോധിക്കാം' : 'What if my usage changes?'}
-        </h2>
-        <p className="mt-1 text-xs text-slate-600">
-          {lang === 'ml'
-            ? 'യൂണിറ്റ് മാറ്റിയോ ഉദ്ദേശിക്കുന്ന ബജറ്റ് നൽകിയോ ബില്ലിലെ വ്യത്യാസം തത്സമയം അറിയാം.'
-            : 'Adjust either consumption units or desired rupee budget — both stay bi-directionally synchronized.'}
-        </p>
-      </div>
+    <div className="w-full space-y-5">
+      {/* -- Dynamic Island Slab Warning ------------------------ */}
+      <DynamicIslandBanner units={units} />
 
-      {/* Mode Switcher: By Units vs By Budget */}
-      <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5 border border-slate-200/80">
-        <button
-          type="button"
-          onClick={() => setControlMode('units')}
-          className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all touch-target ${
-            controlMode === 'units'
-              ? 'bg-white text-slate-900 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Gauge className="h-3.5 w-3.5" />
-          <span>{lang === 'ml' ? 'യൂണിറ്റ് പ്രകാരം' : 'By Units (kWh)'}</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setControlMode('budget')}
-          className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all touch-target ${
-            controlMode === 'budget'
-              ? 'bg-white text-slate-900 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <PiggyBank className="h-3.5 w-3.5" />
-          <span>{lang === 'ml' ? 'ബജറ്റ് പ്രകാരം (₹)' : 'By Budget (₹)'}</span>
-        </button>
-      </div>
-
-      {/* Interactive Controller Card */}
-      {controlMode === 'units' ? (
-        <div className="rounded-2xl bg-slate-50 p-5 border border-slate-100 space-y-4">
-          <div className="flex items-baseline justify-between">
-            <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-              {lang === 'ml' ? 'തിരഞ്ഞെടുത്ത ഉപയോഗം' : 'Selected Usage'}
+      {/* -- Title & Mechanical Odometer Display ---------------- */}
+      <div className="glass-card p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="w-4 h-4 text-[#006FEE]" />
+            <span className="text-[12px] font-semibold text-[#71717A] uppercase tracking-wider">
+              {lang === 'ml' ? 'ഉപയോഗ മാറ്റങ്ങൾ' : 'What happens if I use...'}
             </span>
-            <div className="flex items-baseline gap-1">
-              <span className="font-mono text-3xl font-extrabold text-sky-700 num-tabular">
-                {sliderUnits}
-              </span>
-              <span className="text-sm font-semibold text-slate-600">{t.units}</span>
-            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowSolar(!showSolar)}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
+              showSolar
+                ? 'bg-amber-500/10 text-amber-700 border-amber-500/30'
+                : 'bg-black/[0.04] text-zinc-600 border-transparent hover:border-black/[0.08]'
+            }`}
+          >
+            <Sun className="size-3 text-amber-500" />
+            <span>{showSolar ? 'Solar Active' : '+ Solar Prosumer'}</span>
+          </button>
+        </div>
 
-          <input
-            type="range"
-            min="40"
-            max="650"
-            step="5"
-            value={sliderUnits}
-            onChange={e => handleUnitsChange(Number(e.target.value))}
-            className="w-full cursor-pointer accent-sky-600"
-            aria-label="Consumption units slider"
+        <div className="space-y-1">
+          <div className="flex items-baseline gap-2">
+            <KsebOdometer value={units} size="2xl" prefix="" suffix="" />
+            <span className="text-xl font-medium text-[#71717A]">
+              {lang === 'ml' ? 'യൂണിറ്റ്' : 'units'}
+            </span>
+          </div>
+          <span className="text-[13px] text-[#71717A] block">
+            ~{dailyPace} {lang === 'ml' ? 'യൂണിറ്റ് / ദിവസം (60-ദിവസം)' : 'units / day (60-day cycle)'}
+          </span>
+        </div>
+
+        {/* -- Elastic Slider with Magnetic Snap Points --------- */}
+        <div className="pt-2">
+          <ElasticSlider
+            value={units}
+            min={40}
+            max={650}
+            step={1}
+            onChange={(val) => setUnits(val)}
+            milestones={[
+              { value: 100, label: '100u' },
+              { value: 240, label: '240u Subsidy', isDanger: true },
+              { value: 500, label: '500u Cliff', isDanger: true },
+            ]}
           />
 
-          {/* Quick Jump Unit Pills */}
-          <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono text-slate-500 pt-1">
-            {[100, 160, 200, 240, 300, 400, 500].map(val => (
+          <div className="grid grid-cols-6 gap-1.5 pt-3">
+            {presets.map((p) => (
               <button
-                key={val}
+                key={p}
                 type="button"
-                onClick={() => handleUnitsChange(val)}
-                className={`rounded-lg px-2 py-1 transition-all ${
-                  sliderUnits === val
-                    ? 'bg-sky-600 text-white font-bold'
-                    : 'bg-white border border-slate-200 hover:bg-slate-100 text-slate-700'
+                onClick={() => setUnits(p)}
+                className={`py-1.5 text-center rounded-full text-[12px] font-semibold num-tabular transition-all cursor-pointer active:scale-95 border ${
+                  units === p
+                    ? 'bg-[#17171C] text-white border-[#17171C] shadow-xs'
+                    : 'bg-white border-black/[0.06] text-[#71717A] hover:text-[#17171C] hover:border-black/[0.12]'
                 }`}
               >
-                {val}u
+                {p}u
               </button>
             ))}
           </div>
-
-          <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-200/60">
-            <span>{lang === 'ml' ? 'പ്രതിദിന ശരാശരി:' : 'Implied daily pace:'}</span>
-            <span className="font-mono font-bold text-slate-700">~{dailyPace} units/day</span>
-          </div>
         </div>
-      ) : (
-        <div className="rounded-2xl bg-slate-50 p-5 border border-slate-100 space-y-4">
-          <div className="flex items-baseline justify-between">
-            <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-              {lang === 'ml' ? 'ലക്ഷ്യ ബജറ്റ്' : 'Desired Budget Target'}
-            </span>
-            <div className="flex items-baseline gap-1">
-              <span className="font-mono text-3xl font-extrabold text-sky-700 num-tabular">
-                ₹{budgetLimit.toLocaleString('en-IN')}
-              </span>
-            </div>
-          </div>
+      </div>
 
-          <input
-            type="range"
-            min="300"
-            max="4500"
-            step="50"
-            value={budgetLimit}
-            onChange={e => handleBudgetChange(Number(e.target.value))}
-            className="w-full cursor-pointer accent-sky-600"
-            aria-label="Rupee budget slider"
+      {/* -- Telescopic Slab Storage Meter Allocation ----------- */}
+      <KsebSlabStorageMeter units={deferredUnits} maxScale={500} />
+
+      {/* -- Solar Net-Metering Balance Scale & Sundial Picker ----- */}
+      {showSolar && (
+        <div className="space-y-4">
+          <SolarBalanceScale
+            gridImportKwh={units}
+            solarExportKwh={solarUnits}
+          />
+          <SundialPicker
+            selectedHour={solarHour}
+            onChange={(h) => {
+              setSolarHour(h);
+              // Simulate daytime solar generation curve: peak at noon (12:00)
+              const daylightGen = h >= 6 && h <= 18 ? Math.round(Math.sin(((h - 6) / 12) * Math.PI) * 220) : 20;
+              setSolarUnits(daylightGen);
+            }}
+          />
+        </div>
+      )}
+
+      {/* -- Result Projection Card with Odometer --------------- */}
+      <div className="glass-card p-5 space-y-3">
+        <span className="text-[12px] font-semibold text-[#71717A] uppercase tracking-wider block">
+          {lang === 'ml' ? 'പ്രതീക്ഷിക്കുന്ന ബിൽ തുക' : 'Estimated bill total'}
+        </span>
+
+        <div className="flex items-baseline">
+          <KsebOdometer value={simCalc.total} size="2xl" />
+        </div>
+
+        {/* Comparison Statement */}
+        {diffRupees !== 0 ? (
+          <div className="flex items-center gap-2 pt-1 text-[14px]">
+            {isMore ? (
+              <div className="flex items-center gap-1.5 text-[#B45309] font-medium">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>
+                  <strong>+₹{Math.abs(diffRupees).toLocaleString('en-IN')}</strong>{' '}
+                  {lang === 'ml'
+                    ? `കൂടുതൽ (${initialUnits} യൂണിറ്റിനേക്കാൾ)`
+                    : `more than baseline (${initialUnits} units)`}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[#0E7036] font-medium">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>
+                  <strong>−₹{Math.abs(diffRupees).toLocaleString('en-IN')}</strong>{' '}
+                  {lang === 'ml'
+                    ? `ലാഭം (${initialUnits} യൂണിറ്റിനേക്കാൾ)`
+                    : `saved vs baseline (${initialUnits} units)`}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-[13px] text-[#71717A]">
+            {lang === 'ml' ? 'നിലവിലെ കണക്കിന് തുല്യം.' : 'Matches your baseline estimate.'}
+          </p>
+        )}
+      </div>
+
+      {/* -- Tactile Pull Cord: Instant Eco Shift ---------------- */}
+      <div className="glass-card p-5 flex items-center justify-between overflow-hidden relative">
+        <div className="space-y-1 pr-4">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[13px] font-semibold text-[#17171C]">
+              {lang === 'ml' ? 'ഇക്കോ സ്വിച്ച്' : 'Tactile Eco Pull Cord'}
+            </span>
+            {ecoShift && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#17C964]/10 text-[#0E7036] border border-[#17C964]/20">
+                ACTIVE −30u
+              </span>
+            )}
+          </div>
+          <p className="text-[12px] text-[#71717A] leading-relaxed">
+            {lang === 'ml'
+              ? 'സ്ട്രിംഗ് താഴേക്ക് വലിച്ചു 30 യൂണിറ്റ് ലാഭിക്കുക.'
+              : 'Pull cord down to instantly simulate whole-house eco shift (-30 units).'}
+          </p>
+        </div>
+        <div className="shrink-0 -mt-2">
+          <PullCordSwitch
+            isOn={ecoShift}
+            onToggle={handleEcoShiftToggle}
+            label={ecoShift ? 'ECO ON' : 'PULL'}
+            cordLength={55}
+          />
+        </div>
+      </div>
+
+      {/* -- Actionable Energy Saving Audit Checklist ----------- */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-1.5 px-1 text-xs font-semibold text-zinc-600 uppercase tracking-wider">
+          <Sparkles className="size-3.5 text-amber-500" />
+          <span>Quick Energy Saving Actions</span>
+        </div>
+
+        <div className="space-y-2">
+          <ScribbleCheckbox
+            checked={tip1}
+            onChange={(checked) => {
+              setTip1(checked);
+              setUnits((prev) => Math.max(40, checked ? prev - 45 : prev + 45));
+            }}
+            label="Shift 1 hour of AC use to ceiling fan daily"
+            sublabel="Reduces ~45 units bimonthly — potential savings of ₹290+"
           />
 
-          {/* Quick Jump Budget Pills */}
-          <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono text-slate-500 pt-1">
-            {[600, 1000, 1500, 2000, 2500, 3500].map(val => (
-              <button
-                key={val}
-                type="button"
-                onClick={() => handleBudgetChange(val)}
-                className={`rounded-lg px-2 py-1 transition-all ${
-                  budgetLimit === val
-                    ? 'bg-sky-600 text-white font-bold'
-                    : 'bg-white border border-slate-200 hover:bg-slate-100 text-slate-700'
-                }`}
-              >
-                ₹{val}
-              </button>
-            ))}
-          </div>
+          <ScribbleCheckbox
+            checked={tip2}
+            onChange={(checked) => {
+              setTip2(checked);
+              setUnits((prev) => Math.max(40, checked ? prev - 25 : prev + 25));
+            }}
+            label="Turn off electric geyser 10 minutes early"
+            sublabel="Reduces ~25 units bimonthly — prevents water heating waste"
+          />
 
-          <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-200/60">
-            <span>{lang === 'ml' ? 'അനുവദനീയമായ ഉപയോഗം:' : 'Allowed consumption limit:'}</span>
-            <span className="font-mono font-bold text-slate-700">up to {sliderUnits} units (~{dailyPace} u/day)</span>
-          </div>
-        </div>
-      )}
-
-      {/* Important Threshold Warning Banner */}
-      {isAtOrAboveTelescopicCliff ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-900 flex items-start gap-2.5">
-          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold text-red-950">
-              {lang === 'ml' ? '500 യൂണിറ്റ് പരിധി കഴിഞ്ഞു:' : '500-Unit Telescopic Cliff Crossed:'}
-            </span>{' '}
-            {lang === 'ml'
-              ? `നിങ്ങളുടെ മുഴുവൻ ബില്ലും ഫ്ലാറ്റ് നിരക്കിലേക്ക് (യൂണിറ്റിന് ₹${result.slabBreakdown[0]?.ratePerUnit.toFixed(2)}) മാറി.`
-              : `Your entire bill shifts to a non-telescopic flat rate of ₹${result.slabBreakdown[0]?.ratePerUnit.toFixed(2)}/unit.`}
-          </div>
-        </div>
-      ) : isAtOrAboveSubsidyCeiling ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 flex items-start gap-2.5">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold text-amber-950">
-              {lang === 'ml' ? '240 യൂണിറ്റ് സബ്സിഡി പരിധി കഴിഞ്ഞു:' : '240-Unit Subsidy Threshold Exceeded:'}
-            </span>{' '}
-            {lang === 'ml'
-              ? 'രണ്ട് മാസത്തെ ഉപയോഗം 240 യൂണിറ്റിൽ കൂടുതലായാൽ സർക്കാർ സബ്സിഡി (₹148 ഇളവ്) ലഭിക്കില്ല.'
-              : 'Kerala Government subsidies (₹148 benefit) are removed once bi-monthly consumption passes 240 units.'}
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-900 flex items-center gap-2">
-          <Zap className="h-4 w-4 text-emerald-600 shrink-0" />
-          <span>
-            {lang === 'ml'
-              ? `സബ്സിഡി പരിധിക്കുള്ളിലാണ് (₹${result.totalSubsidies} സർക്കാർ ഇളവ് ലഭ്യമാണ്).`
-              : `Within subsidised slab bracket (Eligible for ₹${result.totalSubsidies} Government rebate).`}
-          </span>
-        </div>
-      )}
-
-      {/* Live Computed Numbers Breakdown */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-          <div className="text-[11px] text-slate-500 font-medium">{t.energyCharges}</div>
-          <div className="mt-1 font-mono text-base font-bold text-slate-900 num-tabular">
-            ₹{result.grossEnergyCharge.toFixed(0)}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-          <div className="text-[11px] text-slate-500 font-medium">{t.fixedCharges}</div>
-          <div className="mt-1 font-mono text-base font-bold text-slate-900 num-tabular">
-            ₹{result.grossFixedCharge.toFixed(0)}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-          <div className="text-[11px] text-slate-500 font-medium">{t.dutyCharges}</div>
-          <div className="mt-1 font-mono text-base font-bold text-slate-900 num-tabular">
-            ₹{result.electricityDuty.toFixed(0)}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-          <div className="text-[11px] text-slate-500 font-medium">{t.subsidiesLabel}</div>
-          <div className="mt-1 font-mono text-base font-bold text-emerald-600 num-tabular">
-            {result.totalSubsidies > 0 ? `−₹${result.totalSubsidies.toFixed(0)}` : '₹0'}
-          </div>
+          <ScribbleCheckbox
+            checked={tip3}
+            onChange={(checked) => {
+              setTip3(checked);
+              setUnits((prev) => Math.max(40, checked ? prev - 15 : prev + 15));
+            }}
+            label="Run motor pump outside peak hours (18:00 - 22:00)"
+            sublabel="Avoids 20% peak surcharge and protects against slab jumps"
+          />
         </div>
       </div>
 
-      {/* Hero Computed Total for this setting */}
-      <div className="rounded-2xl border border-sky-100 bg-sky-50/50 p-5 flex items-baseline justify-between">
-        <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-sky-800">
-            {lang === 'ml' ? 'ആകെ കണക്കാക്കിയ തുക' : 'Total Payable Bill'}
-          </span>
-          <div className="mt-0.5 text-xs text-slate-500">
-            {lang === 'ml' ? 'രണ്ട് മാസം (60 ദിവസം) • LT-1A ഗാർഹികം' : 'Bi-monthly (60 days) • LT-1A Domestic'}
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="font-mono text-3xl sm:text-4xl font-extrabold text-slate-900 num-tabular">
-            ₹{result.total.toLocaleString('en-IN')}
-          </div>
-          <div className="text-[11px] text-slate-500">
-            {lang === 'ml'
-              ? `~₹${Math.round(result.total / 2).toLocaleString('en-IN')} / മാസം`
-              : `~₹${Math.round(result.total / 2).toLocaleString('en-IN')} / month`}
-          </div>
-        </div>
-      </div>
-
-      {/* Link to budget */}
-      <div className="pt-1 text-center">
+      {/* -- Native Actions ------------------------------------- */}
+      <div className="space-y-2.5 pt-1">
         <Link
-          href={`/budget?currentUnits=${sliderUnits}&rate=${dailyPace}`}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-700 hover:text-sky-800 touch-target"
+          href={`/budget?target=${simCalc.total}`}
+          className="ios-btn-primary w-full"
         >
-          <span>{lang === 'ml' ? 'ഈ തുകയ്ക്ക് ബജറ്റ് നിശ്ചയിക്കാം' : 'Set this as my budget target'}</span>
-          <ArrowRight className="h-3.5 w-3.5" />
+          <span>{lang === 'ml' ? 'ഇതൊരു ബജറ്റ് ലക്ഷ്യമാക്കുക' : 'Set a budget for this amount'}</span>
+          <ArrowRight style={{ width: '15px', height: '15px', marginLeft: 'auto' }} />
+        </Link>
+
+        <Link
+          href={`/result?units=${units}`}
+          className="ios-btn-secondary w-full"
+        >
+          <span>{lang === 'ml' ? 'പൂർണ്ണ ബിൽ വിശകലനം കാണുക' : 'View full bill breakdown'}</span>
         </Link>
       </div>
     </div>

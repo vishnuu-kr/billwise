@@ -1,64 +1,68 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { Zap, Globe } from 'lucide-react';
+import { BrandLogo } from '@/components/BrandLogo';
+import { Search } from 'lucide-react';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import dynamic from 'next/dynamic';
+
+const CommandPalette = dynamic(
+  () => import('@/components/ui/CommandPalette').then((m) => m.CommandPalette),
+  { ssr: false }
+);
 
 export default function Header() {
   const pathname = usePathname();
-  const { lang, toggleLang, t } = useLanguage();
+  const { lang, setLang } = useLanguage();
+  const [isCommandOpen, setIsCommandOpen] = useState(false);
 
   const navLinks = [
     { href: '/predict', label: lang === 'ml' ? 'കണക്കുകൂട്ടാം' : 'Predict' },
+    { href: '/providers', label: lang === 'ml' ? 'ബോർഡുകൾ' : 'Providers' },
     { href: '/history', label: lang === 'ml' ? 'ചരിത്രം' : 'History' },
     { href: '/usage', label: lang === 'ml' ? 'ഉപയോഗം' : 'Usage' },
-    { href: '/what-if', label: lang === 'ml' ? 'സിമുലേറ്റർ' : 'What-If' },
-    { href: '/budget', label: lang === 'ml' ? 'ബജറ്റ്' : 'Budget' },
-    { href: '/tariff', label: lang === 'ml' ? 'താരിഫ്' : 'Tariff' },
+    { href: '/how-it-works', label: lang === 'ml' ? 'വിശദാംശങ്ങൾ' : 'How it works' },
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
-        {/* Brand */}
+    <header
+      className="sticky top-0 z-40 w-full transition-colors pt-safe"
+      style={{
+        background: 'rgba(247, 247, 245, 0.88)',
+        backdropFilter: 'saturate(180%) blur(20px)',
+        WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+        borderBottom: '1px solid var(--separator)',
+      }}
+    >
+      <div className="mx-auto flex h-11 max-w-[430px] md:max-w-4xl items-center justify-between px-4 sm:px-6">
+        {/* Brand — Refined geometric mark + modern wordmark */}
         <Link
           href="/"
-          className="group flex items-center gap-2.5 transition-opacity hover:opacity-90"
+          className="group flex items-center transition-opacity active:opacity-60"
           aria-label="BILLWISE Homepage"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-sky-400 shadow-sm transition-transform group-hover:scale-105">
-            <Zap className="h-5 w-5 fill-current" />
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="font-mono text-base font-bold tracking-tight text-slate-900">
-                BILLWISE
-              </span>
-              <span className="rounded-md bg-amber-100/90 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-800 tracking-wider">
-                BETA
-              </span>
-            </div>
-            <span className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">
-              Kerala Power
-            </span>
-          </div>
+          <BrandLogo size={18} showBeta={true} />
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Main Navigation">
+        {/* Desktop Navigation — Quiet inline links */}
+        <nav className="hidden items-center gap-6 md:flex" aria-label="Main navigation">
           {navLinks.map(link => {
-            const isActive = pathname === link.href;
+            const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-slate-100 text-slate-900 font-semibold'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
+                className="transition-colors active:opacity-60"
+                style={{
+                  fontSize: '13px',
+                  fontWeight: isActive ? 600 : 450,
+                  color: isActive ? 'var(--foreground)' : 'var(--secondary)',
+                  textDecoration: 'none',
+                  letterSpacing: '-0.01em',
+                }}
               >
                 {link.label}
               </Link>
@@ -66,26 +70,52 @@ export default function Header() {
           })}
         </nav>
 
-        {/* Right CTA & Language Toggle */}
-        <div className="flex items-center gap-2.5">
+        {/* Controls: Segmented Language & Settings */}
+        <div className="flex items-center gap-2">
+          {/* Segmented language selector */}
+          <SegmentedControl
+            options={[
+              { value: 'en' as const, label: 'EN' },
+              { value: 'ml' as const, label: 'മല' },
+            ]}
+            value={lang}
+            onChange={(v) => setLang(v as 'en' | 'ml')}
+            size="sm"
+            layoutId="header-lang-segmented"
+          />
+
+          {/* Command Palette Trigger (⌘K) */}
           <button
-            onClick={toggleLang}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors touch-target"
-            title="Switch Language / ഭാഷ മാറ്റുക"
-            aria-label="Toggle between English and Malayalam"
+            type="button"
+            onClick={() => setIsCommandOpen(true)}
+            aria-label={lang === 'ml' ? 'ടൂളുകൾ തിരയുക (⌘K)' : 'Search features (⌘K)'}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-[var(--secondary)] hover:text-[var(--foreground)] bg-black/[0.04] border border-black/[0.06] transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
+            title={lang === 'ml' ? 'ടൂളുകൾ തിരയുക (⌘K)' : 'Search features (⌘K)'}
           >
-            <Globe className="h-3.5 w-3.5 text-sky-600" />
-            <span>{lang === 'en' ? 'മലയാളം' : 'English'}</span>
+            <Search className="w-3.5 h-3.5" aria-hidden="true" />
+            <kbd className="hidden sm:inline font-mono text-[10px] opacity-60">⌘K</kbd>
           </button>
 
+          {/* Quick link to Settings */}
           <Link
-            href="/predict"
-            className="hidden sm:inline-flex items-center justify-center rounded-lg bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-sky-500 active:scale-[0.98] transition-all touch-target"
+            href="/settings"
+            className="hidden sm:flex items-center justify-center w-7 h-7 rounded-full text-[var(--secondary)] hover:text-[var(--foreground)] active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
+            aria-label="Settings"
           >
-            {t.predictMyBill}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
           </Link>
         </div>
       </div>
+
+      {/* Global Command Palette Dialog */}
+      <CommandPalette
+        isOpen={isCommandOpen}
+        onClose={() => setIsCommandOpen(false)}
+        onOpen={() => setIsCommandOpen(true)}
+      />
     </header>
   );
 }

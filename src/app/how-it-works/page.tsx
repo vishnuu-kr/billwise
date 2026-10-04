@@ -3,166 +3,131 @@
 import React from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import {
-  Camera,
-  Search,
-  Gauge,
-  Calculator,
-  TrendingUp,
-  HelpCircle,
-  ShieldCheck,
-  Lock,
-  ArrowRight,
-} from 'lucide-react';
+import { ArrowRight, ChevronRight, ScanLine, Gauge, TrendingUp, Lightbulb } from 'lucide-react';
 
 export default function HowItWorksPage() {
   const { lang } = useLanguage();
 
   const steps = [
     {
-      step: '1',
-      title: 'Scan your bill',
-      titleMl: 'ബിൽ സ്കാൻ ചെയ്യുക',
-      icon: Camera,
-      desc: 'Take a quick photo of your last printed KSEB bill. We read your past reading and billing cycle dates.',
-      descMl: 'നിങ്ങളുടെ ഏറ്റവും പുതിയ KSEB ബില്ലിന്റെ ഫോട്ടോ എടുക്കുക. പഴയ റീഡിംഗും തീയതിയും ഫോൺ തന്നെ തിരിച്ചറിയും.',
+      num: '01',
+      title: 'Scan',
+      titleMl: 'സ്കാൻ',
+      desc: 'Take a quick photo of your last printed KSEB bill. We read your previous reading, tariff category, and billing cycle dates.',
+      descMl: 'കഴിഞ്ഞ ബില്ലിന്റെ ഫോട്ടോ എടുക്കൂ. പഴയ റീഡിംഗും തീയതിയും ഫോൺ തന്നെ തിരിച്ചറിയും.',
+      action: '/scan',
+      actionLabel: 'Scan Bill',
+      actionLabelMl: 'ബിൽ സ്കാൻ ചെയ്യുക',
+      icon: ScanLine,
     },
     {
-      step: '2',
-      title: 'We identify your billing setup',
-      titleMl: 'കണക്ഷൻ വിവരങ്ങൾ തിരിച്ചറിയുന്നു',
-      icon: Search,
-      desc: 'We verify your tariff category (Domestic LT-1A), phase (Single or Three), and connected load in watts.',
-      descMl: 'താരിഫ് (LT-1A ഗാർഹികം), ഫേസ് (സിംഗിൾ അല്ലെങ്കിൽ ത്രീ ഫേസ്), കണക്റ്റഡ് ലോഡ് എന്നിവ കണ്ടെത്തുന്നു.',
-    },
-    {
-      step: '3',
-      title: 'Check your meter',
-      titleMl: 'മീറ്റർ റീഡിംഗ് പരിശോധിക്കുക',
+      num: '02',
+      title: 'Check',
+      titleMl: 'പരിശോധിക്കുക',
+      desc: 'Look at the digital display on your electricity meter and check the cumulative kWh digits.',
+      descMl: 'ഇലക്ട്രിക് മീറ്ററിലെ kWh നമ്പർ നോക്കുക (ക്യാമറ സ്കാനർ ഉപയോഗിക്കാം).',
+      action: '/predict',
+      actionLabel: 'Check Meter',
+      actionLabelMl: 'മീറ്റർ പരിശോധിക്കുക',
       icon: Gauge,
-      desc: 'Read the cumulative numbers displayed beside "kWh" on your electric meter and enter them.',
-      descMl: 'ഇലക്ട്രിസിറ്റി മീറ്ററിൽ "kWh" ന് നേരെയുള്ള അക്കങ്ങൾ നോക്കി നൽകുക (അല്ലെങ്കിൽ ക്യാമറ ഉപയോഗിക്കുക).',
     },
     {
-      step: '4',
-      title: 'We calculate your usage',
-      titleMl: 'ഉപയോഗം കണക്കുകൂട്ടുന്നു',
-      icon: Calculator,
-      desc: 'We subtract your past reading from your current reading to find consumed units and your daily burn rate.',
-      descMl: 'ഇപ്പോഴത്തെ റീഡിംഗിൽ നിന്ന് പഴയ റീഡിംഗ് കുറച്ച് ഇതുവരെ ഉപയോഗിച്ച യൂണിറ്റും ദിവസേനയുള്ള വേഗതയും കണ്ടെത്തുന്നു.',
-    },
-    {
-      step: '5',
-      title: 'We estimate your next bill',
-      titleMl: 'അടുത്ത ബിൽ പ്രവചിക്കുന്നു',
+      num: '03',
+      title: 'Predict',
+      titleMl: 'പ്രവചിക്കുക',
+      desc: 'We subtract the readings to determine your daily burn rate and project your 60-day consumption using official KSERC tariff slabs.',
+      descMl: 'ദൈനംദിന വേഗത അടിസ്ഥാനമാക്കി ഔദ്യോഗിക സ്ലാബ് നിരക്കനുസരിച്ച് തുക കണക്കാക്കുന്നു.',
+      action: '/predict',
+      actionLabel: 'Predict Bill',
+      actionLabelMl: 'ബിൽ പ്രവചിക്കുക',
       icon: TrendingUp,
-      desc: 'We project your 60-day bi-monthly consumption and calculate the expected bill using official telescopic slabs.',
-      descMl: 'ബാക്കിയുള്ള ദിവസങ്ങളിലെ ഉപയോഗം കണക്കാക്കി 60 ദിവസത്തെ ആകെ തുക മുൻകൂട്ടി കണക്കാക്കുന്നു.',
     },
     {
-      step: '6',
-      title: 'We explain the result',
-      titleMl: 'വ്യക്തമായ വിവരണം നൽകുന്നു',
-      icon: HelpCircle,
-      desc: 'See exactly which slabs you hit, where your rupees go, and how much you save by cutting 0.5 units/day.',
-      descMl: 'സ്ലാബ് നിരക്കുകൾ, ഫിക്സഡ് ചാർജ്ജ്, ഡ്യൂട്ടി, 0.5 യൂണിറ്റ് കുറച്ചാൽ എത്ര ലാഭിക്കാം എന്നിവ വിശദീകരിക്കുന്നു.',
+      num: '04',
+      title: 'Understand',
+      titleMl: 'മനസ്സിലാക്കുക',
+      desc: 'See which tariff slab you are in, view threshold alerts, and discover how cutting 0.5 units/day saves real rupees.',
+      descMl: 'ഏതൊക്കെ സ്ലാബ് ബാധകം, 0.5 യൂണിറ്റ് കുറച്ചാൽ എത്ര ലാഭം — എല്ലാം കൃത്യമായി അറിയാം.',
+      action: '/what-if',
+      actionLabel: 'Try Simulator',
+      actionLabelMl: 'സിമുലേറ്റർ നോക്കൂ',
+      icon: Lightbulb,
     },
   ];
 
   return (
-    <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-6 sm:pt-10 space-y-10">
+    <div className="max-w-[430px] mx-auto px-4 pt-3 pb-4 space-y-6">
+      {/* Back Link */}
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--secondary)] hover:text-[var(--foreground)] active:opacity-60 transition-colors"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <span>{lang === 'ml' ? 'ഹോം' : 'Home'}</span>
+      </Link>
+
       {/* Header */}
-      <div className="text-center max-w-xl mx-auto space-y-3">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-          {lang === 'ml' ? 'ബിൽവൈസ് എങ്ങനെ പ്രവർത്തിക്കുന്നു?' : 'How BILLWISE Works'}
+      <div className="space-y-1">
+        <span className="text-[12px] font-medium text-[var(--tertiary)] block">
+          {lang === 'ml' ? 'പ്രവർത്തന രീതി' : 'How it works'}
+        </span>
+        <h1 className="text-[28px] sm:text-[34px] font-semibold tracking-tight text-[var(--foreground)]">
+          {lang === 'ml' ? 'നാല് ലളിതമായ ഘട്ടങ്ങൾ' : 'Four clear steps'}
         </h1>
-        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        <p className="text-[14px] text-[var(--secondary)] leading-relaxed pt-1">
           {lang === 'ml'
-            ? 'ആറ് ലളിതമായ ഘട്ടങ്ങളിൽ നിങ്ങളുടെ വൈദ്യുതി ബിൽ സുതാര്യമായി അറിയാം.'
-            : 'Six simple steps to understand, predict, and control your KSEB electricity bill.'}
+            ? 'മീറ്റർ റീഡിംഗിൽ നിന്ന് കൃത്യമായ ബിൽ പ്രവചനത്തിലേക്ക്.'
+            : 'From your physical meter to an accurate expected bill.'}
         </p>
       </div>
 
-      {/* 6 Steps Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Interactive Step Cards */}
+      <div className="space-y-3">
         {steps.map(s => {
           const Icon = s.icon;
           return (
-            <div
-              key={s.step}
-              className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-3"
+            <Link
+              key={s.num}
+              href={s.action}
+              className="glass-card p-4 rounded-2xl block text-inherit no-underline hover:border-[var(--accent)]/40 transition-colors active:scale-[0.99]"
             >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 font-bold text-sm">
-                  {s.step}
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] border border-[var(--separator)] flex items-center justify-center shrink-0 relative">
+                  <Icon className="w-5 h-5 text-[var(--accent)]" />
+                  <span className="absolute -top-1.5 -right-1.5 text-[9px] font-bold num-tabular bg-[var(--foreground)] text-white px-1.5 py-0.5 rounded-full leading-none">
+                    {s.num}
+                  </span>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-slate-900 text-sm">
-                    {lang === 'ml' ? s.titleMl : s.title}
-                  </h3>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-[15px] font-semibold text-[var(--foreground)] tracking-tight">
+                      {lang === 'ml' ? s.titleMl : s.title}
+                    </h2>
+                    <span className="text-[12px] font-medium text-[var(--accent)] inline-flex items-center gap-0.5">
+                      <span>{lang === 'ml' ? s.actionLabelMl : s.actionLabel}</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                  <p className="text-[13px] text-[var(--secondary)] leading-relaxed mt-1">
+                    {lang === 'ml' ? s.descMl : s.desc}
+                  </p>
                 </div>
-                <Icon className="h-5 w-5 text-slate-400" />
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                {lang === 'ml' ? s.descMl : s.desc}
-              </p>
-            </div>
+            </Link>
           );
         })}
       </div>
 
-      {/* Section 34: Is this official? Plain English QA */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6">
-        <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            {lang === 'ml' ? 'സുതാര്യത' : 'Trust & Questions'}
-          </span>
-          <h2 className="text-xl font-bold text-slate-900 mt-0.5">
-            {lang === 'ml' ? 'പതിവുചോദ്യങ്ങൾ' : 'Frequently Asked Questions'}
-          </h2>
-        </div>
-
-        <div className="space-y-4 divide-y divide-slate-100 text-xs sm:text-sm">
-          {/* Question 1 */}
-          <div className="pt-3 space-y-1.5">
-            <h3 className="font-bold text-slate-900 text-sm">
-              {lang === 'ml' ? 'ഇത് KSEB-യുടെ ഔദ്യോഗിക ആപ്പാണോ?' : 'Is BILLWISE KSEB?'}
-            </h3>
-            <p className="text-slate-600 leading-relaxed">
-              <strong>No.</strong> BILLWISE is an independent tool that uses published KSERC tariff information to estimate domestic electricity bills. We are not run by, endorsed by, or affiliated with the Kerala State Electricity Board (KSEBL).
-            </p>
-          </div>
-
-          {/* Question 2 */}
-          <div className="pt-4 space-y-1.5">
-            <h3 className="font-bold text-slate-900 text-sm">
-              {lang === 'ml' ? 'എന്റെ വിവരങ്ങൾ സുരക്ഷിതമാണോ?' : 'What happens to my data?'}
-            </h3>
-            <p className="text-slate-600 leading-relaxed">
-              Your data stays entirely on your phone or computer. When you scan a bill or meter, all reading happens in your device browser. We do not store your name, phone number, consumer number, or bill photos on any cloud server. There are no accounts and no passwords.
-            </p>
-          </div>
-
-          {/* Question 3 */}
-          <div className="pt-4 space-y-1.5">
-            <h3 className="font-bold text-slate-900 text-sm">
-              {lang === 'ml' ? 'എനിക്ക് എന്ത് ബില്ലുകളാണ് പരിശോധിക്കാൻ കഴിയുക?' : 'Which bills can I calculate?'}
-            </h3>
-            <p className="text-slate-600 leading-relaxed">
-              BILLWISE is built specifically for Kerala domestic households (LT-1A tariff, single-phase or three-phase, bi-monthly cycle). Commercial shops, solar net-metering, and high-tension connections have different complex rules and are not supported yet.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* CTA Bottom */}
-      <div className="text-center pt-2 pb-8">
+      {/* Primary Action Button */}
+      <div className="pt-2">
         <Link
-          href="/predict"
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-600 px-6 py-4 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 active:scale-[0.98] transition-all touch-target"
+          href="/scan"
+          className="ios-btn-primary w-full"
         >
-          <span>{lang === 'ml' ? 'ഇപ്പോൾ തന്നെ ബിൽ പ്രവചിക്കാം' : 'Predict My Bill Now'}</span>
-          <ArrowRight className="h-4 w-4" />
+          <span>{lang === 'ml' ? 'ആരംഭിക്കൂ' : 'Start with your bill'}</span>
+          <ArrowRight style={{ width: '16px', height: '16px' }} />
         </Link>
       </div>
     </div>

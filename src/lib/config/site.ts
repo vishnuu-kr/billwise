@@ -15,13 +15,13 @@ export const SITE_CONFIG = {
     'The simplest electricity intelligence for Kerala households. Predict your next KSEB electricity bill, understand your tariff slabs, and avoid high cost bands without technical jargon.',
   domain: NORMALIZED_DOMAIN,
   supportEmail: 'feedback@billwise.app',
-  releaseStage: 'Public Beta (Phase 6)',
+  releaseStage: 'Launch Candidate 1 (v0.6.0-rc.1)',
 
-  // Versioning Architecture (Phase 6)
-  appVersion: '0.6.0-beta',
+  // Versioning Architecture (Launch Candidate)
+  appVersion: '0.6.0-rc.1',
   calculationEngineVersion: 'v1-kserc-deterministic',
   predictionModelVersion: 'v1-daily-run-rate',
-  cacheVersion: 'billwise-v0.6.0',
+  cacheVersion: 'billwise-v0.6.0-rc1',
   schemaVersion: 1,
 
   // Tariff Baseline Reference

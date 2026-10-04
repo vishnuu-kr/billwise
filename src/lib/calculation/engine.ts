@@ -175,7 +175,7 @@ export function calculateBill(
   }
 
   const netFixedCharge = Math.max(0, grossFixedCharge - fixedChargeSubsidy);
-  const netEnergyCharge = grossEnergyCharge; // in KSEB format, energy usage is listed as gross, and subsidy is subtracted at bottom
+  const _netEnergyCharge = grossEnergyCharge; // in KSEB format, energy usage is listed as gross, and subsidy is subtracted at bottom
 
   // 4. Other Standard Levies
   // Fuel Adjustment (FAC)

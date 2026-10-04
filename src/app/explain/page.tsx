@@ -7,7 +7,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import BillExplanation from '@/components/BillExplanation';
 import CardSkeleton from '@/components/CardSkeleton';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { BillingCycle, Phase } from '@/types';
 
 function ExplainContent() {
   const searchParams = useSearchParams();
@@ -15,8 +15,8 @@ function ExplainContent() {
 
   const unitsParam = searchParams.get('units');
   const units = unitsParam ? Math.max(0, Number(unitsParam)) : 240;
-  const cycle = (searchParams.get('cycle') as any) || 'bi-monthly';
-  const phase = (searchParams.get('phase') as any) || 'single';
+  const cycle = (searchParams.get('cycle') as BillingCycle) || 'bi-monthly';
+  const phase = (searchParams.get('phase') as Phase) || 'single';
 
   const calculation = calculateBill({
     units,
@@ -25,16 +25,14 @@ function ExplainContent() {
   });
 
   return (
-    <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10 space-y-6">
-      <div>
-        <Link
-          href={`/result?units=${units}`}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>{lang === 'ml' ? 'റിസൾട്ടിലേക്ക് മടങ്ങാം' : 'Back to Bill Result'}</span>
-        </Link>
-      </div>
+    <div className="max-w-[430px] mx-auto px-4 pt-3 pb-4 space-y-5">
+      <Link
+        href={`/result?units=${units}`}
+        className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--secondary)] hover:text-[var(--foreground)] active:opacity-60 transition-colors"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <span>{lang === 'ml' ? 'ബിൽ ഫലത്തിലേക്ക്' : 'Back to result'}</span>
+      </Link>
 
       <BillExplanation calculation={calculation} />
     </div>

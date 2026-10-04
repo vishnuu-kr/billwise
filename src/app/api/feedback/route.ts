@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { telemetryStore } from '@/lib/server/telemetryStore';
-import { SITE_CONFIG } from '@/lib/config/site';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,9 +38,4 @@ export async function GET() {
   const stats = telemetryStore.getFeedbackStats();
   const recent = telemetryStore.getRecentFeedback().slice(0, 50);
   return NextResponse.json({ stats, recent }, { status: 200 });
-}
-
-export async function DELETE() {
-  telemetryStore.clear();
-  return NextResponse.json({ cleared: true }, { status: 200 });
 }

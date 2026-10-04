@@ -1,10 +1,12 @@
-import { HistoryRecord, BudgetConfig, UserFeedbackRecord, FeedbackSummaryStats } from '@/types';
+import { HistoryRecord, BudgetConfig, UserFeedbackRecord, FeedbackSummaryStats, SavedHomeProfile, CycleComparisonDetail } from '@/types';
 import { SITE_CONFIG } from '@/lib/config/site';
+import { calculateBill } from '@/lib/calculation/engine';
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 const STORAGE_KEYS = {
   SCHEMA_VERSION: 'billwise_schema_version',
+  HOME_PROFILE: 'billwise_saved_home_v1',
   HISTORY: 'billwise_history_v1',
   BUDGET: 'billwise_budget_v1',
   LAST_READING: 'billwise_last_reading_v1',
@@ -14,23 +16,8 @@ const STORAGE_KEYS = {
   ONBOARDING: 'billwise_onboarding_completed',
 };
 
-// Initial realistic seed history for Kerala domestic user (based on actual reference bill)
+// Initial realistic seed history for Kerala domestic user (newest first, based on actual reference bill)
 const SEED_HISTORY: HistoryRecord[] = [
-  {
-    id: 'hist-001',
-    timestamp: '2026-06-05T10:00:00Z',
-    dateLabel: 'Jun 2026',
-    meterReading: 9815,
-    consumedUnits: 215,
-    predictedBill: 1010,
-    actualBill: 1012,
-    billingCycle: 'bi-monthly',
-    source: 'manual',
-    tariffVersionId: SITE_CONFIG.activeTariffId,
-    calculationEngineVersion: SITE_CONFIG.calculationEngineVersion,
-    predictionModelVersion: SITE_CONFIG.predictionModelVersion,
-    notes: 'Pre-monsoon cycle',
-  },
   {
     id: 'hist-002',
     timestamp: '2026-08-04T10:00:00Z',
@@ -45,6 +32,21 @@ const SEED_HISTORY: HistoryRecord[] = [
     calculationEngineVersion: SITE_CONFIG.calculationEngineVersion,
     predictionModelVersion: SITE_CONFIG.predictionModelVersion,
     notes: 'Reference fixture bill',
+  },
+  {
+    id: 'hist-001',
+    timestamp: '2026-06-05T10:00:00Z',
+    dateLabel: 'Jun 2026',
+    meterReading: 9815,
+    consumedUnits: 215,
+    predictedBill: 1010,
+    actualBill: 1012,
+    billingCycle: 'bi-monthly',
+    source: 'manual',
+    tariffVersionId: SITE_CONFIG.activeTariffId,
+    calculationEngineVersion: SITE_CONFIG.calculationEngineVersion,
+    predictionModelVersion: SITE_CONFIG.predictionModelVersion,
+    notes: 'Pre-monsoon cycle',
   },
 ];
 
@@ -150,6 +152,169 @@ export class StorageManager {
     } catch (e) {
       console.error('Failed to save last reading', e);
     }
+  }
+
+  // ==========================================
+  // Phase 9: "My Home" Persistent Profile
+  // ==========================================
+
+  hasSavedHome(): boolean {
+    try {
+      const data = this.getItem(STORAGE_KEYS.HOME_PROFILE);
+      return !!data && !!JSON.parse(data);
+    } catch {
+      return false;
+    }
+  }
+
+  getSavedHome(): SavedHomeProfile | null {
+    try {
+      const data = this.getItem(STORAGE_KEYS.HOME_PROFILE);
+      if (!data) return null;
+      const parsed: SavedHomeProfile = JSON.parse(data);
+      // Backwards-compatibility: default providerId to 'kseb' for legacy records
+      if (!parsed.providerId) {
+        parsed.providerId = 'kseb';
+        parsed.providerName = 'Kerala State Electricity Board';
+        parsed.providerShortName = 'KSEB';
+        parsed.state = 'Kerala';
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  saveHome(profile: SavedHomeProfile): void {
+    try {
+      const updated: SavedHomeProfile = {
+        ...profile,
+        updatedAt: new Date().toISOString(),
+      };
+      this.setItem(STORAGE_KEYS.HOME_PROFILE, JSON.stringify(updated));
+      // Sync last reading
+      if (profile.lastReading) {
+        this.saveLastReading(profile.lastReading, profile.lastReadingDate);
+      }
+    } catch (e) {
+      console.error('Failed to save home profile', e);
+    }
+  }
+
+  updateHomeReading(
+    currentReading: number,
+    date?: string,
+    prediction?: SavedHomeProfile['latestPrediction']
+  ): SavedHomeProfile | null {
+    const home = this.getSavedHome();
+    if (!home) return null;
+
+    const readingDate = date || new Date().toISOString().slice(0, 10);
+    const updatedHome: SavedHomeProfile = {
+      ...home,
+      currentReading,
+      currentReadingDate: readingDate,
+      latestPrediction: prediction || home.latestPrediction,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.saveHome(updatedHome);
+    return updatedHome;
+  }
+
+  recordActualBillForHome(actualAmount: number, date?: string): { success: boolean; diff: number; diffPercent: number } {
+    const home = this.getSavedHome();
+    if (!home) return { success: false, diff: 0, diffPercent: 0 };
+
+    const predicted = home.latestPrediction?.estimatedBill || home.lastBillAmount || 0;
+    const diff = Math.round(actualAmount - predicted);
+    const diffPercent = predicted > 0 ? Math.round((Math.abs(diff) / predicted) * 100) : 0;
+
+    // Shift current cycle into history
+    const units = home.latestPrediction?.projectedUnits || 
+      (home.currentReading && home.lastReading ? Math.max(0, home.currentReading - home.lastReading) : home.lastBillUnits || 0);
+
+    const recordDate = date || new Date().toISOString().slice(0, 10);
+    this.addRecord({
+      dateLabel: new Date(recordDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      meterReading: home.currentReading || home.lastReading,
+      consumedUnits: units,
+      predictedBill: predicted,
+      actualBill: actualAmount,
+      billingCycle: home.billingCycle,
+      source: 'reading',
+      notes: `Reconciled bill (diff: ₹${diff})`,
+    });
+
+    // Advance home baseline to this new cycle
+    const nextHome: SavedHomeProfile = {
+      ...home,
+      lastBillAmount: actualAmount,
+      lastBillUnits: units,
+      lastBillDate: recordDate,
+      lastReading: home.currentReading || home.lastReading,
+      lastReadingDate: recordDate,
+      currentReading: undefined,
+      currentReadingDate: undefined,
+      latestPrediction: undefined,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.saveHome(nextHome);
+    return { success: true, diff, diffPercent };
+  }
+
+  deleteSavedHome(): void {
+    this.removeItem(STORAGE_KEYS.HOME_PROFILE);
+  }
+
+  compareTwoCycles(prevRecord: HistoryRecord, currRecord: HistoryRecord): CycleComparisonDetail {
+    const prevUnits = prevRecord.consumedUnits;
+    const currUnits = currRecord.consumedUnits;
+    const unitsDiff = currUnits - prevUnits;
+
+    const prevBill = prevRecord.actualBill ?? prevRecord.predictedBill;
+    const currBill = currRecord.actualBill ?? currRecord.predictedBill;
+    const billDiff = currBill - prevBill;
+
+    // Calculate component breakdowns
+    const prevCalc = calculateBill({
+      units: prevUnits,
+      billingCycle: prevRecord.billingCycle || 'bi-monthly',
+      phase: 'single',
+    });
+
+    const currCalc = calculateBill({
+      units: currUnits,
+      billingCycle: currRecord.billingCycle || 'bi-monthly',
+      phase: 'single',
+    });
+
+    const energyImpact = Math.round((currCalc.grossEnergyCharge - currCalc.energySubsidy) - (prevCalc.grossEnergyCharge - prevCalc.energySubsidy));
+    const fixedImpact = Math.round(currCalc.netFixedCharge - prevCalc.netFixedCharge);
+    const dutyImpact = Math.round(currCalc.electricityDuty - prevCalc.electricityDuty);
+    const subsidyImpact = Math.round(currCalc.totalSubsidies - prevCalc.totalSubsidies);
+    const fuelAndRentImpact = Math.round(
+      (currCalc.fuelAdjustment + currCalc.meterRent) - (prevCalc.fuelAdjustment + prevCalc.meterRent)
+    );
+
+    const percentageChange = prevBill > 0 ? Math.round((Math.abs(billDiff) / prevBill) * 100) : 0;
+
+    return {
+      prevUnits,
+      currUnits,
+      unitsDiff,
+      prevBill,
+      currBill,
+      billDiff,
+      energyImpact,
+      fixedImpact,
+      dutyImpact,
+      subsidyImpact,
+      fuelAndRentImpact,
+      isIncrease: billDiff > 0,
+      percentageChange,
+    };
   }
 
   recordActualBill(recordId: string, actualBill: number): boolean {

@@ -3,22 +3,18 @@
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { predictUsage } from '@/lib/prediction/engine';
-import { calculateBill } from '@/lib/calculation/engine';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { storageManager } from '@/lib/storage';
 import ResultCard from '@/components/ResultCard';
 import CardSkeleton from '@/components/CardSkeleton';
-import Link from 'next/link';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { BillingCycle, Phase } from '@/types';
 
 function ResultContent() {
   const searchParams = useSearchParams();
-  const { lang, t } = useLanguage();
 
   const unitsParam = searchParams.get('units');
   const units = unitsParam ? Math.max(0, Number(unitsParam)) : 240;
-  const cycle = (searchParams.get('cycle') as any) || 'bi-monthly';
-  const phase = (searchParams.get('phase') as any) || 'single';
+  const cycle = (searchParams.get('cycle') as BillingCycle) || 'bi-monthly';
+  const phase = (searchParams.get('phase') as Phase) || 'single';
   const load = searchParams.get('load') ? Number(searchParams.get('load')) : 982;
 
   const prevBillParam = searchParams.get('prevBill');
@@ -41,19 +37,7 @@ function ResultContent() {
   });
 
   return (
-    <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10 space-y-6">
-      {/* Back button */}
-      <div>
-        <Link
-          href="/predict"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>{lang === 'ml' ? 'റീഡിംഗ് മാറ്റുക' : 'Change reading or cycle'}</span>
-        </Link>
-      </div>
-
-      {/* Main Result Card */}
+    <div className="max-w-[430px] mx-auto px-4 pt-3 pb-4">
       <ResultCard prediction={prediction} previousBillAmount={previousBillAmount} />
     </div>
   );
@@ -63,7 +47,7 @@ export default function ResultPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10">
+        <div className="max-w-[430px] mx-auto px-4 pt-6">
           <CardSkeleton title="Calculating projected bill..." />
         </div>
       }

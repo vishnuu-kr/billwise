@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   // Return aggregated anonymous summary
   const summary = telemetryStore.getSummary();
   return NextResponse.json(summary, { status: 200 });

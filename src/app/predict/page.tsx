@@ -1,123 +1,78 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { predictUsage } from '@/lib/prediction/engine';
-import { calculateConsumedUnits } from '@/lib/calculation/engine';
 import { storageManager } from '@/lib/storage';
-import { PredictionResult } from '@/types';
+import { PredictionResult, SavedHomeProfile } from '@/types';
 import MeterVisualGuide from '@/components/MeterVisualGuide';
 import ResultCard from '@/components/ResultCard';
 import CardSkeleton from '@/components/CardSkeleton';
-import { extractMeterReadingFromImage } from '@/lib/ocr/extractor';
-import { MeterScanResult } from '@/types';
-import {
-  Zap,
-  Gauge,
-  Calendar,
-  AlertTriangle,
-  ArrowRight,
-  RefreshCw,
-  Sliders,
-  CheckCircle2,
-  HelpCircle,
-  RotateCcw,
-  Camera,
-  FileText,
-} from 'lucide-react';
+import MeterScanner from '@/components/MeterScanner';
+import { Camera, ChevronLeft, Calendar, X } from 'lucide-react';
 import Link from 'next/link';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { DateRangePicker, type Range, daysBetween, short } from '@/components/ui/DateRangePicker';
+import { motion, AnimatePresence } from 'motion/react';
+
+const DEFAULT_DAYS = 30;
 
 function PredictContent() {
   const searchParams = useSearchParams();
   const { lang, t } = useLanguage();
-  const meterFileRef = React.useRef<HTMLInputElement>(null);
 
-  // Meter inputs - initialize from params/storage without fake defaults
   const [prevReading, setPrevReading] = useState<number | null>(null);
   const [currentReading, setCurrentReading] = useState<string>('');
-  const [daysElapsed, setDaysElapsed] = useState<number>(30);
-  const [totalCycleDays, setTotalCycleDays] = useState<number>(60);
+  const [daysElapsed, setDaysElapsed] = useState<number>(DEFAULT_DAYS);
+  const totalCycleDays = 60;
+  const [phase, setPhase] = useState<'single' | 'three'>('single');
   const [previousBillAmount, setPreviousBillAmount] = useState<number | undefined>(undefined);
   
-  // Meter camera scan state
-  const [isScanningMeter, setIsScanningMeter] = useState<boolean>(false);
-  const [meterScanResult, setMeterScanResult] = useState<MeterScanResult | null>(null);
+  const [showMeterScannerModal, setShowMeterScannerModal] = useState<boolean>(false);
+  const [selectedDateRange, setSelectedDateRange] = useState<Range | null>(null);
+  const [showCalendarModal, setShowCalendarModal] = useState<boolean>(false);
+  const isMeterReplaced = false;
 
-  // Meter replacement state
-  const [isMeterReplaced, setIsMeterReplaced] = useState<boolean>(false);
-  const [oldMeterFinal, setOldMeterFinal] = useState<number>(10350);
-  const [newMeterInitial, setNewMeterInitial] = useState<number>(0);
-
-  // Status & results
   const [prediction, setPrediction] = useState<PredictionResult | null>(null);
   const [isLowerError, setIsLowerError] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Read URL query params & saved history on initial mount
-  useEffect(() => {
-    const pReading = searchParams.get('prevReading');
-    const cReading = searchParams.get('reading');
-    const uParam = searchParams.get('units');
-    const prevBillParam = searchParams.get('prevBill');
+  const handleApplyDateRange = (range: Range) => {
+    setSelectedDateRange(range);
+    const diff = Math.min(60, Math.max(1, daysBetween(range.start, range.end) + 1));
+    setDaysElapsed(diff);
+    runCalculation(prevReading, currentReading, diff, isMeterReplaced, phase);
+    setShowCalendarModal(false);
+  };
 
-    let initialPrev: number | null = null;
-    if (pReading) {
-      initialPrev = Number(pReading);
-      setPrevReading(initialPrev);
-    } else {
-      const lastSaved = storageManager.getLastReading();
-      if (lastSaved) {
-        initialPrev = lastSaved.reading;
-        setPrevReading(initialPrev);
-      }
-    }
-
-    if (cReading) {
-      setCurrentReading(cReading);
-    }
-
-    if (prevBillParam) {
-      setPreviousBillAmount(Number(prevBillParam));
-    } else {
-      const history = storageManager.getHistory();
-      if (history.length > 0 && history[0].actualBill) {
-        setPreviousBillAmount(history[0].actualBill);
-      }
-    }
-
-    if (uParam) {
-      const units = Number(uParam);
-      const res = predictUsage({
-        currentCycleUnits: units,
-        daysElapsed: 60,
-        totalCycleDays: 60,
-        billingCycle: 'bi-monthly',
-        phase: 'single',
-      });
-      setPrediction(res);
-    } else if (initialPrev !== null && cReading) {
-      runCalculation(initialPrev, cReading, 30, false);
-    }
-  }, [searchParams]);
-
-  const runCalculation = (
+  const runCalculation = useCallback((
     prev: number | null,
     currStr: string,
     days: number,
-    replaced: boolean
+    replaced: boolean,
+    selectedPhase: 'single' | 'three'
   ) => {
     setValidationError(null);
     setIsLowerError(false);
 
+    const curr = Number(currStr);
+    const hasCurrent = currStr.trim() !== '' && !isNaN(curr);
+
     if (prev === null) {
-      setValidationError('Please enter your previous reading from your last KSEB bill.');
+      // Only nag about the previous reading once the user has started typing a current one
+      if (hasCurrent) {
+        setValidationError(
+          lang === 'ml'
+            ? 'കഴിഞ്ഞ KSEB ബില്ലിലെ റീഡിംഗ് ആദ്യം നൽകുക.'
+            : 'Enter the reading from your last KSEB bill first.'
+        );
+      }
       setPrediction(null);
       return;
     }
 
-    const curr = Number(currStr);
-    if (isNaN(curr) || currStr.trim() === '') {
+    if (!hasCurrent) {
       setPrediction(null);
       return;
     }
@@ -134,374 +89,484 @@ function PredictContent() {
         currentReading: curr,
         daysElapsed: days,
         totalCycleDays,
-        billingCycle: totalCycleDays === 30 ? 'monthly' : 'bi-monthly',
-        phase: 'single',
+        billingCycle: 'bi-monthly',
+        phase: selectedPhase,
       });
 
       setPrediction(res);
-    } catch (e: any) {
-      setValidationError(e.message || 'Error occurred calculating prediction.');
+    } catch (e: unknown) {
+      setValidationError((e as Error).message || 'Error occurred calculating prediction.');
       setPrediction(null);
     }
+  }, [totalCycleDays, lang]);
+
+  const [isBaselineSaved, setIsBaselineSaved] = useState<boolean>(false);
+
+  const handleSaveBaseline = () => {
+    const curr = Number(currentReading);
+    if (!curr || isNaN(curr)) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const home = storageManager.getSavedHome();
+    const newHome: SavedHomeProfile = {
+      id: home?.id || 'home_primary',
+      name: home?.name || 'Home',
+      providerId: home?.providerId || 'kseb',
+      providerName: home?.providerName || 'Kerala State Electricity Board',
+      providerShortName: home?.providerShortName || 'KSEB',
+      state: home?.state || 'Kerala',
+      billingCycle: home?.billingCycle || 'bi-monthly',
+      tariff: home?.tariff || 'LT-1A',
+      phase,
+      connectedLoadWatts: home?.connectedLoadWatts || 2000,
+      lastReading: curr,
+      lastReadingDate: today,
+      currentReading: undefined,
+      currentReadingDate: undefined,
+      latestPrediction: undefined,
+      createdAt: home?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    storageManager.saveHome(newHome);
+    setIsBaselineSaved(true);
   };
 
-  const handleCurrentChange = (val: string) => {
-    setCurrentReading(val);
-    runCalculation(prevReading, val, daysElapsed, isMeterReplaced);
-  };
+  // Hydrate from URL / saved reading exactly once per distinct query string.
+  // (Previously this re-ran on every slider/phase change and clobbered user input.)
+  const initKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key = searchParams.toString();
+    if (initKeyRef.current === key) return;
+    initKeyRef.current = key;
+
+    const pReading = searchParams.get('prevReading');
+    const cReading = searchParams.get('reading');
+    const uParam = searchParams.get('units');
+    const prevBillParam = searchParams.get('prevBill');
+
+    let initialPrev: number | null = null;
+    if (pReading && !isNaN(Number(pReading))) {
+      initialPrev = Number(pReading);
+      setPrevReading(initialPrev);
+    } else {
+      const lastSaved = storageManager.getLastReading();
+      if (lastSaved && lastSaved.reading > 0) {
+        initialPrev = lastSaved.reading;
+        setPrevReading(initialPrev);
+      } else {
+        const home = storageManager.getSavedHome();
+        if (home && home.lastReading > 0) {
+          initialPrev = home.lastReading;
+          setPrevReading(initialPrev);
+        } else if (home && home.currentReading && home.currentReading > 0) {
+          initialPrev = home.currentReading;
+          setPrevReading(initialPrev);
+        }
+      }
+    }
+
+    if (cReading) {
+      setCurrentReading(cReading);
+    }
+
+    if (prevBillParam && !isNaN(Number(prevBillParam))) {
+      setPreviousBillAmount(Number(prevBillParam));
+    }
+
+    const phaseParam = searchParams.get('phase');
+    if (phaseParam === 'single' || phaseParam === 'three') {
+      setPhase(phaseParam);
+    }
+
+    // Direct unit calculation support
+    if (uParam) {
+      const uVal = Number(uParam);
+      if (!isNaN(uVal) && uVal > 0) {
+        const dummyPrev = 10000;
+        const dummyCurr = dummyPrev + uVal;
+        setPrevReading(dummyPrev);
+        setCurrentReading(String(dummyCurr));
+        setDaysElapsed(60);
+        runCalculation(dummyPrev, String(dummyCurr), 60, false, 'single');
+        return;
+      }
+    }
+
+    if (initialPrev !== null && cReading) {
+      runCalculation(initialPrev, cReading, DEFAULT_DAYS, false, 'single');
+    }
+  }, [searchParams, runCalculation]);
 
   const handlePrevChange = (val: number | null) => {
     setPrevReading(val);
-    runCalculation(val, currentReading, daysElapsed, isMeterReplaced);
+    runCalculation(val, currentReading, daysElapsed, isMeterReplaced, phase);
   };
 
-  const handleDaysChange = (val: number) => {
-    setDaysElapsed(val);
-    runCalculation(prevReading, currentReading, val, isMeterReplaced);
+  const handleCurrentChange = (valStr: string) => {
+    setCurrentReading(valStr);
+    runCalculation(prevReading, valStr, daysElapsed, isMeterReplaced, phase);
   };
 
-  const handleMeterCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsScanningMeter(true);
-    try {
-      const result = await extractMeterReadingFromImage(file);
-      setMeterScanResult(result);
-    } catch {
-      setMeterScanResult({
-        detectedReading: null,
-        confidence: 0,
-        rawText: '',
-        status: 'failed',
-        message: 'Could not read meter display. Please enter digits manually.',
-      });
-    } finally {
-      setIsScanningMeter(false);
-    }
+  const handleDaysChange = (days: number) => {
+    setDaysElapsed(days);
+    setSelectedDateRange(null);
+    runCalculation(prevReading, currentReading, days, isMeterReplaced, phase);
+  };
+
+  const handlePhaseChange = (newPhase: 'single' | 'three') => {
+    setPhase(newPhase);
+    runCalculation(prevReading, currentReading, daysElapsed, isMeterReplaced, newPhase);
   };
 
   const handleApplySampleData = () => {
     setPrevReading(10055);
     setCurrentReading('10295');
     setPreviousBillAmount(1148);
-    runCalculation(10055, '10295', 30, false);
+    setDaysElapsed(DEFAULT_DAYS);
+    setSelectedDateRange(null);
+    runCalculation(10055, '10295', DEFAULT_DAYS, false, phase);
   };
 
   const currNum = Number(currentReading) || 0;
   const consumedSoFar = prevReading !== null && currNum >= prevReading ? currNum - prevReading : 0;
 
   return (
-    <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10 space-y-8">
-      {/* Title */}
-      <div className="text-center space-y-1.5">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-          {lang === 'ml' ? 'മീറ്റർ പരിശോധന' : 'Step 2: Meter Reading'}
+    <div className="max-w-[430px] mx-auto px-4 pt-3 pb-4 space-y-5">
+      {/* Back Link */}
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[#71717A] hover:text-[#17171C] active:opacity-60 transition-colors"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        <span>{lang === 'ml' ? 'ഹോം' : 'Home'}</span>
+      </Link>
+
+      {/* Header */}
+      <div>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#71717A] block">
+          {searchParams.get('prevReading')
+            ? (lang === 'ml' ? 'ഘട്ടം 2 · മീറ്റർ' : 'Step 2 · Meter reading')
+            : (lang === 'ml' ? 'മീറ്റർ പരിശോധന' : 'Meter check & pace')}
         </span>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-[-0.03em] text-[#17171C] mt-1">
           {t.checkMeterTitle}
         </h1>
-        <p className="text-xs sm:text-sm text-slate-600">
+        <p className="text-[14px] text-[#71717A] mt-1 leading-relaxed">
           {t.checkMeterSubtitle}
         </p>
       </div>
 
-      {/* Visual Digital Meter Guide */}
+      {/* Visual Guide */}
       <MeterVisualGuide currentReadingVal={currentReading} />
 
-      {/* The Core Meter Experience Card */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
-        {/* Readings Inputs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Previous Reading */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-              <label htmlFor="prev-reading-input">LAST READING (On Bill)</label>
-              <Link href="/scan" className="text-[11px] text-sky-600 hover:text-sky-700 font-medium">
-                Scan Bill
-              </Link>
-            </div>
-            <input
-              id="prev-reading-input"
-              type="number"
-              inputMode="numeric"
-              value={prevReading !== null ? prevReading : ''}
-              onChange={e => handlePrevChange(e.target.value ? Number(e.target.value) : null)}
-              placeholder="e.g. 10055"
-              className="w-full rounded-2xl border border-slate-300 bg-slate-50 p-3.5 font-mono text-xl font-bold text-slate-900 focus:border-sky-500 focus:bg-white focus:outline-none"
-            />
-            <span className="text-[10px] text-slate-400">Previous kWh number from your KSEB bill</span>
-          </div>
-
-          {/* Current Reading */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-sky-800">
-              <label htmlFor="curr-reading-input">NOW (On Meter)</label>
-              <button
-                type="button"
-                onClick={() => meterFileRef.current?.click()}
-                className="flex items-center gap-1 rounded-md bg-sky-100/70 hover:bg-sky-200/80 px-2 py-0.5 text-[11px] font-bold text-sky-800 transition-colors"
-                title="Take photo of digital meter display"
-              >
-                <Camera className="h-3 w-3" />
-                <span>{isScanningMeter ? 'Scanning...' : 'Scan Meter'}</span>
-              </button>
-              <input
-                ref={meterFileRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleMeterCameraCapture}
-                className="hidden"
-              />
-            </div>
-            <input
-              id="curr-reading-input"
-              type="number"
-              inputMode="numeric"
-              value={currentReading}
-              onChange={e => handleCurrentChange(e.target.value)}
-              className="w-full rounded-2xl border-2 border-sky-500 bg-white p-3.5 font-mono text-2xl font-extrabold text-slate-900 focus:outline-none"
-              placeholder="e.g. 10295"
-            />
-            <span className="text-[10px] text-slate-400">Current kWh number on your meter display</span>
-          </div>
+      {/* Readings Grouped Surface */}
+      <div className="glass-card p-5 space-y-4">
+        {/* Phase Segmented Selector */}
+        <div className="space-y-1.5">
+          <label className="text-[12px] font-medium text-[#71717A] block">
+            {lang === 'ml' ? 'കണക്ഷൻ തരം' : 'Supply Phase'}
+          </label>
+          <SegmentedControl
+            options={[
+              { value: 'single' as const, label: lang === 'ml' ? '1-ഫേസ് (Single)' : '1-Phase (Single)' },
+              { value: 'three' as const, label: lang === 'ml' ? '3-ഫേസ് (Three)' : '3-Phase (Three)' },
+            ]}
+            value={phase}
+            onChange={(v) => handlePhaseChange(v as 'single' | 'three')}
+          />
         </div>
 
-        {/* Meter Camera OCR Result Banner (Item 10) */}
-        {meterScanResult && (
-          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-xs space-y-2">
-            <div className="flex items-center justify-between font-semibold text-sky-950">
-              <span className="flex items-center gap-1.5">
-                <Camera className="h-4 w-4 text-sky-600 shrink-0" />
-                {meterScanResult.message}
-              </span>
-              {meterScanResult.detectedReading && (
-                <span className="text-[10px] bg-sky-200/90 text-sky-900 px-2 py-0.5 rounded-full font-bold">
-                  {Math.round(meterScanResult.confidence * 100)}% confidence
-                </span>
-              )}
-            </div>
-            {meterScanResult.detectedReading ? (
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const r = String(meterScanResult.detectedReading);
-                    setCurrentReading(r);
-                    if (prevReading !== null) {
-                      runCalculation(prevReading, r, daysElapsed, isMeterReplaced);
-                    }
-                    setMeterScanResult(null);
-                  }}
-                  className="rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-sky-500 transition-colors"
-                >
-                  Use {meterScanResult.detectedReading.toLocaleString()}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMeterScanResult(null)}
-                  className="rounded-xl bg-white border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  Enter manually
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setMeterScanResult(null)}
-                className="text-xs font-semibold text-sky-700 underline"
-              >
-                Dismiss
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Real Math Live Indicator */}
-        {prevReading !== null && currentReading && !isLowerError && (
-          <div className="rounded-2xl bg-sky-50/80 border border-sky-100 p-4 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <span className="text-slate-500 font-medium">Electricity used so far:</span>
-              <div className="font-mono text-lg font-bold text-sky-900 mt-0.5">
-                {consumedSoFar} units
-              </div>
-            </div>
-            <div className="font-mono text-[11px] text-slate-500">
-              {currNum.toLocaleString()} − {prevReading.toLocaleString()} = {consumedSoFar} units
-            </div>
-          </div>
-        )}
-
-        {/* ERROR STATE: Current < Previous */}
-        {isLowerError && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 space-y-3 text-xs text-red-950">
-            <div className="flex items-start gap-2.5">
-              <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-bold text-sm text-red-950">
-                  Your new reading is lower than the previous reading.
-                </h4>
-                <p className="mt-1 text-red-800 leading-relaxed">
-                  Your meter records cumulative electricity used, so the current reading cannot decrease unless the meter was replaced or rolled over.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-1 pl-7">
-              <button
-                type="button"
-                onClick={() => {
-                  if (prevReading !== null) {
-                    setCurrentReading(String(prevReading + 100));
-                    runCalculation(prevReading, String(prevReading + 100), daysElapsed, false);
-                  }
-                }}
-                className="rounded-xl border border-red-300 bg-white px-3.5 py-2 font-semibold text-red-800 hover:bg-red-50 transition-colors"
-              >
-                Edit current reading
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsMeterReplaced(true)}
-                className="rounded-xl bg-red-700 px-3.5 py-2 font-semibold text-white hover:bg-red-800 transition-colors"
-              >
-                My meter was replaced
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* SUCCESS DERIVED CONSUMPTION (Prompt 8 requirement) */}
-        {!isLowerError && prevReading !== null && (
-          <div className="rounded-2xl bg-sky-50/80 border border-sky-100 p-5 space-y-2">
-            <div className="text-xs font-semibold text-sky-950 uppercase tracking-wide">
-              You&apos;ve used {consumedSoFar} units since your last reading
-            </div>
-
-            {/* Arithmetic clarification (secondary, kept calm) */}
-            <div className="flex items-center gap-3 text-xs font-mono text-sky-900 pt-1">
-              <span>{currNum.toLocaleString()} (now)</span>
-              <span>−</span>
-              <span>{prevReading.toLocaleString()} (last)</span>
-              <span>=</span>
-              <span className="font-bold text-sky-950 text-sm">
-                {consumedSoFar} {t.units}
-              </span>
-            </div>
-
-            <p className="text-[11px] text-sky-800/80 pt-1 leading-relaxed">
-              Your meter shows total electricity recorded since installation. We calculate this period&apos;s usage by subtracting the previous reading.
-            </p>
-          </div>
-        )}
-
-        {/* Meter Replaced Option */}
-        <div>
-          <button
-            type="button"
-            onClick={() => setIsMeterReplaced(!isMeterReplaced)}
-            className="text-xs font-semibold text-slate-500 hover:text-sky-700 transition-colors"
-          >
-            {isMeterReplaced ? '− Close meter replacement' : `+ Was your meter replaced recently?`}
-          </button>
-
-          {isMeterReplaced && (
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3 text-xs">
-              <p className="text-slate-600">
-                Enter the final units recorded on the old removed meter and starting reading on the newly installed meter:
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-500">Old meter final reading</label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={oldMeterFinal}
-                    onChange={e => {
-                      setOldMeterFinal(Number(e.target.value));
-                      runCalculation(prevReading, currentReading, daysElapsed, true);
-                    }}
-                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-500">New meter initial reading</label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={newMeterInitial}
-                    onChange={e => {
-                      setNewMeterInitial(Number(e.target.value));
-                      runCalculation(prevReading, currentReading, daysElapsed, true);
-                    }}
-                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-slate-900"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Days Elapsed in Current Cycle */}
-        <div className="space-y-2 border-t border-slate-100 pt-4">
-          <div className="flex justify-between text-xs font-semibold text-slate-700">
-            <span>How many days since your last bill?</span>
-            <span className="font-mono text-sky-700 num-tabular">
-              {daysElapsed} of {totalCycleDays} days
-            </span>
+        {/* Previous Reading */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center justify-between text-[12px]">
+            <label htmlFor="prev-reading-input" className="font-medium text-[#71717A]">
+              {lang === 'ml' ? 'കഴിഞ്ഞ ബില്ലിലെ റീഡിംഗ്' : 'Last bill reading'}
+            </label>
+            <Link
+              href="/scan"
+              className="text-[#006FEE] font-medium hover:underline text-[12px]"
+            >
+              {lang === 'ml' ? 'ബിൽ സ്കാൻ ചെയ്യൂ' : 'Scan bill'}
+            </Link>
           </div>
           <input
+            id="prev-reading-input"
+            type="number"
+            inputMode="numeric"
+            value={prevReading !== null ? prevReading : ''}
+            onChange={e => handlePrevChange(e.target.value ? Number(e.target.value) : null)}
+            placeholder="10055"
+            className="w-full h-12 rounded-xl bg-[#F7F7F5] px-3.5 font-semibold text-xl num-tabular text-[#17171C] border border-black/[0.08] outline-none focus:border-[#006FEE] focus:bg-white transition-all"
+          />
+        </div>
+
+        {/* Current Reading */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center justify-between text-[12px]">
+            <label htmlFor="curr-reading-input" className="font-semibold text-[#006FEE]">
+              {lang === 'ml' ? 'ഇപ്പോഴത്തെ മീറ്റർ റീഡിംഗ്' : 'Current meter reading'}
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowMeterScannerModal(true)}
+              className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#006FEE] hover:underline cursor-pointer"
+            >
+              <Camera style={{ width: '13px', height: '13px' }} />
+              <span>{lang === 'ml' ? 'ക്യാമറ' : 'Scan camera'}</span>
+            </button>
+          </div>
+          <input
+            id="curr-reading-input"
+            type="number"
+            inputMode="numeric"
+            value={currentReading}
+            onChange={e => handleCurrentChange(e.target.value)}
+            placeholder="10295"
+            className="w-full h-12 rounded-xl bg-[#F7F7F5] px-3.5 font-semibold text-xl num-tabular text-[#17171C] border border-[#006FEE]/40 outline-none focus:border-[#006FEE] focus:bg-white transition-all"
+          />
+        </div>
+
+        {/* Live consumption summary */}
+        {prevReading !== null && currentReading && !isLowerError && (
+          <div className="flex items-center justify-between pt-3 border-t border-black/[0.06]">
+            <span className="text-[13px] text-[#71717A]">
+              {lang === 'ml' ? 'ഇതുവരെ ഉപയോഗിച്ചത്:' : 'Consumed so far:'}
+            </span>
+            <span className="num-tabular text-[17px] font-semibold text-[#17171C]">
+              {consumedSoFar} <span className="text-[13px] font-normal text-[#A1A1AA]">{t.units}</span>
+            </span>
+          </div>
+        )}
+
+        {/* Days elapsed slider & Calendar picker */}
+        <div className="pt-3 border-t border-black/[0.06] space-y-2.5">
+          <div className="flex justify-between items-center text-[13px]">
+            <span className="text-[#71717A] font-medium">
+              {lang === 'ml' ? 'ഈ സൈക്കിളിലെ ദിവസങ്ങൾ' : 'Days into this cycle'}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="num-tabular font-semibold text-[#17171C]">
+                {daysElapsed} / {totalCycleDays} {lang === 'ml' ? 'ദിവസം' : 'days'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowCalendarModal(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#006FEE]/10 text-[#006FEE] hover:bg-[#006FEE]/15 transition-colors cursor-pointer"
+              >
+                <Calendar className="w-3 h-3" />
+                <span>{selectedDateRange ? (lang === 'ml' ? 'മാറ്റുക' : 'Edit') : (lang === 'ml' ? 'കലണ്ടർ' : 'Pick Dates')}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Active Date Range Tag if selected */}
+          {selectedDateRange && (
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[12px]">
+              <span className="text-emerald-700 font-medium">
+                🗓️ {short(selectedDateRange.start, false)} → {short(selectedDateRange.end, false)} ({daysElapsed}d)
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedDateRange(null)}
+                className="text-emerald-700/70 hover:text-emerald-800 text-[11px] font-medium cursor-pointer"
+              >
+                {lang === 'ml' ? 'റദ്ദാക്കുക' : 'Reset'}
+              </button>
+            </div>
+          )}
+
+          <input
             type="range"
-            min="5"
+            min={5}
             max={totalCycleDays}
             value={daysElapsed}
             onChange={e => handleDaysChange(Number(e.target.value))}
-            className="w-full accent-sky-600 cursor-pointer"
+            className="w-full"
+            aria-label="Days elapsed"
           />
-          <div className="flex justify-between text-[10px] text-slate-400">
-            <span>Early (5d)</span>
-            <span>Halfway (~30d)</span>
-            <span>Full Cycle (60d)</span>
-          </div>
         </div>
 
-        {/* Sample / Test Data Link for First-Time Users without a bill */}
-        {prevReading === null && (
-          <div className="pt-2 text-center border-t border-slate-100">
+        {/* Baseline Saved Confirmation */}
+        {isBaselineSaved && (
+          <div className="p-4 rounded-2xl bg-[#17C964]/10 border border-[#17C964]/20 text-[#0E7036] space-y-2 animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#17C964]" />
+              <span className="text-[13px] font-bold">
+                {lang === 'ml' ? 'തുടക്ക മീറ്റർ റീഡിംഗ് സേവ് ചെയ്തു' : 'Baseline reading saved'}
+              </span>
+            </div>
+            <p className="text-[12px] text-[#0E7036]/90 leading-relaxed">
+              {lang === 'ml'
+                ? `ഇന്നത്തെ റീഡിംഗ് (${currentReading}) സേവ് ചെയ്തു. ഏതാനും ദിവസങ്ങൾക്ക് ശേഷം വീണ്ടും പരിശോധിച്ചാൽ നിങ്ങളുടെ കൃത്യമായ പ്രതിദിന വേഗതയും ബില്ലും കാണാം.`
+                : `Today’s reading (${currentReading}) is saved to your device. Check your meter again in a few days to view your daily consumption pace.`}
+            </p>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#006FEE] hover:underline pt-1"
+            >
+              <span>{lang === 'ml' ? 'ഹോം ഡാഷ്‌ബോർഡിലേക്ക് പോകാം →' : 'Go to dashboard →'}</span>
+            </Link>
+          </div>
+        )}
+
+        {/* Options when prevReading is missing */}
+        {prevReading === null && currentReading && !isBaselineSaved && (
+          <div className="p-4 rounded-2xl bg-[#006FEE]/5 border border-[#006FEE]/15 space-y-3 animate-fade-in">
+            <div>
+              <span className="text-[13px] font-bold text-[#17171C] block">
+                {lang === 'ml' ? 'കഴിഞ്ഞ ബില്ലിലെ റീഡിംഗ് കയ്യിലില്ലേ?' : "Don't have your last bill reading?"}
+              </span>
+              <p className="text-[12px] text-[#71717A] mt-0.5 leading-relaxed">
+                {lang === 'ml'
+                  ? 'പ്രതിദിന വേഗത കാണാൻ കഴിഞ്ഞ ബില്ലിലെ റീഡിംഗ് വേണം. അല്ലെങ്കിൽ ഇന്നത്തെ റീഡിംഗ് തുടക്കമായി സേവ് ചെയ്യാം.'
+                  : 'Comparing with a previous reading enables live daily pace tracking.'}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleSaveBaseline}
+                className="ios-btn-secondary py-2.5 px-3 text-[12px] font-semibold text-[#17171C] rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>{lang === 'ml' ? 'ഇന്നത്തെ റീഡിംഗ് തുടക്കമായി സേവ് ചെയ്യുക' : 'Save today as baseline'}</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/scan"
+                  className="ios-btn-primary flex-1 py-2.5 px-3 text-[12px] font-semibold rounded-xl flex items-center justify-center gap-1.5"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>{lang === 'ml' ? 'ബിൽ സ്കാൻ ചെയ്യാം' : 'Scan last bill'}</span>
+                </Link>
+
+                <Link
+                  href="/manual"
+                  className="ios-btn-secondary py-2.5 px-3 text-[12px] font-medium text-[#71717A] rounded-xl text-center"
+                >
+                  <span>{lang === 'ml' ? 'യൂണിറ്റ്' : 'Direct units'}</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* No bill handy fallback */}
+        {prevReading === null && !currentReading && (
+          <div className="pt-2 text-center">
             <button
               type="button"
               onClick={handleApplySampleData}
-              className="text-xs text-slate-500 hover:text-sky-700 font-medium inline-flex items-center gap-1.5 transition-colors"
+              className="text-[12px] text-[#006FEE] font-medium hover:underline cursor-pointer"
             >
-              <span>Don&apos;t have your bill with you right now?</span>
-              <span className="text-sky-600 font-semibold underline">Try with 240-unit sample bill</span>
+              {lang === 'ml' ? 'ബില്ലില്ലേ? 240 യൂണിറ്റ് മാതൃക പരീക്ഷിക്കൂ' : 'No bill handy? Load sample data'}
             </button>
           </div>
         )}
 
-        {validationError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900">
-            {validationError}
+        {/* Lower Reading Error Warning */}
+        {isLowerError && (
+          <div className="border-l-2 border-[#F31260] pl-3 py-1 text-[13px] text-[#F31260] space-y-1">
+            <p className="font-semibold">
+              {lang === 'ml' ? 'റീഡിംഗ് കുറഞ്ഞത് ആകാൻ പറ്റില്ല' : 'Reading cannot be lower than previous'}
+            </p>
+            <p className="text-[12px] text-[#71717A]">
+              {lang === 'ml'
+                ? 'ഇപ്പോഴത്തെ റീഡിംഗ് പഴയതിനേക്കാൾ കൂടുതലായിരിക്കണം.'
+                : 'Current meter reading must be higher than previous reading.'}
+            </p>
+          </div>
+        )}
+
+        {/* Validation Error (only show if not already covered by the missing prev helper) */}
+        {validationError && !(prevReading === null && currentReading) && (
+          <div className="border-l-2 border-[#F31260] pl-3 py-1 text-[13px] text-[#F31260]">
+            <p className="font-semibold">{validationError}</p>
           </div>
         )}
       </div>
 
-      {/* RESULT SECTION */}
-      {prediction && !isLowerError && (
-        <section className="space-y-6 pt-2">
-          <ResultCard prediction={prediction} previousBillAmount={previousBillAmount} />
-        </section>
+      {/* Prediction Result Display */}
+      {prediction && (
+        <div className="pt-2">
+          <ResultCard
+            prediction={prediction}
+            previousBillAmount={previousBillAmount}
+            hideBackLink={true}
+          />
+        </div>
       )}
 
-      {/* Manual direct unit calculation link */}
-      <div className="text-center pt-2 pb-6">
-        <Link
-          href="/manual"
-          className="text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          {lang === 'ml' ? 'യൂണിറ്റ് നേരിട്ട് നൽകി കണക്കാക്കാം' : 'Already know your total units? Calculate directly without readings'}
-        </Link>
-      </div>
+      {/* Date Range Picker Modal */}
+      <AnimatePresence>
+        {showCalendarModal && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-xs -z-10"
+              onClick={() => setShowCalendarModal(false)}
+              aria-hidden="true"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 360 }}
+              className="relative w-full max-w-[580px] bg-white rounded-[28px] shadow-2xl p-4 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between border-b border-black/[0.06] pb-3">
+                <div>
+                  <h3 className="text-base font-semibold text-[#17171C]">
+                    {lang === 'ml' ? 'ബിൽ കാലയളവ് തിരഞ്ഞെടുക്കുക' : 'Select Billing Period'}
+                  </h3>
+                  <p className="text-[12px] text-[#71717A]">
+                    {lang === 'ml'
+                      ? 'മുൻ ബിൽ തീയതിയും ഇപ്പോഴത്തെ റീഡിംഗ് തീയതിയും'
+                      : 'Choose your previous bill date and meter check date'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCalendarModal(false)}
+                  className="w-8 h-8 rounded-full bg-black/[0.05] hover:bg-black/[0.1] text-[#71717A] flex items-center justify-center cursor-pointer transition-colors active:scale-95"
+                  aria-label="Close date picker"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex justify-center">
+                <DateRangePicker
+                  value={selectedDateRange}
+                  onApply={handleApplyDateRange}
+                  className="w-full shadow-none border-none p-0"
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Meter Scanner Modal */}
+      {showMeterScannerModal && (
+        <MeterScanner
+          isModal={true}
+          onReadingConfirmed={(val) => {
+            setCurrentReading(String(val));
+            if (prevReading !== null) runCalculation(prevReading, String(val), daysElapsed, isMeterReplaced, phase);
+            setShowMeterScannerModal(false);
+          }}
+          onEnterManually={() => setShowMeterScannerModal(false)}
+          onClose={() => setShowMeterScannerModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -510,8 +575,8 @@ export default function PredictPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10">
-          <CardSkeleton title="Preparing meter prediction engine..." />
+        <div className="max-w-[430px] mx-auto px-4 pt-6">
+          <CardSkeleton title="Loading prediction tool..." />
         </div>
       }
     >

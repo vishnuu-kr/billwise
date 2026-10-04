@@ -5,7 +5,7 @@
 
 type LogLevel = 'info' | 'warn' | 'error';
 
-interface LogEntry {
+export interface LogEntry {
   level: LogLevel;
   message: string;
   timestamp: string;
@@ -40,7 +40,8 @@ class SafeLogger {
 
   public info(message: string, context?: Record<string, unknown>): void {
     if (process.env.NODE_ENV === 'development') {
-      // In development, keep logs minimal and clean
+      const sanitized = this.sanitizeContext(context);
+      console.info(`[BILLWISE_INFO] ${message}`, sanitized || '');
     }
   }
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Layers, ArrowRight } from 'lucide-react';
+import { Layers, ArrowRight, ArrowLeft } from 'lucide-react';
 import { CURRENT_KSEB_TARIFF_VERSION } from '@/lib/tariffs/ksebTariff2024';
 import { getCanonicalUrl } from '@/lib/config/site';
 
@@ -17,37 +17,48 @@ export default function KsebTariffSeoPage() {
   const tariff = CURRENT_KSEB_TARIFF_VERSION;
 
   return (
-    <article className="mx-auto max-w-2xl px-4 sm:px-6 pt-6 sm:pt-10 space-y-8">
+    <article className="max-w-2xl mx-auto px-4 pt-3 pb-4 space-y-6">
+      {/* Back button */}
+      <div>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--secondary)] hover:text-[var(--foreground)] active:opacity-60 transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>Home</span>
+        </Link>
+      </div>
+
       <header className="space-y-2">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 border border-sky-200 px-3 py-1 text-xs font-semibold text-sky-800">
-          <Layers className="h-3.5 w-3.5 text-sky-600" />
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/20 px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+          <Layers className="h-3.5 w-3.5" />
           <span>KSERC Tariff Schedule</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--foreground)]">
           KSEB Electricity Tariff & Slab Rates
         </h1>
-        <p className="text-sm text-slate-600 leading-relaxed">
+        <p className="text-sm text-[var(--secondary)] leading-relaxed">
           Official rate structure for Kerala domestic electricity consumers (LT-1A category).
         </p>
       </header>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 text-xs sm:text-sm text-slate-600">
-        <h2 className="text-lg font-bold text-slate-900">
+      <section className="glass-card p-5 sm:p-6 rounded-2xl space-y-4 text-xs sm:text-sm text-[var(--secondary)]">
+        <h2 className="text-lg font-bold text-[var(--foreground)]">
           Bi-Monthly Slabs (Effective: {tariff.effectiveFrom})
         </h2>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500 font-sans">
-                <th className="pb-2">Slab Range</th>
-                <th className="pb-2 text-right">Rate / Unit</th>
+              <tr className="border-b border-[var(--separator)] text-[var(--secondary)] font-sans">
+                <th className="pb-2 font-medium">Slab Range</th>
+                <th className="pb-2 text-right font-medium">Rate / Unit</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[var(--separator)]">
               {tariff.telescopicSlabsBiMonthly.map(s => (
                 <tr key={s.minUnits}>
-                  <td className="py-2 text-slate-800">{s.minUnits} to {s.maxUnits} units</td>
-                  <td className="py-2 text-right font-bold text-sky-800">₹{s.ratePerUnit.toFixed(2)}</td>
+                  <td className="py-2.5 text-[var(--foreground)]">{s.minUnits} to {s.maxUnits} units</td>
+                  <td className="py-2.5 text-right font-bold text-[var(--accent)] num-tabular">₹{s.ratePerUnit.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -58,10 +69,10 @@ export default function KsebTariffSeoPage() {
       <div className="text-center pt-2 pb-6">
         <Link
           href="/tariff"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700"
+          className="ios-btn-primary inline-flex items-center gap-2"
         >
           <span>View complete interactive tariff guide</span>
-          <ArrowRight className="h-3.5 w-3.5" />
+          <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
     </article>

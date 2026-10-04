@@ -1,50 +1,73 @@
 'use client';
 
-import React, { Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
 import BudgetController from '@/components/BudgetController';
-import CardSkeleton from '@/components/CardSkeleton';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { storageManager } from '@/lib/storage';
+import { ChevronLeft, Sparkles, ArrowRight } from 'lucide-react';
 
-function BudgetContent() {
-  const searchParams = useSearchParams();
+export default function BudgetPage() {
   const { lang } = useLanguage();
+  const [currentUnits, setCurrentUnits] = useState(240);
+  const [rate, setRate] = useState(3.8);
+  const [hasHome, setHasHome] = useState(false);
 
-  const currentUnits = searchParams.get('currentUnits') ? Number(searchParams.get('currentUnits')) : 240;
-  const rate = searchParams.get('rate') ? Number(searchParams.get('rate')) : 3.8;
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const u = sp.get('currentUnits');
+      const r = sp.get('rate');
+      const home = storageManager.getSavedHome();
+      setHasHome(!!home);
+
+      if (u) {
+        setCurrentUnits(Number(u));
+      } else {
+        if (home?.latestPrediction?.projectedUnits) {
+          setCurrentUnits(home.latestPrediction.projectedUnits);
+          if (home.latestPrediction.unitsPerDay) setRate(home.latestPrediction.unitsPerDay);
+        } else {
+          const hist = storageManager.getHistory();
+          if (hist.length > 0 && hist[0].consumedUnits) {
+            setCurrentUnits(hist[0].consumedUnits);
+          }
+        }
+      }
+      if (r) setRate(Number(r));
+    }
+  }, []);
 
   return (
-    <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10 space-y-6">
-      <div>
-        <Link
-          href={`/result?units=${currentUnits}`}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>{lang === 'ml' ? 'റിസൾട്ടിലേക്ക് മടങ്ങാം' : 'Back to Bill Result'}</span>
-        </Link>
-      </div>
+    <div className="max-w-[430px] mx-auto px-4 pt-3 pb-4 space-y-4">
+      {/* Back Link */}
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[#71717A] hover:text-[#17171C] active:opacity-60 transition-colors"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        <span>{lang === 'ml' ? 'ഹോം' : 'Home'}</span>
+      </Link>
+
+      {!hasHome && (
+        <div className="p-3.5 rounded-2xl bg-[#006FEE]/5 border border-[#006FEE]/15 flex items-center justify-between text-[12px] animate-fade-in">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-[#006FEE] shrink-0" />
+            <span className="text-[#17171C] font-medium">
+              {lang === 'ml' ? 'മാതൃകാ കണക്ക് (240 യൂണിറ്റ്)' : 'Showing Kerala sample baseline (240u)'}
+            </span>
+          </div>
+          <Link href="/" className="text-[#006FEE] font-semibold hover:underline inline-flex items-center gap-0.5 shrink-0">
+            <span>{lang === 'ml' ? 'വീട് ചേർക്കുക' : 'Set up home'}</span>
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+      )}
 
       <BudgetController
         currentProjectedUnits={currentUnits}
         currentPaceUnitsPerDay={rate}
       />
     </div>
-  );
-}
-
-export default function BudgetPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="mx-auto max-w-xl px-4 sm:px-6 pt-6 sm:pt-10">
-          <CardSkeleton title="Preparing budget controller..." />
-        </div>
-      }
-    >
-      <BudgetContent />
-    </Suspense>
   );
 }

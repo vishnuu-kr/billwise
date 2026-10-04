@@ -1,4 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
-  <rect width="192" height="192" rx="42" fill="#0f172a"/>
-  <path d="M106 32L54 110h42l-8 50 52-78h-42l8-50z" fill="#38bdf8"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="t-app">
+  <title id="t-app">BILLWISE App Icon Dark</title>
+  <!-- Squircle container (22% radius) -->
+  <rect width="256" height="256" rx="56" fill="#0F172A"/>
+  <g transform="translate(19.2, 19.2) scale(0.85)">
+    <!-- Upper Energy Shard -->
+    <polygon points="144,16 64,132 118,132 156,94 132,94" fill="#006FEE"/>
+    <!-- Lower Energy Shard -->
+    <polygon points="112,240 192,124 138,124 100,162 124,162" fill="#FFFFFF"/>
+  </g>
 </svg>

@@ -1,4 +1,4 @@
-import { ExtractedBillData, Phase, BillingCycle, MeterScanResult } from '@/types';
+import { ExtractedBillData, MeterScanResult } from '@/types';
 import { analyzeImageQuality, ImageQualityReport } from './imageAnalyzer';
 
 export interface ExtractedBillPayload {
@@ -88,6 +88,78 @@ export const SAMPLE_KSEB_HIGH_USAGE_BILL: ExtractedBillData = {
     isConsistent: true,
     computedUnits: 520,
     extractedUnits: 520,
+  },
+};
+
+export const SAMPLE_BESCOM_REFERENCE_BILL: ExtractedBillData = {
+  billingPeriod: 'Sep 2026 – Oct 2026',
+  billDate: '2026-10-04',
+  dueDate: '2026-10-19',
+  tariff: 'LT-2(a) (Domestic)',
+  purpose: 'Domestic Lighting & Power (BESCOM)',
+  phase: 'single',
+  billingCycle: 'monthly',
+  previousReading: 4120,
+  presentReading: 4270,
+  consumedUnits: 150,
+  connectedLoadWatts: 2000,
+  fixedCharge: 320,
+  energyCharge: 825,
+  duty: 74.25,
+  fuelAdjustment: 52.50,
+  meterRent: 0,
+  subsidy: 0,
+  totalAmount: 1272,
+  confidence: 0.96,
+  fieldConfidences: {
+    previousReading: 0.98,
+    presentReading: 0.97,
+    consumedUnits: 0.99,
+    tariff: 0.95,
+    totalAmount: 0.98,
+  },
+  isSupportedBillType: true,
+  meterType: 'electronic_static',
+  consistencyCheck: {
+    isConsistent: true,
+    computedUnits: 150,
+    extractedUnits: 150,
+  },
+};
+
+export const SAMPLE_MSEDCL_REFERENCE_BILL: ExtractedBillData = {
+  billingPeriod: 'Sep 2026 – Oct 2026',
+  billDate: '2026-10-04',
+  dueDate: '2026-10-20',
+  tariff: 'LT-1 (Residential)',
+  purpose: 'Residential Household (Mahavitaran)',
+  phase: 'single',
+  billingCycle: 'monthly',
+  previousReading: 8200,
+  presentReading: 8400,
+  consumedUnits: 200,
+  connectedLoadWatts: 2000,
+  fixedCharge: 128,
+  energyCharge: 1078,
+  duty: 238.40,
+  fuelAdjustment: 50.00,
+  meterRent: 0,
+  subsidy: 0,
+  totalAmount: 1728,
+  confidence: 0.95,
+  fieldConfidences: {
+    previousReading: 0.97,
+    presentReading: 0.96,
+    consumedUnits: 0.99,
+    tariff: 0.94,
+    totalAmount: 0.97,
+  },
+  isSupportedBillType: true,
+  meterType: 'electronic_static',
+  consistencyCheck: {
+    isConsistent: true,
+    computedUnits: 200,
+    extractedUnits: 200,
   },
 };
 

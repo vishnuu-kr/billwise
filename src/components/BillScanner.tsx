@@ -1,26 +1,37 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { ocrProvider, SAMPLE_KSEB_REFERENCE_BILL, SAMPLE_KSEB_HIGH_USAGE_BILL } from '@/lib/ocr/extractor';
+import {
+  ocrProvider,
+  SAMPLE_KSEB_REFERENCE_BILL,
+  SAMPLE_KSEB_HIGH_USAGE_BILL,
+  SAMPLE_BESCOM_REFERENCE_BILL,
+  SAMPLE_MSEDCL_REFERENCE_BILL,
+} from '@/lib/ocr/extractor';
 import { ImageQualityReport } from '@/lib/ocr/imageAnalyzer';
 import { ExtractedBillData } from '@/types';
+import { detectProviderFromBillText } from '@/lib/electricity/detection/providerDetector';
+import { ElectricityProvider } from '@/lib/electricity/types';
+import { NATIONAL_PROVIDER_REGISTRY } from '@/lib/electricity/providers';
+import { ProviderSelectModal } from './ProviderSelectModal';
 import {
   Camera,
   Upload,
-  CheckCircle2,
-  AlertTriangle,
   RotateCw,
   Edit3,
   ArrowRight,
-  Sparkles,
-  RefreshCw,
-  ShieldCheck,
+  X,
   AlertCircle,
-  HelpCircle,
-  Eye,
+  Building2,
 } from 'lucide-react';
+import { FileDropzone } from '@/components/ui/FileDropzone';
+import { TextScramble } from '@/components/ui/TextScramble';
+import { RubberStamp } from '@/components/ui/RubberStamp';
+import { PixelLoader } from '@/components/ui/PixelLoader';
+import { LensReveal } from '@/components/ui/LensReveal';
+import { Spinner } from '@/components/ui/LoaderSet';
 
 interface BillScannerProps {
   onVerified?: (data: ExtractedBillData) => void;
@@ -36,11 +47,21 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
   const [stage, setStage] = useState<'upload' | 'reading' | 'verify'>('upload');
   const [readingStep, setReadingStep] = useState<number>(0);
   const [extractedData, setExtractedData] = useState<ExtractedBillData>(SAMPLE_KSEB_REFERENCE_BILL);
+  const [activeProvider, setActiveProvider] = useState<ElectricityProvider>(NATIONAL_PROVIDER_REGISTRY['kseb']);
+  const [isProviderModalOpen, setIsProviderModalOpen] = useState<boolean>(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [rotationAngle, setRotationAngle] = useState<number>(0);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [qualityReport, setQualityReport] = useState<ImageQualityReport | null>(null);
-  const [showTechnicalDetails, setShowTechnicalDetails] = useState<boolean>(false);
+
+  // Revoke object URL on unmount to prevent image blob memory leaks
+  useEffect(() => {
+    return () => {
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const readingSteps = [
     t.readingBill,
@@ -54,7 +75,11 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
     setReadingStep(0);
     setQualityReport(null);
 
-    // Create local object URL for instant preview
+    // Free previous preview blob if allocated
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
     if (file.type.startsWith('image/')) {
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
@@ -64,18 +89,22 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
 
     const stepInterval = setInterval(() => {
       setReadingStep(prev => Math.min(prev + 1, readingSteps.length - 1));
-    }, 400);
+    }, 250);
 
     try {
       const result = await ocrProvider.extract(file);
-      setTimeout(() => {
-        clearInterval(stepInterval);
-        setExtractedData(result.data);
-        if (result.qualityReport && !result.qualityReport.isAcceptable) {
-          setQualityReport(result.qualityReport);
+      clearInterval(stepInterval);
+      setExtractedData(result.data);
+      if (result.rawText) {
+        const detection = detectProviderFromBillText(result.rawText);
+        if (detection.detectedProvider) {
+          setActiveProvider(detection.detectedProvider);
         }
-        setStage('verify');
-      }, 1600);
+      }
+      if (result.qualityReport && !result.qualityReport.isAcceptable) {
+        setQualityReport(result.qualityReport);
+      }
+      setStage('verify');
     } catch {
       clearInterval(stepInterval);
       setExtractedData(SAMPLE_KSEB_REFERENCE_BILL);
@@ -83,27 +112,30 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
     }
   };
 
-  const handleUseSample = (type: 'reference' | 'high') => {
-    setStage('reading');
-    setReadingStep(0);
+  const handleUseSample = (type: 'reference' | 'high' | 'bescom' | 'msedcl') => {
+    // Instant sample fixture loading without artificial delays
     setQualityReport(null);
-
-    const stepInterval = setInterval(() => {
-      setReadingStep(prev => Math.min(prev + 1, readingSteps.length - 1));
-    }, 350);
-
-    setTimeout(() => {
-      clearInterval(stepInterval);
-      setExtractedData(type === 'high' ? SAMPLE_KSEB_HIGH_USAGE_BILL : SAMPLE_KSEB_REFERENCE_BILL);
-      setStage('verify');
-    }, 1400);
+    if (type === 'high') {
+      setExtractedData(SAMPLE_KSEB_HIGH_USAGE_BILL);
+      setActiveProvider(NATIONAL_PROVIDER_REGISTRY['kseb']);
+    } else if (type === 'bescom') {
+      setExtractedData(SAMPLE_BESCOM_REFERENCE_BILL);
+      setActiveProvider(NATIONAL_PROVIDER_REGISTRY['bescom']);
+    } else if (type === 'msedcl') {
+      setExtractedData(SAMPLE_MSEDCL_REFERENCE_BILL);
+      setActiveProvider(NATIONAL_PROVIDER_REGISTRY['msedcl']);
+    } else {
+      setExtractedData(SAMPLE_KSEB_REFERENCE_BILL);
+      setActiveProvider(NATIONAL_PROVIDER_REGISTRY['kseb']);
+    }
+    setStage('verify');
   };
 
   const handleRotate = () => {
     setRotationAngle(prev => (prev + 90) % 360);
   };
 
-  const handleFieldChange = (field: keyof ExtractedBillData, value: ExtractedBillData[keyof ExtractedBillData]) => {
+  const handleFieldChange = (field: keyof ExtractedBillData, value: string | number | boolean | undefined) => {
     setExtractedData(prev => {
       const updated = { ...prev, [field]: value };
       if (field === 'presentReading' || field === 'previousReading') {
@@ -124,121 +156,185 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
       } catch {
         // ignore
       }
-      router.push(`/predict?prevReading=${extractedData.presentReading}&tariff=${extractedData.tariff}`);
+      router.push(
+        `/predict?prevReading=${extractedData.presentReading}&prevBill=${extractedData.totalAmount}&phase=${extractedData.phase}&load=${extractedData.connectedLoadWatts}`
+      );
     }
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
-      {/* STAGE 1: UPLOAD & PHOTO CAPTURE */}
+    <div className="w-full">
+      {/* Hidden system file inputs */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/*,application/pdf"
+        onChange={e => e.target.files?.[0] && handleFileProcess(e.target.files[0])}
+      />
+      <input
+        type="file"
+        ref={cameraInputRef}
+        className="hidden"
+        accept="image/*"
+        capture="environment"
+        onChange={e => e.target.files?.[0] && handleFileProcess(e.target.files[0])}
+      />
+
+      {/* STAGE 1: CAMERA SCREEN (Section 31) */}
       {stage === 'upload' && (
-        <div className="space-y-6">
-          <div className="text-center space-y-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Bill Scanner
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-              {t.scanTitle}
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-600">
-              {t.scanSubtitle}
-            </p>
+        <div className="space-y-4">
+          <div className="relative w-full rounded-3xl bg-[#121316] p-5 sm:p-6 flex flex-col text-white shadow-xl">
+            {/* Instruction Overlay */}
+            <div className="text-center pb-3">
+              <p className="text-[15px] font-semibold text-white/95">
+                {lang === 'ml' ? 'ബിൽ ഫ്രെയിമിനുള്ളിൽ വെയ്ക്കുക' : 'Place your bill inside the frame.'}
+              </p>
+            </div>
+
+            {/* Dedicated Viewfinder Window with 4 Framed Corners */}
+            <div className="relative w-full aspect-[4/3] rounded-2xl bg-white/[0.04] border border-white/[0.08] flex flex-col items-center justify-center overflow-hidden my-1">
+              {/* Corner Framing Guides strictly framing the scanning window */}
+              <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-white/80 rounded-tl-lg pointer-events-none" />
+              <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-white/80 rounded-tr-lg pointer-events-none" />
+              <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-white/80 rounded-bl-lg pointer-events-none" />
+              <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-white/80 rounded-br-lg pointer-events-none" />
+
+              {/* Center Guidance */}
+              <div className="flex flex-col items-center justify-center gap-2 opacity-80">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white">
+                  <Camera style={{ width: '24px', height: '24px' }} />
+                </div>
+                <span className="text-[12px] font-medium text-white/60">
+                  {lang === 'ml' ? 'വെളിച്ചമുള്ളിടത്ത് പിടിക്കുക' : 'Ensure flat & well-lit'}
+                </span>
+              </div>
+            </div>
+
+            {/* Bottom Actions: Capture & Upload cleanly separated below */}
+            <div className="space-y-2.5 pt-4">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="w-full h-12 rounded-xl bg-white text-[#17171C] font-semibold text-[15px] flex items-center justify-center gap-2 shadow-sm hover:bg-white/90 active:scale-[0.96] transition-all touch-target"
+              >
+                <Camera style={{ width: '18px', height: '18px' }} />
+                <span>{lang === 'ml' ? 'ഫോട്ടോ എടുക്കുക' : 'Capture'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full h-11 rounded-xl bg-white/10 text-white font-medium text-[14px] flex items-center justify-center gap-2 hover:bg-white/15 active:scale-[0.96] transition-all touch-target border border-white/10"
+              >
+                <Upload style={{ width: '16px', height: '16px' }} />
+                <span>{lang === 'ml' ? 'ഫയൽ അപ്‌ലോഡ് ചെയ്യുക' : 'Upload'}</span>
+              </button>
+            </div>
           </div>
 
-          {/* Hidden inputs */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
+          {/* Active Provider Selector Chip */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-xs">
+                ⚡
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-500 font-medium block">
+                  {lang === 'ml' ? 'വൈദ്യുതി ബോർഡ്' : 'Electricity Provider'}
+                </span>
+                <span className="text-[13px] font-bold text-slate-900">
+                  {activeProvider.displayName} ({activeProvider.state})
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsProviderModalOpen(true)}
+              className="text-xs font-semibold text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 px-2.5 py-1 rounded-lg transition-colors min-h-[32px] flex items-center"
+            >
+              {lang === 'ml' ? 'മാറ്റുക' : 'Change'}
+            </button>
+          </div>
+
+          {/* Interactive Marching Edge File Dropzone */}
+          <FileDropzone
+            onFileSelect={handleFileProcess}
+            label={lang === 'ml' ? 'വൈദ്യുതി ബിൽ ഫോട്ടോ ഡ്രോപ്പ് ചെയ്യുക' : 'Drop electricity bill photo or PDF here'}
+            sublabel={lang === 'ml' ? 'ഡിവൈസിൽ മാത്രം പ്രോസസ് ചെയ്യുന്നു · ഫയലുകൾ പുറത്തേക്ക് പോകുന്നില്ല' : 'On-device document reader · Files never leave your device'}
             accept="image/*,application/pdf"
-            onChange={e => e.target.files?.[0] && handleFileProcess(e.target.files[0])}
-          />
-          <input
-            type="file"
-            ref={cameraInputRef}
-            className="hidden"
-            accept="image/*"
-            capture="environment"
-            onChange={e => e.target.files?.[0] && handleFileProcess(e.target.files[0])}
           />
 
-          {/* Primary Action Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          {/* Privacy Note */}
+          <p className="text-[11px] text-[var(--tertiary)] text-center">
+            {lang === 'ml'
+              ? 'ഫോട്ടോ ഡിവൈസിൽ മാത്രം പ്രോസസ് ചെയ്യുന്നു · ഒരിടത്തേക്കും അപ്‌ലോഡ് ചെയ്യുന്നില്ല'
+              : 'Processed on your device · No photos sent to remote servers'}
+          </p>
+
+          {/* Quick Sample Bill Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+            <span className="text-[12px] text-[var(--tertiary)]">
+              {lang === 'ml' ? 'ടെസ്റ്റ് ചെയ്യാൻ:' : 'Or test sample:'}
+            </span>
             <button
-              onClick={() => cameraInputRef.current?.click()}
-              className="flex items-center justify-center gap-2.5 rounded-2xl bg-sky-600 px-5 py-4 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 active:scale-[0.98] transition-all touch-target"
+              type="button"
+              onClick={() => handleUseSample('reference')}
+              className="rounded-full bg-[var(--surface-secondary)] border border-[var(--border)] px-3 py-1 text-[12px] font-medium text-[var(--foreground)] hover:bg-[var(--background-secondary)] active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
             >
-              <Camera className="h-5 w-5" />
-              <span>{t.takePhoto}</span>
+              KSEB (240u)
             </button>
-
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center justify-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all touch-target"
+              type="button"
+              onClick={() => handleUseSample('bescom')}
+              className="rounded-full bg-[var(--surface-secondary)] border border-[var(--border)] px-3 py-1 text-[12px] font-medium text-[var(--foreground)] hover:bg-[var(--background-secondary)] active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
             >
-              <Upload className="h-5 w-5 text-slate-500" />
-              <span>{t.uploadBill} (JPG, PNG, PDF)</span>
+              BESCOM (150u)
             </button>
-          </div>
-
-          {/* On-device Security Reassurance */}
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-500 pt-1">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            <span>100% on-device processing. No photos stored remotely.</span>
-          </div>
-
-          {/* Sample Bills for Instant 1-Click Evaluation */}
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 text-center">
-            <div className="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-              <Sparkles className="h-3.5 w-3.5 text-sky-600" />
-              <span>{lang === 'ml' ? 'ടെസ്റ്റ് ബിൽ തിരഞ്ഞെടുക്കാം' : 'Or test with an authentic sample bill'}</span>
-            </div>
-            <div className="flex flex-wrap justify-center gap-2 pt-1">
-              <button
-                onClick={() => handleUseSample('reference')}
-                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors touch-target"
-              >
-                Sample 1: Reference 240 Units (LT-1A)
-              </button>
-              <button
-                onClick={() => handleUseSample('high')}
-                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors touch-target"
-              >
-                Sample 2: High Usage 520 Units (3-Phase)
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => handleUseSample('msedcl')}
+              className="rounded-full bg-[var(--surface-secondary)] border border-[var(--border)] px-3 py-1 text-[12px] font-medium text-[var(--foreground)] hover:bg-[var(--background-secondary)] active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+            >
+              MSEDCL (200u)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleUseSample('high')}
+              className="rounded-full bg-[var(--surface-secondary)] border border-[var(--border)] px-3 py-1 text-[12px] font-medium text-[var(--foreground)] hover:bg-[var(--background-secondary)] active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+            >
+              KSEB (520u 3-Ph)
+            </button>
           </div>
         </div>
       )}
 
-      {/* STAGE 2: EXTRACTION IN PROGRESS */}
+      {/* STAGE 2: OCR IN PROGRESS */}
       {stage === 'reading' && (
-        <div className="py-8 text-center space-y-6">
-          <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
-            <RefreshCw className="h-8 w-8 animate-spin" />
-          </div>
+        <div className="relative w-full aspect-[3/4] sm:min-h-[460px] rounded-[var(--radius-sheet)] bg-[#121316] p-6 flex flex-col justify-center items-center text-white overflow-hidden shadow-md">
+          {/* PixelLoader wave matrix for high-tech OCR feel */}
+          <PixelLoader size={6} label="" className="mb-0" />
 
-          <div className="space-y-1.5">
-            <h3 className="text-xl font-bold text-slate-900">
-              {readingSteps[readingStep]}
-            </h3>
-            <p className="text-xs text-slate-500">
-              Extracting readings, tariff slab, and connected load securely on your device...
-            </p>
-          </div>
+          <h3 className="text-xl font-semibold tracking-tight text-white mb-1">
+            <TextScramble text={readingSteps[readingStep]} />
+          </h3>
+          <p className="text-[13px] text-white/60 text-center max-w-xs mb-6">
+            {lang === 'ml'
+              ? 'ഡിവൈസിൽ വിവരങ്ങൾ വിശകലനം ചെയ്യുന്നു...'
+              : 'Extracting meter readings and tariff on-device...'}
+          </p>
 
-          {/* Steps Indicator */}
-          <div className="mx-auto max-w-xs space-y-2 text-left pt-2">
+          <div className="space-y-2 w-full max-w-xs text-left">
             {readingSteps.map((step, idx) => (
-              <div key={step} className="flex items-center gap-2.5 text-xs">
+              <div key={step} className="flex items-center gap-2.5 text-[13px]">
                 {idx < readingStep ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <Spinner done={true} className="size-4 shrink-0 text-emerald-400" />
                 ) : idx === readingStep ? (
-                  <div className="h-4 w-4 rounded-full border-2 border-sky-600 border-t-transparent animate-spin shrink-0" />
+                  <Spinner className="size-4 shrink-0 text-[#006FEE]" />
                 ) : (
-                  <div className="h-4 w-4 rounded-full border border-slate-200 shrink-0" />
+                  <div className="size-4 rounded-full border border-white/20 shrink-0" />
                 )}
-                <span className={idx <= readingStep ? 'font-medium text-slate-800' : 'text-slate-400'}>
+                <span className={idx <= readingStep ? 'text-white font-medium' : 'text-white/40'}>
                   {step}
                 </span>
               </div>
@@ -247,288 +343,226 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
         </div>
       )}
 
-      {/* STAGE 3: VERIFICATION */}
+      {/* STAGE 3: OCR VERIFICATION (Section 32) */}
       {stage === 'verify' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="space-y-5">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-1">
             <div>
-              <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-                {t.weFound}
+              <span className="text-[11px] font-semibold text-[var(--tertiary)] uppercase tracking-wider block">
+                {lang === 'ml' ? 'കണ്ടെത്തിയ വിവരങ്ങൾ' : 'VERIFIED READINGS'}
               </span>
-              <h3 className="text-xl font-bold text-slate-900">
-                {t.doesThisLookRight}
-              </h3>
+              <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">
+                {lang === 'ml' ? 'വിവരങ്ങൾ ശരിയാണോ?' : 'Does this look right?'}
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              {!previewUrl && (
+                <RubberStamp text={`${activeProvider.shortName} VERIFIED`} subtext="OCR MATCH" color="emerald" className="scale-90 origin-right" />
+              )}
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="text-[13px] font-medium text-[var(--accent)] flex items-center gap-1 active:opacity-60 transition-opacity"
+              >
+                <Edit3 style={{ width: '14px', height: '14px' }} />
+                <span>{isEditing ? (lang === 'ml' ? 'പൂർത്തിയായി' : 'Done') : (lang === 'ml' ? 'മാറ്റുക' : 'Edit')}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Identified Provider Banner */}
+          <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-3.5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-xs">
+                ⚡
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    {lang === 'ml' ? 'കണ്ടെത്തിയ വൈദ്യുതി ബോർഡ്' : 'Identified Provider'}
+                  </span>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                    {activeProvider.coverageStatus}
+                  </span>
+                </div>
+                <p className="text-[13px] font-bold text-slate-900">
+                  {activeProvider.displayName} ({activeProvider.state})
+                </p>
+              </div>
             </div>
             <button
-              onClick={() => setIsEditing(!isEditing)}
-              className="flex items-center gap-1 text-xs font-semibold text-sky-600 hover:text-sky-700 touch-target"
+              type="button"
+              onClick={() => setIsProviderModalOpen(true)}
+              className="text-xs font-semibold text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 px-2.5 py-1.5 rounded-lg transition-colors min-h-[32px] flex items-center"
             >
-              <Edit3 className="h-3.5 w-3.5" />
-              <span>{isEditing ? 'Done Editing' : t.editDetails}</span>
+              {lang === 'ml' ? 'മാറ്റുക' : 'Change'}
             </button>
           </div>
 
-          {/* Unsupported Bill Type Blocker (Item 8) */}
-          {extractedData.isSupportedBillType === false && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-900 space-y-2">
-              <div className="flex items-center gap-2 font-bold text-red-950 text-sm">
-                <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
-                <span>This bill type isn&apos;t supported yet</span>
-              </div>
-              <p className="leading-relaxed text-red-800">
-                {extractedData.unsupportedReason || 'BILLWISE currently calculates Kerala domestic households (LT-1A). Commercial, industrial, and high-tension tariffs are not yet supported.'}
-              </p>
-              <button
-                onClick={() => setStage('upload')}
-                className="inline-flex items-center gap-1.5 font-bold text-red-700 hover:text-red-900 underline pt-1"
-              >
-                Upload a domestic LT-1A bill instead
-              </button>
-            </div>
-          )}
-
-          {/* Smart Reading-Consumption Consistency Check (Item 7) */}
-          {extractedData.consistencyCheck && !extractedData.consistencyCheck.isConsistent && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 space-y-2.5">
-              <div className="flex items-center gap-2 font-bold text-amber-950 text-sm">
-                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                <span>Reading & Consumption Discrepancy Detected</span>
-              </div>
-              <p className="leading-relaxed">
-                {extractedData.consistencyCheck.warningMessage}
-              </p>
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <button
-                  onClick={() => {
-                    const comp = extractedData.consistencyCheck!.computedUnits;
-                    handleFieldChange('consumedUnits', comp);
-                    setExtractedData(prev => ({
-                      ...prev,
-                      consumedUnits: comp,
-                      consistencyCheck: { ...prev.consistencyCheck!, isConsistent: true }
-                    }));
-                  }}
-                  className="rounded-lg bg-amber-200/90 px-3 py-1.5 text-xs font-semibold text-amber-950 hover:bg-amber-300 transition-colors"
-                >
-                  Use {extractedData.consistencyCheck.computedUnits} units from readings
-                </button>
-                <button
-                  onClick={() => {
-                    const billed = extractedData.consistencyCheck!.extractedUnits;
-                    setExtractedData(prev => ({
-                      ...prev,
-                      consumedUnits: billed,
-                      consistencyCheck: { ...prev.consistencyCheck!, isConsistent: true }
-                    }));
-                  }}
-                  className="rounded-lg bg-white border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-50 transition-colors"
-                >
-                  Keep {extractedData.consistencyCheck.extractedUnits} units from bill
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Optical Quality Alert Banner if Blur or Darkness Detected */}
+          {/* Image Quality Diagnostic Alert */}
           {qualityReport && !qualityReport.isAcceptable && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 flex items-start gap-2.5">
-              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-amber-950">Image Quality Notice:</span>{' '}
-                {qualityReport.recommendation || 'Please verify the extracted numbers carefully.'}
-              </div>
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>{qualityReport.recommendation || (lang === 'ml' ? 'ഫോട്ടോ വ്യക്തമല്ല. റീഡിംഗുകൾ പരിശോധിക്കുക.' : 'Low photo clarity. Please verify the readings carefully.')}</span>
             </div>
           )}
 
-          {/* Preview Image with Rotate & Contrast Tools */}
+          {/* Document Preview Thumbnail */}
           {previewUrl && (
-            <div className="relative rounded-2xl border border-slate-200 bg-slate-900 overflow-hidden text-center p-3">
-              <div className="flex justify-between items-center text-xs text-slate-300 pb-2 px-1">
-                <span>Bill Document Preview</span>
-                <div className="flex items-center gap-2">
+            <div className="relative rounded-[var(--radius-md)] bg-[var(--surface-secondary)] border border-[var(--border)] p-3 text-center overflow-hidden">
+              <div className="absolute top-2 right-2 z-10 pointer-events-none">
+                <RubberStamp text="KSERC 24-25" subtext="OCR VERIFIED" color="emerald" />
+              </div>
+              <div className="flex justify-between items-center text-[12px] text-[var(--secondary)] pb-1.5">
+                <span>{lang === 'ml' ? 'ബിൽ ചിത്രം' : 'Bill image'}</span>
+                <div className="flex items-center gap-3">
                   <button
                     onClick={handleRotate}
-                    className="flex items-center gap-1 rounded-lg bg-white/20 px-2 py-1 text-white hover:bg-white/30 transition-colors"
-                    title="Rotate orientation 90 degrees"
+                    className="flex items-center gap-1 text-[12px] font-medium text-[var(--accent)]"
                   >
-                    <RotateCw className="h-3.5 w-3.5" />
-                    <span>Rotate 90°</span>
+                    <RotateCw className="h-3 w-3" />
+                    <span>Rotate</span>
+                  </button>
+                  <button
+                    onClick={() => setStage('upload')}
+                    className="flex items-center gap-1 text-[12px] font-medium text-[var(--secondary)]"
+                  >
+                    <X className="h-3 w-3" />
+                    <span>Replace</span>
                   </button>
                 </div>
               </div>
-              <img
-                src={previewUrl}
-                alt="Uploaded KSEB Bill"
-                className="max-h-48 mx-auto object-contain transition-transform duration-200"
-                style={{ transform: `rotate(${rotationAngle}deg)` }}
-              />
+              {/* LensReveal interactive loupe for fine-print inspection */}
+              <div style={{ transform: `rotate(${rotationAngle}deg)`, transition: 'transform 200ms ease' }}>
+                <LensReveal
+                  imageSrc={previewUrl!}
+                  zoomLevel={2.5}
+                  lensSize={130}
+                  alt="Uploaded KSEB Bill"
+                  annotations={[
+                    { x: 25, y: 20, label: 'Consumer Number' },
+                    { x: 70, y: 42, label: 'Present Reading' },
+                    { x: 45, y: 75, label: 'Total Amount' },
+                  ]}
+                  className="max-h-44"
+                />
+              </div>
             </div>
           )}
 
-          {/* Privacy & Engine Transparency Note */}
-          <div className="flex items-center gap-2 text-[11px] text-slate-500 bg-slate-50 rounded-xl p-2.5 border border-slate-100">
-            <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-            <span>On-device client extractor active. No images or personal numbers are uploaded to external servers.</span>
-          </div>
-
-          {/* Core Extracted Fields Grid */}
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          {/* Section 32: Clean Grouped Layout with Checkmarks */}
+          <div className="ios-grouped-list">
             {/* Previous Reading */}
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5">
-              <div className="text-xs text-slate-500 font-medium">{t.previousReading}</div>
+            <div className="ios-row">
+              <span className="text-[14px] text-[var(--secondary)]">Previous reading</span>
               {isEditing ? (
                 <input
                   type="number"
                   inputMode="numeric"
                   value={extractedData.previousReading}
                   onChange={e => handleFieldChange('previousReading', e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-1.5 font-mono font-bold text-slate-900"
+                  className="rounded-lg border border-[var(--border)] px-2 py-1 text-right font-medium text-[15px] num-tabular w-28"
                 />
               ) : (
-                <div className="mt-1 font-mono text-base font-extrabold text-slate-900 num-tabular">
-                  {extractedData.previousReading.toLocaleString()}
+                <div className="flex items-center gap-1.5 font-semibold text-[15px] text-[var(--foreground)] num-tabular">
+                  <span>{extractedData.previousReading.toLocaleString()}</span>
+                  <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
                 </div>
               )}
             </div>
 
-            {/* Present Reading */}
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5">
-              <div className="text-xs text-slate-500 font-medium">{t.currentReading}</div>
+            {/* Current Reading */}
+            <div className="ios-row">
+              <span className="text-[14px] text-[var(--secondary)]">Current reading</span>
               {isEditing ? (
                 <input
                   type="number"
                   inputMode="numeric"
                   value={extractedData.presentReading}
                   onChange={e => handleFieldChange('presentReading', e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-1.5 font-mono font-bold text-slate-900"
+                  className="rounded-lg border border-[var(--border)] px-2 py-1 text-right font-medium text-[15px] num-tabular w-28"
                 />
               ) : (
-                <div className="mt-1 font-mono text-base font-extrabold text-slate-900 num-tabular">
-                  {extractedData.presentReading.toLocaleString()}
+                <div className="flex items-center gap-1.5 font-semibold text-[15px] text-[var(--foreground)] num-tabular">
+                  <span>{extractedData.presentReading.toLocaleString()}</span>
+                  <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
                 </div>
               )}
             </div>
 
-            {/* Consumed Units */}
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5">
-              <div className="text-xs text-slate-500 font-medium">{t.consumption}</div>
-              <div className="mt-1 font-mono text-base font-extrabold text-sky-700 num-tabular">
-                {extractedData.consumedUnits} {t.units}
+            {/* Usage */}
+            <div className="ios-row">
+              <span className="text-[14px] text-[var(--secondary)]">Usage</span>
+              <div className="flex items-center gap-1.5 font-semibold text-[15px] text-[var(--foreground)] num-tabular">
+                <span>{extractedData.consumedUnits} units</span>
+                <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
               </div>
             </div>
 
-            {/* Billing Cycle */}
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5">
-              <div className="text-xs text-slate-500 font-medium">{t.billingCycle}</div>
-              <div className="mt-1 font-semibold text-slate-900 capitalize">
-                {extractedData.billingCycle}
+            {/* Tariff */}
+            <div className="ios-row">
+              <span className="text-[14px] text-[var(--secondary)]">Tariff</span>
+              <div className="flex items-center gap-1.5 font-semibold text-[15px] text-[var(--foreground)]">
+                <span>{extractedData.tariff}</span>
+                <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
               </div>
             </div>
 
-            {/* Tariff & Phase */}
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5">
-              <div className="text-xs text-slate-500 font-medium">{t.tariff} & {t.phase}</div>
-              <div className="mt-1 font-semibold text-slate-900 text-xs">
-                {extractedData.tariff} • {extractedData.phase === 'single' ? t.singlePhase : t.threePhase}
+            {/* Billing */}
+            <div className="ios-row">
+              <span className="text-[14px] text-[var(--secondary)]">Billing</span>
+              <div className="flex items-center gap-1.5 font-semibold text-[15px] text-[var(--foreground)]">
+                <span>{extractedData.billingCycle === 'bi-monthly' ? 'Bi-monthly' : 'Monthly'}</span>
+                <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
               </div>
-            </div>
-
-            {/* Connected Load (with uncertainty badge if < 0.90) */}
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">{t.connectedLoad}</span>
-                {extractedData.fieldConfidences?.connectedLoadWatts < 0.90 && (
-                  <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5">
-                    <AlertCircle className="h-3 w-3" /> Check this
-                  </span>
-                )}
-              </div>
-              {isEditing ? (
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={extractedData.connectedLoadWatts}
-                  onChange={e => handleFieldChange('connectedLoadWatts', e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-1.5 font-mono font-bold text-slate-900"
-                />
-              ) : (
-                <div className="mt-1 font-mono text-base font-bold text-slate-900 num-tabular">
-                  {extractedData.connectedLoadWatts} W
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Expandable Technical Line Items (All 16 Extracted Items) */}
-          <div>
-            <button
-              onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
-              className="text-xs font-semibold text-slate-600 hover:text-sky-700 flex items-center gap-1"
-            >
-              <span>{showTechnicalDetails ? '− Hide extracted billing charges' : '+ Show all 16 extracted charges & dates'}</span>
-            </button>
+          {/* Unsupported tariff alert */}
+          {extractedData.isSupportedBillType === false && (
+            <div className="border-l-2 border-[var(--warning)] pl-3 py-1 text-[13px] text-[var(--warning-text)] space-y-1">
+              <p className="font-semibold">
+                {lang === 'ml' ? 'ഈ ബിൽ തരം നിലവിൽ ലഭ്യമല്ല' : "This bill type isn't supported yet."}
+              </p>
+              <p className="text-[12px] text-[var(--secondary)]">
+                {extractedData.unsupportedReason || 'BILLWISE currently supports domestic LT-1A tariffs.'}
+              </p>
+            </div>
+          )}
 
-            {showTechnicalDetails && (
-              <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl bg-slate-50 p-4 border border-slate-100 text-xs font-mono">
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-sans">Billing Period</span>
-                  <span className="text-slate-700 font-medium">{extractedData.billingPeriod}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-sans">Bill Date</span>
-                  <span className="text-slate-700 font-medium">{extractedData.billDate}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-sans">Due Date</span>
-                  <span className="text-slate-700 font-medium">{extractedData.dueDate}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-sans">Energy Charge</span>
-                  <span className="text-slate-800 font-bold">₹{extractedData.energyCharge}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-sans">Fixed Charge</span>
-                  <span className="text-slate-800 font-bold">₹{extractedData.fixedCharge}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-sans">Duty (10%)</span>
-                  <span className="text-slate-800 font-bold">₹{extractedData.duty}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-sans">Fuel Adj. (FAC)</span>
-                  <span className="text-slate-800 font-bold">₹{extractedData.fuelAdjustment}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-sans">Meter Rent</span>
-                  <span className="text-slate-800 font-bold">₹{extractedData.meterRent}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-sans">Subsidy</span>
-                  <span className="text-emerald-700 font-bold">−₹{extractedData.subsidy}</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Action CTAs */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          {/* Action Buttons */}
+          <div className="space-y-2 pt-2">
             <button
               onClick={handleConfirm}
-              className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 py-4 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 active:scale-[0.98] transition-all touch-target"
+              className="ios-btn-primary w-full"
             >
-              <span>{t.everythingLooksRight}</span>
-              <ArrowRight className="h-4 w-4" />
+              <span>{lang === 'ml' ? 'സ്ഥിരീകരിച്ച് തുടരുക' : 'Confirm and predict'}</span>
+              <ArrowRight style={{ width: '16px', height: '16px' }} />
             </button>
 
             <button
               onClick={() => setStage('upload')}
-              className="rounded-2xl border border-slate-200 px-4 py-4 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors touch-target"
+              className="ios-btn-secondary w-full"
             >
-              Rescan Bill
+              {lang === 'ml' ? 'വീണ്ടും സ്കാൻ ചെയ്യുക' : 'Scan another bill'}
             </button>
           </div>
         </div>
       )}
+
+      {/* Provider Selection Sheet / Modal */}
+      <ProviderSelectModal
+        isOpen={isProviderModalOpen}
+        onClose={() => setIsProviderModalOpen(false)}
+        onSelectProvider={(p) => {
+          setActiveProvider(p);
+          setExtractedData(prev => ({
+            ...prev,
+            tariff: p.supportedTariffCategories[0] || prev.tariff,
+          }));
+        }}
+        selectedProviderId={activeProvider.id}
+      />
     </div>
   );
 }

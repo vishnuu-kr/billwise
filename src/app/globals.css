@@ -1,48 +1,464 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ================================================================
+   BILLWISE — Phase 8B Design System (HeroUI-Quality Architecture)
+   Philosophy: Quiet, expensive, composed, native-feeling, minimal, modern.
+   Composition over decoration. Hierarchy over borders.
+   Typography over containers. Whitespace over filler.
+   ================================================================ */
 
 :root {
-  --background: #fbfbfa;
-  --foreground: #0f172a;
-  --card-bg: #ffffff;
-  --border-color: #e2e8f0;
-  --accent: #0284c7;
-  --accent-hover: #0369a1;
-  --accent-light: #f0f9ff;
-  --warning: #d97706;
-  --warning-bg: #fffbeb;
-  --danger: #dc2626;
-  --danger-bg: #fef2f2;
-  --success: #16a34a;
-  --success-bg: #f0fdf4;
+  /* === SYSTEM TYPOGRAPHY STACK === */
+  --font-system: var(--font-poppins), 'Poppins', -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+  --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* === COLOR SYSTEM: SURFACES & CANVAS === */
+  --background: #F7F7F5;             /* Level 0: Refined warm neutral canvas (never sterile white) */
+  --background-secondary: #EFEFEA;   /* Inset secondary container */
+  --background-tertiary: #E8E8E2;
+  --surface: #FFFFFF;                /* Level 1: Pure clean raised surface */
+  --surface-secondary: #F4F4F2;      /* Quiet secondary surface */
+  --surface-elevated: #FFFFFF;       /* Level 2: Floating surface / sheet */
+
+  /* === COLOR SYSTEM: INK / TEXT === */
+  --foreground: #17171C;             /* Deep charcoal near-black primary ink */
+  --text-primary: #17171C;
+  --secondary: #71717A;              /* Cool refined secondary gray */
+  --text-secondary: #71717A;
+  --tertiary: #A1A1AA;               /* Muted caption gray */
+  --text-tertiary: #A1A1AA;
+  --quaternary: #D4D4D8;
+  --text-quaternary: #D4D4D8;
+
+  /* === COLOR SYSTEM: ELECTRIC IDENTITY === */
+  --accent: #006FEE;                 /* Restrained electric blue identity */
+  --accent-foreground: #FFFFFF;
+  --accent-soft: rgba(0, 111, 238, 0.08); /* 8-12% transparent */
+  --accent-soft-hover: rgba(0, 111, 238, 0.14);
+  --accent-hover: #005BC4;
+  --accent-active: #004CB0;
+  --accent-dim: #EBF4FF;
+
+  /* === COLOR SYSTEM: SEMANTIC STATES === */
+  --success: #17C964;                /* Soft green */
+  --success-soft: rgba(23, 201, 100, 0.10);
+  --success-border: rgba(23, 201, 100, 0.25);
+  --success-text: #0E7036;
+
+  --warning: #F5A524;                /* Warm amber for threshold alerts */
+  --warning-soft: rgba(245, 165, 36, 0.12);
+  --warning-border: rgba(245, 165, 36, 0.30);
+  --warning-text: #935303;
+
+  --danger: #F31260;                 /* Restrained red */
+  --danger-soft: rgba(243, 18, 96, 0.10);
+  --danger-border: rgba(243, 18, 96, 0.25);
+  --danger-text: #900B37;
+
+  /* === SEPARATORS, HAIRLINES & BORDERS === */
+  --separator: rgba(0, 0, 0, 0.06);
+  --separator-strong: rgba(0, 0, 0, 0.10);
+  --border: rgba(0, 0, 0, 0.07);
+  --border-subtle: rgba(0, 0, 0, 0.04);
+
+  /* === SPACING SCALE: 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80 === */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* === RADII SCALE: 8, 12, 16, 20, 24, 28 === */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-sheet: 28px;
+  --radius-full: 9999px;
+
+  /* === DEPTH & ELEVATION (Restrained, subtle) === */
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 8px rgba(0, 0, 0, 0.02);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --shadow-overlay: 0 -8px 32px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --shadow-raised: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 10px 30px -4px rgba(0, 0, 0, 0.10), 0 4px 12px -2px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  /* === MOTION TIMINGS & EMIL KOWALSKI EASING CURVES === */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-fast: 150ms cubic-bezier(0.23, 1, 0.32, 1);
+  --motion-normal: 200ms cubic-bezier(0.23, 1, 0.32, 1);
+  --motion-slow: 300ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* ================================================================
+   THEME REGISTRATION (Tailwind v4)
+   ================================================================ */
 @theme inline {
+  --font-sans: var(--font-system);
+  --font-body: var(--font-system);
   --color-background: var(--background);
+  --color-background-secondary: var(--background-secondary);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-secondary: var(--secondary);
+  --color-tertiary: var(--tertiary);
+  --color-quaternary: var(--quaternary);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-separator: var(--separator);
+  --color-muted: var(--secondary);
+  --color-border: rgba(0, 0, 0, 0.08);
+  --shadow-raised: var(--shadow-raised);
+  --shadow-elevated: var(--shadow-elevated);
+}
+
+/* ================================================================
+   BASE BODY STYLES
+   ================================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus:not(:focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent, #006FEE);
+  outline-offset: 2px;
+}
+
+button, a, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  font-family: var(--font-system);
+  background-color: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+}
+
+p, .text-pretty {
+  text-wrap: pretty;
 }
 
 body {
-  background-color: var(--background);
+  font-family: var(--font-system);
+  background: radial-gradient(120% 75% at 50% -5%, rgba(0, 111, 238, 0.07) 0%, rgba(246, 247, 250, 0) 70%), #F6F7FA;
   color: var(--foreground);
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
 }
 
-/* Tabular numbers for clean financial display */
+/* ================================================================
+   TYPOGRAPHY HIERARCHY
+   ================================================================ */
+
+/* Tabular numbers for all financial, meter, and unit figures */
 .num-tabular {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
 }
 
-/* Subtle custom range slider */
+/* Large financial hero figure — restrained, expensive, not ultra-black */
+.num-hero {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.03em;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Malayalam typography refinement */
+[lang="ml"], .font-ml {
+  line-height: 1.65;
+  letter-spacing: 0.005em;
+}
+
+/* Quiet metadata label utility */
+.label-subtle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--secondary);
+  letter-spacing: -0.01em;
+}
+
+.label-caps {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--tertiary);
+  text-transform: uppercase;
+}
+
+/* ================================================================
+   NATIVE SURFACES & COMPOSABLE SECTIONS
+   ================================================================ */
+
+.ios-surface-1 {
+  background-color: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-subtle);
+}
+
+.shadow-raised {
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 10px 30px -4px rgba(0, 0, 0, 0.10),
+    0 4px 12px -2px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.ios-sheet {
+  background-color: var(--surface);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  box-shadow: var(--shadow-overlay);
+  overscroll-behavior-y: none;
+  touch-action: pan-y;
+}
+
+.ios-sheet-handle {
+  width: 40px;
+  height: 4.5px;
+  border-radius: var(--radius-full);
+  background-color: rgba(0, 0, 0, 0.18);
+  margin: 0 auto;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+/* Grouped List Table */
+.ios-grouped-list {
+  background-color: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.ios-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--separator);
+  transition: background-color var(--motion-fast);
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.ios-row:last-child {
+  border-bottom: none;
+}
+
+.ios-row:active {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* ================================================================
+   ACTION HIERARCHY (Primary, Secondary, Tertiary)
+   Height: 48-52px, Radius: 14-16px, Tactile Press
+   ================================================================ */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ios-press {
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform var(--motion-fast), opacity var(--motion-fast);
+}
+
+.ios-press:active {
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+
+/* Primary Dark / Electric Button */
+.ios-btn-primary {
+  height: 52px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #24242A 0%, #131317 100%);
+  color: #FFFFFF;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 20px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition: transform var(--motion-fast), box-shadow var(--motion-fast), opacity var(--motion-fast);
+}
+
+.ios-btn-primary:active {
+  transform: scale(0.96);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  opacity: 0.92;
+}
+
+/* Primary Electric Accent Button */
+.ios-btn-accent {
+  height: 52px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #0A78FF 0%, #0066DF 100%);
+  color: #FFFFFF;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 20px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(0, 111, 238, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: transform var(--motion-fast), box-shadow var(--motion-fast);
+}
+
+.ios-btn-accent:active {
+  transform: scale(0.96);
+  box-shadow: 0 1px 4px rgba(0, 111, 238, 0.4);
+}
+
+/* Secondary Quiet Surface Button */
+.ios-btn-secondary {
+  height: 52px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+  color: var(--foreground);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 15px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 20px;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), 0 2px 6px rgba(0, 0, 0, 0.01);
+  transition: transform var(--motion-fast), background-color var(--motion-fast);
+}
+
+.ios-btn-secondary:active {
+  transform: scale(0.96);
+  background-color: var(--surface-secondary);
+}
+
+/* Tertiary Text Link */
+.ios-btn-tertiary {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--secondary);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: color var(--motion-fast);
+}
+
+.ios-btn-tertiary:hover {
+  color: var(--foreground);
+}
+
+.ios-btn-tertiary:active {
+  opacity: 0.7;
+}
+
+/* Glass Card Elevation — Pure iOS Frosted Squircle */
+.glass-card {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.02),
+    0 8px 24px -4px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  border-radius: 22px;
+}
+
+/* Floating Navigation Dock — Pure Floating Island */
+.floating-dock {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 14px 36px -4px rgba(0, 0, 0, 0.14),
+    0 4px 12px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border-radius: 9999px;
+}
+
+/* ================================================================
+   TACTILE RANGE SLIDER
+   ================================================================ */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  background: #e2e8f0;
-  border-radius: 9999px;
-  height: 8px;
+  background: #E5E5EA;
+  border-radius: var(--radius-full);
+  height: 7px;
   outline: none;
+  cursor: pointer;
+  border: none;
+  transition: background 150ms ease;
+}
+
+input[type="range"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -51,27 +467,82 @@ input[type="range"]::-webkit-slider-thumb {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #0284c7;
+  background: #FFFFFF;
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  transition: transform 0.1s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), 0 4px 10px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 1);
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 120ms ease;
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
+  transform: scale(1.08);
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.14);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2), 0 6px 16px rgba(0, 0, 0, 0.18);
 }
 
 input[type="range"]::-moz-range-thumb {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #0284c7;
+  background: #FFFFFF;
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
-/* Touch target minimum 44px */
-.touch-target {
-  min-height: 44px;
-  min-width: 44px;
+/* ================================================================
+   SAFE AREA UTILITIES (iOS Notch & Home Indicator)
+   ================================================================ */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
 }
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.mb-safe-nav {
+  margin-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Hide scrollbar for clean app experience */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ================================================================
+   HIDE NEXT.JS DEV OVERLAY IN DEVELOPMENT
+   Prevents Next.js development toast from obstructing bottom tab bar
+   ================================================================ */
+nextjs-portal {
+  display: none !important;
+}
+
+/* ================================================================
+   ACCESSIBILITY: REDUCED MOTION (WCAG 2.3.3 / Jakub Krehel Standard)
+   Collapses animations to 0.01ms so animationend/transitionend fire cleanly
+   ================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+

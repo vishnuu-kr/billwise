@@ -317,6 +317,54 @@ export interface InputSanityReport {
   warningMessageMl?: string;
 }
 
+export interface SavedHomeProfile {
+  id: string;
+  name?: string;
+  providerId?: string;
+  providerName?: string;
+  providerShortName?: string;
+  state?: string;
+  billingCycle: BillingCycle;
+  tariff: string;
+  phase: Phase;
+  connectedLoadWatts?: number;
+  lastBillAmount?: number;
+  lastBillUnits?: number;
+  lastBillDate?: string;
+  lastReading: number;
+  lastReadingDate: string;
+  currentReading?: number;
+  currentReadingDate?: string;
+  latestPrediction?: {
+    estimatedBill: number;
+    likelyRangeMin: number;
+    likelyRangeMax: number;
+    projectedUnits: number;
+    unitsPerDay: number;
+    daysElapsed: number;
+    daysRemaining: number;
+    timestamp: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CycleComparisonDetail {
+  prevUnits: number;
+  currUnits: number;
+  unitsDiff: number;
+  prevBill: number;
+  currBill: number;
+  billDiff: number;
+  energyImpact: number;
+  fixedImpact: number;
+  dutyImpact: number;
+  subsidyImpact: number;
+  fuelAndRentImpact: number;
+  isIncrease: boolean;
+  percentageChange: number;
+}
+
 export interface TariffVersionValidationResult {
   isValid: boolean;
   errors: string[];
@@ -330,12 +378,18 @@ export type AnalyticsEventName =
   | 'meter_scan_started'
   | 'meter_scan_completed'
   | 'prediction_generated'
+  | 'first_prediction'
+  | 'home_saved'
+  | 'reading_updated'
+  | 'actual_bill_recorded'
+  | 'prediction_compared'
+  | 'repeat_visit'
   | 'manual_calculation'
   | 'manual_entry'
   | 'what_if_used'
   | 'budget_used'
   | 'history_recorded'
-  | 'actual_bill_recorded'
+  | 'history_viewed'
   | 'language_changed'
   | 'page_visit'
   | 'app_opened'
@@ -343,7 +397,10 @@ export type AnalyticsEventName =
   | 'result_viewed'
   | 'share_clicked'
   | 'prediction_feedback'
-  | 'feedback_submitted';
+  | 'feedback_submitted'
+  | 'onboarding_started'
+  | 'onboarding_dismissed'
+  | 'onboarding_completed';
 
 // ==========================================
 // Phase 5: Public Beta, Feedback & Funnel Types

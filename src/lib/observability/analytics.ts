@@ -105,23 +105,28 @@ class PrivacyFirstAnalytics {
       this.incrementStage('retention_action');
     }
 
-    // Phase 6: Asynchronous server beacon transmission (non-blocking, zero personal data)
+    // Non-blocking telemetry transmission using navigator.sendBeacon when available
     if (this.isBrowser()) {
       try {
-        fetch('/api/events', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event,
-            timestamp: payload.timestamp,
-            appVersion: payload.properties?.appVersion || '0.6.0-beta',
-            feature: payload.properties?.feature,
-            locale: payload.properties?.locale || 'en',
-          }),
-          keepalive: true,
-        }).catch(() => {
-          // Silent catch: network failures must never break the client
+        const bodyStr = JSON.stringify({
+          event,
+          timestamp: payload.timestamp,
+          appVersion: payload.properties?.appVersion || '0.6.0-rc.1',
+          feature: payload.properties?.feature,
+          locale: payload.properties?.locale || 'en',
         });
+
+        if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+          const blob = new Blob([bodyStr], { type: 'application/json' });
+          navigator.sendBeacon('/api/events', blob);
+        } else {
+          fetch('/api/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: bodyStr,
+            keepalive: true,
+          }).catch(() => {});
+        }
       } catch {
         // Silent catch
       }

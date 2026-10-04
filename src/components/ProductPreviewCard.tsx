@@ -1,122 +1,154 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { AlertCircle, HelpCircle, Sliders, PiggyBank, Sparkles } from 'lucide-react';
+import { calculateBill } from '@/lib/calculation/engine';
+import { ArrowRight } from 'lucide-react';
+import { TickGauge } from '@/components/ui/TickGauge';
 
 interface ProductPreviewProps {
   interactive?: boolean;
 }
 
 export default function ProductPreviewCard({ interactive = true }: ProductPreviewProps) {
-  const { lang, t } = useLanguage();
+  const { lang } = useLanguage();
+  const [units, setUnits] = useState(240);
+
+  // Bill calculation for current preview units
+  const billCalc = calculateBill({
+    units,
+    billingCycle: 'bi-monthly',
+    phase: 'single',
+  });
+
+  const estimatedTotal = billCalc.total;
+  const rangeMin = Math.round(estimatedTotal * 0.94);
+  const rangeMax = Math.round(estimatedTotal * 1.06);
+  const dailyPace = (units / 60).toFixed(1);
+  const unitsToNextBand = Math.max(0, 240 - units);
+  const isNearThreshold = units >= 210 && units <= 240;
+
+  const presets = [120, 180, 240, 300, 400];
 
   return (
-    <div className="w-full rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] transition-all">
-      {/* Top Header with Honest Example Label */}
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
+    <div className="space-y-4 sm:space-y-5 transition-all">
+      {/* Top Header Row */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-            {t.yourNextBill}
+          <span className="w-2 h-2 rounded-full bg-[#006FEE] animate-pulse" />
+          <span className="text-[12px] font-semibold text-[#71717A] uppercase tracking-wider">
+            {lang === 'ml' ? 'തത്സമയ പ്രവചനം' : 'Live Estimate Engine'}
           </span>
         </div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
-          <Sparkles className="h-3 w-3 text-sky-600" />
-          <span>{lang === 'ml' ? 'ഉദാഹരണം (Example Preview)' : 'Example Preview'}</span>
+        <span className="text-[11px] font-medium text-[#A1A1AA] px-2 py-0.5 rounded-full bg-black/[0.04]">
+          {lang === 'ml' ? 'മാതൃക' : 'Sample preview'}
         </span>
       </div>
 
-      {/* Hero Bill Number */}
-      <div className="mb-4">
-        <div className="flex items-baseline gap-2">
-          <span className="text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 num-tabular">
-            ₹1,284
-          </span>
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            {t.estimated}
-          </span>
-        </div>
-        
-        {/* Likely Range */}
-        <div className="mt-1 flex items-center gap-2 text-xs sm:text-sm text-slate-600">
-          <span className="text-slate-500">{t.likelyRange}:</span>
-          <span className="font-mono font-semibold text-slate-800 num-tabular">
-            ₹1,210 – ₹1,360
-          </span>
-        </div>
-      </div>
+      {/* High-Precision Instrument Tick Gauge */}
+      <div className="rounded-[22px] bg-gradient-to-b from-[#FAFBFD] to-[#F3F5F9] p-5 border border-black/[0.05] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col items-center">
+        <TickGauge
+          value={(units / 500) * 100}
+          threshold={48}
+          displayValue={estimatedTotal}
+          prefix="₹"
+          label={lang === 'ml' ? 'പ്രതീക്ഷിക്കുന്ന ബിൽ' : 'Estimated Bi-Monthly Bill'}
+          sublabel={`${units} ${lang === 'ml' ? 'യൂണിറ്റ്' : 'units'} · ~${dailyPace} u/day`}
+        />
 
-      {/* Recent Usage & Comparison Badges */}
-      <div className="grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-3.5 mb-5 border border-slate-100">
-        <div>
-          <div className="text-xs text-slate-500 font-medium">{t.currentUsage}</div>
-          <div className="mt-0.5 flex items-baseline gap-1">
-            <span className="font-mono text-lg font-bold text-slate-900 num-tabular">3.8</span>
-            <span className="text-xs text-slate-600">{t.unitsPerDay}</span>
-          </div>
-        </div>
-
-        <div>
-          <div className="text-xs text-slate-500 font-medium">{t.comparedWithLast}</div>
-          <div className="mt-0.5 flex items-center gap-1 text-slate-700">
-            <span className="text-xs font-semibold text-amber-600">↑ ₹136</span>
-            <span className="text-[11px] text-slate-500">(+11%)</span>
+        {/* Dynamic Range Spectrum Bar */}
+        <div className="w-full space-y-1.5 px-2 pt-3.5 border-t border-black/[0.05] mt-3">
+          <div className="flex justify-between items-center text-[12px] text-[#71717A] num-tabular">
+            <span className="font-medium">
+              ₹{rangeMin.toLocaleString('en-IN')}{' '}
+              <span className="text-[10px] text-[#A1A1AA]">{lang === 'ml' ? 'കുറഞ്ഞത്' : 'min'}</span>
+            </span>
+            <span className="text-[#006FEE] font-semibold bg-[#006FEE]/10 px-2.5 py-0.5 rounded-full text-[11px]">
+              ₹{estimatedTotal.toLocaleString('en-IN')} {lang === 'ml' ? 'സാധ്യത' : 'likely'}
+            </span>
+            <span className="font-medium">
+              ₹{rangeMax.toLocaleString('en-IN')}{' '}
+              <span className="text-[10px] text-[#A1A1AA]">{lang === 'ml' ? 'കൂടിയത്' : 'max'}</span>
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Cycle Progress Bar */}
-      <div className="mb-5 space-y-1.5">
-        <div className="flex justify-between text-xs font-medium text-slate-600">
-          <span>{t.billingPeriod}</span>
-          <span className="font-mono text-slate-700 num-tabular">17 / 60 {t.daysElapsed}</span>
-        </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-          <div
-            className="h-full rounded-full bg-sky-600 transition-all duration-500"
-            style={{ width: '28.3%' }}
-          />
-        </div>
-      </div>
-
-      {/* Calm Slab Warning */}
-      <div className="mb-5 flex items-start gap-2.5 rounded-2xl border border-amber-200/90 bg-amber-50/70 p-3.5 text-xs text-amber-900">
-        <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-        <div className="leading-relaxed">
-          <p className="font-bold text-amber-950">
-            {t.approachingSlabWarning}
-          </p>
-          <p className="mt-0.5 text-amber-800">
-            <strong className="font-semibold text-amber-950">23 units remaining</strong> before next tariff rate (~6 days at your current rate).
-          </p>
-        </div>
-      </div>
-
-      {/* Action Links */}
+      {/* Interactive Controls */}
       {interactive && (
-        <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-center">
-          <Link
-            href="/explain"
-            className="rounded-xl py-2 px-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-sky-700 transition-colors"
-          >
-            {t.whyThisAmount}
-          </Link>
-          <Link
-            href="/what-if"
-            className="rounded-xl py-2 px-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-sky-700 transition-colors"
-          >
-            {t.whatIfUseMore}
-          </Link>
-          <Link
-            href="/budget"
-            className="rounded-xl py-2 px-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-sky-700 transition-colors"
-          >
-            {t.setABudget}
-          </Link>
+        <div className="space-y-3 pt-1 border-t border-black/[0.05]">
+          <div className="flex items-center justify-between text-[12px]">
+            <span className="font-medium text-[#71717A]">
+              {lang === 'ml' ? 'ഉപയോഗം ക്രമീകരിക്കാം' : 'Scrub usage'}
+            </span>
+            <span className="font-semibold text-[#17171C] num-tabular">
+              {units} {lang === 'ml' ? 'യൂണിറ്റ്' : 'units'} / 60d
+            </span>
+          </div>
+
+          <input
+            type="range"
+            min={40}
+            max={500}
+            step={10}
+            value={units}
+            onChange={(e) => setUnits(Number(e.target.value))}
+            className="w-full"
+            aria-label="Adjust units for bill preview"
+          />
+
+          {/* Preset Chips — Pill shaped with hairline border */}
+          <div className="grid grid-cols-5 gap-1.5 pt-1">
+            {presets.map(p => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setUnits(p)}
+                className={`py-1.5 text-center rounded-xl text-[12px] font-semibold num-tabular transition-all cursor-pointer active:scale-95 border ${
+                  units === p
+                    ? 'bg-[#17171C] text-white border-[#17171C] shadow-xs'
+                    : 'bg-white border-black/[0.06] text-[#71717A] hover:text-[#17171C] hover:border-black/[0.12]'
+                }`}
+              >
+                {p}u{p === 240 ? '⚡' : ''}
+              </button>
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Threshold Warning Callout */}
+      {isNearThreshold && (
+        <div className="rounded-2xl bg-[#F5A524]/10 border border-[#F5A524]/25 p-3.5 text-[12px] flex items-start gap-2.5">
+          <div className="w-2 h-2 rounded-full bg-[#F5A524] mt-1 shrink-0 animate-pulse" />
+          <div className="space-y-0.5">
+            <span className="font-semibold text-[#935303] block">
+              {lang === 'ml' ? '240 യൂണിറ്റ് സബ്‌സിഡി പരിധി അടുക്കുന്നു' : 'Approaching Subsidy Ceiling (240u)'}
+            </span>
+            <span className="text-[#935303]/90 mt-0.5 block leading-relaxed">
+              {unitsToNextBand > 0
+                ? (lang === 'ml'
+                    ? `ഇനിയും ${unitsToNextBand} യൂണിറ്റുകൾ ബാക്കി. 240 യൂണിറ്റ് കഴിഞ്ഞാൽ സർക്കാർ സബ്‌സിഡി ലഭിക്കില്ല.`
+                    : `${unitsToNextBand} units remaining. Government tariff subsidy discontinues above 240 units.`)
+                : (lang === 'ml'
+                    ? '240 യൂണിറ്റ് പരിധിയിലെത്തി. ഇതിൽ കൂടുതൽ ഉപയോഗിച്ചാൽ സർക്കാർ സബ്‌സിഡി നഷ്ടപ്പെടും.'
+                    : 'Reached 240 units ceiling. Crossing 240 units ends government energy subsidy.')}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Action Footer */}
+      <div className="pt-2 border-t border-black/[0.05]">
+        <Link
+          href={`/predict?units=${units}`}
+          className="flex items-center justify-between text-[13px] font-semibold text-[#006FEE] hover:text-[#005BC4] active:opacity-70 transition-colors py-1 group"
+        >
+          <span>{lang === 'ml' ? 'മീറ്റർ റീഡിംഗുമായി താരതമ്യം ചെയ്യൂ' : 'Check with your actual meter'}</span>
+          <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      </div>
     </div>
   );
 }

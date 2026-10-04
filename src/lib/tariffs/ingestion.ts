@@ -57,9 +57,9 @@ export function evaluateTariffIngestion(
       nextTotal = nextCalc.total;
       deltaRupees = nextCalc.total - prevCalc.total;
       percentageChange = Number(((deltaRupees / prevCalc.total) * 100).toFixed(1));
-    } catch (e: any) {
+    } catch (e: unknown) {
       validation.isValid = false;
-      validation.errors.push(`Reference calculation failed: ${e.message}`);
+      validation.errors.push(`Reference calculation failed: ${(e as Error).message}`);
     }
   }
 

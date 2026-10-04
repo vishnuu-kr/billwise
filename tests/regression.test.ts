@@ -68,10 +68,6 @@ describe('Regression Test: Real Kerala Household Reference Bill Fixture', () => 
     const bill1p = calculateBill(referenceInput); // default 1p / unit FAC
     
     // Test with 2p / unit FAC (as used in some third-party web calculators)
-    const customTariff2p = {
-      ...bill1p,
-      fuelAdjustmentRatePerUnit: 0.02,
-    };
     const bill2p = calculateBill(referenceInput, {
       ...CURRENT_KSEB_TARIFF_VERSION,
       fuelAdjustmentRatePerUnit: 0.02,

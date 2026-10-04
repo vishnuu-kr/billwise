@@ -1,30 +1,26 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import Footer from "@/components/Footer";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import { SITE_CONFIG } from "@/lib/config/site";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const poppins = Poppins({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-poppins",
+  display: "swap",
 });
 
 export const viewport: Viewport = {
-  themeColor: "#0284c7",
+  themeColor: "#F7F7F5",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 5,
+  viewportFit: "cover",
 };
-
-import { SITE_CONFIG } from "@/lib/config/site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_CONFIG.domain),
@@ -68,19 +64,47 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${poppins.variable} font-sans h-full antialiased`} suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined' && 'serviceWorker' in navigator && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                  for (var i = 0; i < regs.length; i++) { regs[i].unregister(); }
+                });
+                if ('caches' in window) {
+                  caches.keys().then(function(keys) {
+                    for (var i = 0; i < keys.length; i++) { caches.delete(keys[i]); }
+                  });
+                }
+              }
+            `,
+          }}
+        />
       </head>
-      <body className="min-h-full flex flex-col bg-[#fbfbfa] text-[#0f172a]">
+      <body className="min-h-full flex flex-col bg-[#F7F7F5] text-[#17171C] selection:bg-[#006FEE]/20">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2.5 focus:bg-[#006FEE] focus:text-white focus:font-semibold focus:rounded-xl focus:shadow-lg focus:outline-2 focus:outline-offset-2 focus:outline-white"
+        >
+          Skip to content
+        </a>
         <LanguageProvider>
           <ServiceWorkerRegister />
           <Header />
-          <main className="flex-1 w-full pb-20 md:pb-12">
+          <main id="main-content" tabIndex={-1} className="flex-1 w-full pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-12 focus:outline-none">
             {children}
           </main>
           <BottomNav />
-          <Footer />
+          {/* Footer is only rendered on desktop to preserve 100% native mobile app feel */}
+          <div className="hidden md:block">
+            <Footer />
+          </div>
         </LanguageProvider>
       </body>
     </html>

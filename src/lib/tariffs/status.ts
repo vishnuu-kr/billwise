@@ -30,7 +30,6 @@ export function getActiveTariffStatus(): TariffStatus {
 
   // 2. Check currency of monthly variable Fuel Adjustment Charge (FAC)
   // KSEB revises FAC monthly; if unverified for > 60 days, flag review required
-  const lastVerified = new Date(tariff.effectiveFrom).getTime();
   const daysSinceFacVerification = Math.max(
     0,
     Math.floor((now.getTime() - new Date('2026-09-27').getTime()) / (1000 * 60 * 60 * 24))

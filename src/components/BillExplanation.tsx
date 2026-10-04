@@ -12,8 +12,11 @@ import {
   Fuel,
   Gauge,
   Gift,
-  HelpCircle,
 } from 'lucide-react';
+import { KsebOdometer } from '@/components/ui/KsebOdometer';
+import { KsebSlabStorageMeter } from '@/components/ui/KsebSlabStorageMeter';
+import { RubberStamp } from '@/components/ui/RubberStamp';
+import { DonutChart, type DonutSlice } from '@/components/ui/DonutChart';
 
 interface BillExplanationProps {
   calculation: BillCalculationResult;
@@ -23,180 +26,218 @@ export default function BillExplanation({ calculation }: BillExplanationProps) {
   const { lang, t } = useLanguage();
   const [showTechnical, setShowTechnical] = useState(false);
 
-  const total = calculation.total || 1;
+  const grossTotal =
+    calculation.grossEnergyCharge +
+    calculation.grossFixedCharge +
+    calculation.electricityDuty +
+    calculation.fuelAdjustment +
+    calculation.meterRent || 1;
   const items = [
     {
       label: t.energyCharges,
       technicalLabel: 'Energy Charge (LT-1A Slabs)',
       amount: calculation.grossEnergyCharge,
-      color: 'bg-sky-600',
+      color: 'bg-[var(--accent)]',
       icon: Zap,
       note: calculation.isTelescopicApplied
         ? (lang === 'ml'
-            ? 'ടെലിസ്കോപ്പിക് സ്ലാബ് നിരക്കുകൾ പ്രകാരം (0-80, 81-160, 161-200, 201-250 യൂണിറ്റ്).'
-            : 'Billed across telescopic tiers (0-80, 81-160, 161-200, 201-250 units).')
+            ? 'ടെലിസ്കോപ്പിക് സ്ലാബ് നിരക്കുകൾ (0-80, 81-160, 161-200, 201-250).'
+            : 'Telescopic tiers (0-80, 81-160, 161-200, 201-250 units)')
         : (lang === 'ml'
-            ? 'നോൺ-ടെലിസ്കോപ്പിക് ഫ്ലാറ്റ് നിരക്ക് ബാധകം (500 യൂണിറ്റിൽ കൂടുതൽ).'
-            : 'Non-telescopic flat rate applied (consumption > 500 units bi-monthly).'),
+            ? 'നോൺ-ടെലിസ്കോപ്പിക് ഫ്ലാറ്റ് നിരക്ക് (500 യൂണിറ്റിൽ കൂടുതൽ).'
+            : 'Non-telescopic flat rate (> 500 units bi-monthly)'),
     },
     {
       label: t.fixedCharges,
-      technicalLabel: 'Fixed Charge (Connected Load Base)',
+      technicalLabel: 'Fixed Charge',
       amount: calculation.grossFixedCharge,
-      color: 'bg-indigo-500',
+      color: 'bg-[var(--foreground)]',
       icon: Building,
       note: lang === 'ml'
-        ? 'കണക്ഷനും വൈദ്യുതി ലൈൻ ശേഷിയും നിലനിർത്താനുള്ള രണ്ട് മാസ ചാർജ്.'
-        : 'Bi-monthly charge for maintaining service connection and line capacity.',
+        ? 'കണക്ഷൻ ശേഷി നിലനിർത്താനുള്ള ചാർജ്.'
+        : 'Bi-monthly service connection base charge',
     },
     {
       label: t.dutyCharges,
-      technicalLabel: 'Kerala Electricity Duty (Section 3)',
+      technicalLabel: 'Kerala Electricity Duty',
       amount: calculation.electricityDuty,
-      color: 'bg-amber-500',
+      color: 'bg-[var(--amber)]',
       icon: Scale,
       note: lang === 'ml'
-        ? 'വൈദ്യുതി ഉപയോഗത്തിന്മേൽ ഈടാക്കുന്ന 10% സംസ്ഥാന നിയമാനുസൃത നികുതി.'
-        : '10% statutory state duty levied on electricity consumption.',
+        ? 'വൈദ്യുതി ഉപയോഗത്തിന്മേൽ 10% സംസ്ഥാന നികുതി.'
+        : '10% statutory state duty on energy charges',
     },
     {
       label: t.fuelAdjustmentCharges,
-      technicalLabel: 'Fuel Adjustment Surcharge (FAC)',
+      technicalLabel: 'Fuel Adjustment (FAC)',
       amount: calculation.fuelAdjustment,
-      color: 'bg-slate-400',
+      color: 'bg-[var(--tertiary)]',
       icon: Fuel,
       note: lang === 'ml'
-        ? 'KSERC നിർദ്ദേശപ്രകാരമുള്ള ഇന്ധന സർചാർജ്.'
-        : 'Fuel cost variance adjustment per KSERC directives.',
+        ? 'ഇന്ധന സർചാർജ് (KSERC).'
+        : 'Fuel cost variance adjustment',
     },
     {
       label: t.meterRentCharges,
       technicalLabel: 'Meter Rent & GST',
       amount: calculation.meterRent,
-      color: 'bg-slate-400',
+      color: 'bg-[var(--tertiary)]',
       icon: Gauge,
       note: lang === 'ml'
-        ? 'മീറ്റർ വാടകയും ജി.എസ്.ടിയും.'
-        : 'Periodic lease charge for utility meter.',
+        ? 'മീറ്റർ വാടകയും നികുതിയും.'
+        : 'Bi-monthly meter lease and tax',
     },
   ];
 
+  const donutSlices: DonutSlice[] = [
+    {
+      label: lang === 'ml' ? 'ഊർജ്ജ ചാർജ്' : 'Energy Charge',
+      value: calculation.grossEnergyCharge,
+      color: '#006FEE',
+    },
+    {
+      label: lang === 'ml' ? 'ഫിക്സഡ് ചാർജ്' : 'Fixed Charge',
+      value: calculation.grossFixedCharge,
+      color: '#17171C',
+    },
+    {
+      label: lang === 'ml' ? 'ഡ്യൂട്ടി (10%)' : 'Duty (10%)',
+      value: calculation.electricityDuty,
+      color: '#F5A524',
+    },
+    ...(calculation.fuelAdjustment > 0
+      ? [
+          {
+            label: lang === 'ml' ? 'ഇന്ധന സർചാർജ്' : 'Fuel Surcharge',
+            value: calculation.fuelAdjustment,
+            color: '#8B5CF6',
+          },
+        ]
+      : []),
+    ...(calculation.meterRent > 0
+      ? [
+          {
+            label: lang === 'ml' ? 'മീറ്റർ വാടക' : 'Meter Rent',
+            value: calculation.meterRent,
+            color: '#71717A',
+          },
+        ]
+      : []),
+  ].filter((s) => s.value > 0);
+
   return (
-    <div className="w-full max-w-xl mx-auto rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
-      {/* Title */}
-      <div>
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-          {lang === 'ml' ? 'ബിൽ വിശകലനം' : 'Bill Analysis'}
-        </span>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5">
-          {t.whereMoneyGoes}
-        </h2>
-        <p className="mt-1 text-xs text-slate-600">
-          {calculation.explanation.summary}
-        </p>
+    <div className="w-full space-y-4">
+      {/* Title with RubberStamp */}
+      <div className="flex items-center justify-between px-1">
+        <div>
+          <h2 className="text-[22px] font-semibold text-[var(--foreground)] tracking-tight">
+            {t.whereMoneyGoes}
+          </h2>
+          <p className="text-[13px] text-[var(--secondary)] mt-1">
+            {calculation.explanation.summary}
+          </p>
+        </div>
+        <RubberStamp text="KSERC 24-25" subtext="VERIFIED" color="emerald" />
       </div>
 
-      {/* Visual Stacked Proportional Bar */}
-      <div className="space-y-1.5">
-        <div className="flex h-3 w-full overflow-hidden rounded-full bg-slate-100">
-          <div
-            className="bg-sky-600 transition-all duration-500"
-            style={{ width: `${Math.min(100, Math.round((calculation.grossEnergyCharge / (calculation.subtotal + calculation.totalSubsidies)) * 100))}%` }}
-            title="Energy Charges"
-          />
-          <div
-            className="bg-indigo-500 transition-all duration-500"
-            style={{ width: `${Math.min(100, Math.round((calculation.grossFixedCharge / (calculation.subtotal + calculation.totalSubsidies)) * 100))}%` }}
-            title="Fixed Charges"
-          />
-          <div
-            className="bg-amber-500 transition-all duration-500"
-            style={{ width: `${Math.min(100, Math.round((calculation.electricityDuty / (calculation.subtotal + calculation.totalSubsidies)) * 100))}%` }}
-            title="Electricity Duty"
-          />
+      {/* Telescopic Slab Storage Meter */}
+      <KsebSlabStorageMeter units={calculation.units} maxScale={500} />
+
+      {/* Interactive Proportional Cost Donut Chart */}
+      <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-4 sm:p-5 space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--secondary)] block">
+              {lang === 'ml' ? 'ചിലവ് വിഭജനം' : 'Cost Breakdown'}
+            </span>
+            <span className="text-[12px] text-[var(--secondary)]">
+              {lang === 'ml' ? 'വിഭാഗങ്ങൾ പരിശോധിക്കാൻ ടാപ്പ് ചെയ്യുക' : 'Tap any segment to inspect individual share'}
+            </span>
+          </div>
+          <span className="text-[11px] font-medium text-[var(--accent)] bg-[var(--accent-soft)] px-2.5 py-0.5 rounded-full">
+            {lang === 'ml' ? 'ഇന്ററാക്ടീവ്' : 'Interactive'}
+          </span>
         </div>
-        <div className="flex items-center justify-between text-[11px] text-slate-500">
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-sky-600 inline-block" />
-            {lang === 'ml' ? `ഉപയോഗം (${calculation.explanation.energySharePct}%)` : `Energy (${calculation.explanation.energySharePct}%)`}
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-indigo-500 inline-block" />
-            {lang === 'ml' ? 'ഫിക്സഡ്' : 'Fixed'}
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />
-            {lang === 'ml' ? 'ഡ്യൂട്ടി (10%)' : 'Duty (10%)'}
-          </span>
+
+        <div className="py-2 flex justify-center">
+          <DonutChart
+            data={donutSlices}
+            label={lang === 'ml' ? 'ബിൽ ചിലവ് വിതരണം' : 'Bill Cost Breakdown'}
+            totalLabel={calculation.totalSubsidies > 0 ? (lang === 'ml' ? 'ആകെ ചാർജ്ജ്' : 'Gross Charges') : (lang === 'ml' ? 'ആകെ ബിൽ' : 'Total Bill')}
+            valuePrefix="₹"
+            className="w-full justify-around"
+          />
         </div>
       </div>
 
-      {/* Human Breakdown Item List */}
-      <div className="divide-y divide-slate-100 space-y-1">
+      {/* Grouped Table */}
+      <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl divide-y divide-[var(--separator)] overflow-hidden">
         {items.map(item => {
           const Icon = item.icon;
-          const share = Math.round((item.amount / total) * 100);
+          const share = Math.round((item.amount / grossTotal) * 100);
           return (
-            <div key={item.label} className="pt-3 pb-2 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-600">
+            <div key={item.label} className="p-3.5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-muted)] text-[var(--secondary)] shrink-0">
                   <Icon className="h-4 w-4" />
                 </div>
-                <div>
-                  <div className="text-sm font-semibold text-slate-800">
+                <div className="min-w-0">
+                  <div className="text-[14px] font-medium text-[var(--foreground)] truncate">
                     {item.label}
                   </div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] text-[var(--secondary)] truncate">
                     {item.note}
                   </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="font-mono text-sm font-bold text-slate-900 num-tabular">
+              <div className="text-right shrink-0">
+                <div className="text-[14px] font-semibold text-[var(--foreground)] num-tabular">
                   ₹{item.amount.toFixed(2)}
                 </div>
-                <div className="text-[10px] text-slate-400">
-                  {lang === 'ml' ? `ബില്ലിന്റെ ${share}%` : `${share}% of bill`}
+                <div className="text-[11px] text-[var(--tertiary)]">
+                  {lang === 'ml' ? `${share}%` : `${share}%`}
                 </div>
               </div>
             </div>
           );
         })}
 
-        {/* Subsidy row if applicable */}
+        {/* Subsidy Row */}
         {calculation.totalSubsidies > 0 && (
-          <div className="pt-3 pb-2 flex items-center justify-between text-emerald-700 bg-emerald-50/60 -mx-3 px-3 rounded-xl border border-emerald-100">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+          <div className="p-3.5 flex items-center justify-between gap-3 bg-[var(--surface-muted)]">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-[var(--positive)] shrink-0">
                 <Gift className="h-4 w-4" />
               </div>
-              <div>
-                <div className="text-sm font-semibold">
+              <div className="min-w-0">
+                <div className="text-[14px] font-medium text-[var(--positive)] truncate">
                   {t.subsidiesLabel}
                 </div>
-                <div className="text-[11px] text-emerald-600">
+                <div className="text-[11px] text-[var(--positive)]/80 truncate">
                   {calculation.explanation.subsidyBenefitText}
                 </div>
               </div>
             </div>
-            <div className="text-right font-mono text-sm font-bold num-tabular">
-              −₹{calculation.totalSubsidies.toFixed(2)}
+            <div className="text-right shrink-0">
+              <div className="text-[14px] font-semibold text-[var(--positive)] num-tabular">
+                −₹{calculation.totalSubsidies.toFixed(2)}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Total Row */}
-        <div className="pt-4 flex items-baseline justify-between">
-          <div className="text-base font-bold text-slate-900">
+        {/* Total row */}
+        <div className="p-4 flex items-baseline justify-between bg-[var(--surface)]">
+          <div className="text-[15px] font-semibold text-[var(--foreground)]">
             {t.totalBillLabel}
           </div>
           <div className="text-right">
-            <div className="font-mono text-2xl font-extrabold text-slate-900 num-tabular">
-              ₹{calculation.total.toLocaleString('en-IN')}
+            <div className="flex items-baseline justify-end">
+              <KsebOdometer value={calculation.total} size="xl" />
             </div>
             {calculation.roundOff !== 0 && (
-              <div className="text-[10px] text-slate-400">
-                (Round off {calculation.roundOff > 0 ? `+₹${calculation.roundOff.toFixed(2)}` : `−₹${Math.abs(calculation.roundOff).toFixed(2)}`})
+              <div className="text-[11px] text-[var(--tertiary)]">
+                {calculation.roundOff > 0 ? `+₹${calculation.roundOff.toFixed(2)}` : `−₹${Math.abs(calculation.roundOff).toFixed(2)}`}
               </div>
             )}
           </div>
@@ -204,52 +245,52 @@ export default function BillExplanation({ calculation }: BillExplanationProps) {
       </div>
 
       {/* Expandable Technical Calculation */}
-      <div className="border-t border-slate-100 pt-4">
+      <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl overflow-hidden">
         <button
           onClick={() => setShowTechnical(!showTechnical)}
-          className="w-full flex items-center justify-between rounded-xl bg-slate-50 p-3.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors touch-target"
+          className="w-full flex items-center justify-between p-3.5 text-[13px] font-medium text-[var(--foreground)] hover:bg-[var(--surface-muted)] transition-colors touch-target"
         >
           <span>{showTechnical ? t.hideTechnicalCalculation : t.viewTechnicalCalculation}</span>
-          {showTechnical ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {showTechnical ? <ChevronUp className="h-4 w-4 text-[var(--tertiary)]" /> : <ChevronDown className="h-4 w-4 text-[var(--tertiary)]" />}
         </button>
 
         {showTechnical && (
-          <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <div className="p-4 pt-1 space-y-3 border-t border-[var(--separator)]">
+            <div className="text-[11px] font-medium text-[var(--secondary)]">
               {lang === 'ml'
                 ? `സ്ലാബ് തിരിച്ചുള്ള കണക്കുകൂട്ടൽ (${calculation.effectiveTariffVersion})`
-                : `Slab-by-Slab Telescopic Computation (${calculation.effectiveTariffVersion})`}
+                : `Slab-by-slab telescopic computation (${calculation.effectiveTariffVersion})`}
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-[12px]">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="pb-1.5 font-medium">{lang === 'ml' ? 'സ്ലാബ് പരിധി' : 'Slab Range'}</th>
-                    <th className="pb-1.5 font-medium text-center">{lang === 'ml' ? 'യൂണിറ്റ്' : 'Units'}</th>
-                    <th className="pb-1.5 font-medium text-right">{lang === 'ml' ? 'നിരക്ക്' : 'Rate'}</th>
-                    <th className="pb-1.5 font-medium text-right">{lang === 'ml' ? 'തുക' : 'Amount'}</th>
+                  <tr className="border-b border-[var(--separator)] text-[var(--secondary)]">
+                    <th className="pb-2 font-medium">{lang === 'ml' ? 'സ്ലാബ് പരിധി' : 'Slab range'}</th>
+                    <th className="pb-2 font-medium text-center">{lang === 'ml' ? 'യൂണിറ്റ്' : 'Units'}</th>
+                    <th className="pb-2 font-medium text-right">{lang === 'ml' ? 'നിരക്ക്' : 'Rate'}</th>
+                    <th className="pb-2 font-medium text-right">{lang === 'ml' ? 'തുക' : 'Amount'}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-mono">
+                <tbody className="divide-y divide-[var(--separator)]">
                   {calculation.slabBreakdown.map(slab => (
                     <tr key={slab.slabIndex}>
-                      <td className="py-2 text-slate-700 font-sans">{slab.label}</td>
-                      <td className="py-2 text-center text-slate-800">{slab.unitsBilled}</td>
-                      <td className="py-2 text-right text-slate-600">₹{slab.ratePerUnit.toFixed(2)}</td>
-                      <td className="py-2 text-right font-semibold text-slate-900">₹{slab.amount.toFixed(2)}</td>
+                      <td className="py-2 text-[var(--secondary)]">{slab.label}</td>
+                      <td className="py-2 text-center text-[var(--foreground)] num-tabular">{slab.unitsBilled}</td>
+                      <td className="py-2 text-right text-[var(--secondary)] num-tabular">₹{slab.ratePerUnit.toFixed(2)}</td>
+                      <td className="py-2 text-right font-medium text-[var(--foreground)] num-tabular">₹{slab.amount.toFixed(2)}</td>
                     </tr>
                   ))}
-                  <tr className="font-bold border-t border-slate-200">
-                    <td className="pt-2 font-sans">{lang === 'ml' ? 'ആകെ ഉപയോഗ നിരക്ക്' : 'Gross Energy Total'}</td>
-                    <td className="pt-2 text-center">{calculation.units}</td>
+                  <tr className="border-t border-[var(--separator)] font-medium">
+                    <td className="pt-2 text-[var(--foreground)]">{lang === 'ml' ? 'ആകെ ഉപയോഗം' : 'Gross energy total'}</td>
+                    <td className="pt-2 text-center num-tabular text-[var(--foreground)]">{calculation.units}</td>
                     <td></td>
-                    <td className="pt-2 text-right text-sky-700">₹{calculation.grossEnergyCharge.toFixed(2)}</td>
+                    <td className="pt-2 text-right text-[var(--accent)] num-tabular font-semibold">₹{calculation.grossEnergyCharge.toFixed(2)}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <p className="text-[11px] text-slate-500 leading-relaxed border-t border-slate-200 pt-2">
+            <p className="text-[11px] text-[var(--secondary)] leading-relaxed border-t border-[var(--separator)] pt-2.5">
               {lang === 'ml' ? 'സൂത്രവാക്യം:' : 'Formula:'} {calculation.explanation.formulaSummary}
             </p>
           </div>

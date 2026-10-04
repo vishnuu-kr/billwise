@@ -1,0 +1,770 @@
+[
+  {
+    "slug": "bookmark-button",
+    "name": "Bookmark button"
+  },
+  {
+    "slug": "confetti-button",
+    "name": "Confetti button"
+  },
+  {
+    "slug": "copy-button",
+    "name": "Copy button"
+  },
+  {
+    "slug": "download-button",
+    "name": "Download button"
+  },
+  {
+    "slug": "follow-button",
+    "name": "Follow button"
+  },
+  {
+    "slug": "hold-to-delete",
+    "name": "Hold to delete"
+  },
+  {
+    "slug": "icon-morph",
+    "name": "Icon morph"
+  },
+  {
+    "slug": "like-button",
+    "name": "Like button"
+  },
+  {
+    "slug": "magnetic-button",
+    "name": "Magnetic button"
+  },
+  {
+    "slug": "morphing-button",
+    "name": "Morphing button"
+  },
+  {
+    "slug": "send-button",
+    "name": "Send button"
+  },
+  {
+    "slug": "share-button",
+    "name": "Share button"
+  },
+  {
+    "slug": "slide-to-confirm",
+    "name": "Slide to confirm"
+  },
+  {
+    "slug": "star-button",
+    "name": "Star button"
+  },
+  {
+    "slug": "theme-toggle",
+    "name": "Theme toggle"
+  },
+  {
+    "slug": "toggle-switch",
+    "name": "Toggle switch"
+  },
+  {
+    "slug": "upload-button",
+    "name": "Upload button"
+  },
+  {
+    "slug": "caps-lock-warning",
+    "name": "Caps lock warning"
+  },
+  {
+    "slug": "card-input",
+    "name": "Card input"
+  },
+  {
+    "slug": "checkbox-group",
+    "name": "Checkbox group"
+  },
+  {
+    "slug": "color-picker",
+    "name": "Color picker"
+  },
+  {
+    "slug": "color-swatches",
+    "name": "Color swatches"
+  },
+  {
+    "slug": "combobox",
+    "name": "Combobox"
+  },
+  {
+    "slug": "coupon-code",
+    "name": "Coupon code"
+  },
+  {
+    "slug": "date-range-picker",
+    "name": "Date range picker"
+  },
+  {
+    "slug": "elastic-slider",
+    "name": "Elastic slider"
+  },
+  {
+    "slug": "email-typo-fix",
+    "name": "Email typo fix"
+  },
+  {
+    "slug": "expanding-search",
+    "name": "Expanding search"
+  },
+  {
+    "slug": "eye-toggle",
+    "name": "Eye toggle"
+  },
+  {
+    "slug": "file-dropzone",
+    "name": "File dropzone"
+  },
+  {
+    "slug": "floating-label",
+    "name": "Floating label"
+  },
+  {
+    "slug": "inline-edit",
+    "name": "Inline edit"
+  },
+  {
+    "slug": "mini-calendar",
+    "name": "Mini calendar"
+  },
+  {
+    "slug": "mood-slider",
+    "name": "Mood slider"
+  },
+  {
+    "slug": "multi-step-form",
+    "name": "Multi-step form"
+  },
+  {
+    "slug": "number-stepper",
+    "name": "Number stepper"
+  },
+  {
+    "slug": "otp-input",
+    "name": "OTP input"
+  },
+  {
+    "slug": "password-field",
+    "name": "Password field"
+  },
+  {
+    "slug": "pricing-toggle",
+    "name": "Pricing toggle"
+  },
+  {
+    "slug": "radio-cards",
+    "name": "Radio cards"
+  },
+  {
+    "slug": "range-slider",
+    "name": "Range slider"
+  },
+  {
+    "slug": "scribble-checkbox",
+    "name": "Scribble checkbox"
+  },
+  {
+    "slug": "scrub-input",
+    "name": "Scrub input"
+  },
+  {
+    "slug": "select-menu",
+    "name": "Select menu"
+  },
+  {
+    "slug": "shortcut-recorder",
+    "name": "Shortcut recorder"
+  },
+  {
+    "slug": "signature-pad",
+    "name": "Signature pad"
+  },
+  {
+    "slug": "size-picker",
+    "name": "Size picker"
+  },
+  {
+    "slug": "star-rating",
+    "name": "Star rating"
+  },
+  {
+    "slug": "status-picker",
+    "name": "Status picker"
+  },
+  {
+    "slug": "tag-input",
+    "name": "Tag input"
+  },
+  {
+    "slug": "waitlist-join",
+    "name": "Waitlist join"
+  },
+  {
+    "slug": "wheel-picker",
+    "name": "Wheel picker"
+  },
+  {
+    "slug": "accordion",
+    "name": "Accordion"
+  },
+  {
+    "slug": "back-to-top",
+    "name": "Back to top"
+  },
+  {
+    "slug": "breadcrumbs",
+    "name": "Breadcrumbs"
+  },
+  {
+    "slug": "collapsible-sidebar",
+    "name": "Collapsible sidebar"
+  },
+  {
+    "slug": "command-palette",
+    "name": "Command palette"
+  },
+  {
+    "slug": "context-menu",
+    "name": "Context menu"
+  },
+  {
+    "slug": "dock",
+    "name": "Dock"
+  },
+  {
+    "slug": "dropdown-menu",
+    "name": "Dropdown menu"
+  },
+  {
+    "slug": "keycap-hint",
+    "name": "Keycap hint"
+  },
+  {
+    "slug": "morphing-nav",
+    "name": "Morphing nav"
+  },
+  {
+    "slug": "overflow-tabs",
+    "name": "Overflow tabs"
+  },
+  {
+    "slug": "page-dots",
+    "name": "Page dots"
+  },
+  {
+    "slug": "pagination",
+    "name": "Pagination"
+  },
+  {
+    "slug": "scroll-spine",
+    "name": "Scroll spine"
+  },
+  {
+    "slug": "segmented-control",
+    "name": "Segmented control"
+  },
+  {
+    "slug": "shortcut-sheet",
+    "name": "Shortcut sheet"
+  },
+  {
+    "slug": "sliding-tabs",
+    "name": "Sliding tabs"
+  },
+  {
+    "slug": "tab-bar",
+    "name": "Tab bar"
+  },
+  {
+    "slug": "tree-view",
+    "name": "Tree view"
+  },
+  {
+    "slug": "announcement-banner",
+    "name": "Announcement banner"
+  },
+  {
+    "slug": "autosave-status",
+    "name": "Autosave status"
+  },
+  {
+    "slug": "availability-badge",
+    "name": "Availability badge"
+  },
+  {
+    "slug": "badge-counter",
+    "name": "Badge counter"
+  },
+  {
+    "slug": "call-widget",
+    "name": "Call widget"
+  },
+  {
+    "slug": "confirm-popover",
+    "name": "Confirm popover"
+  },
+  {
+    "slug": "cookie-consent",
+    "name": "Cookie consent"
+  },
+  {
+    "slug": "dialog",
+    "name": "Dialog"
+  },
+  {
+    "slug": "dynamic-island",
+    "name": "Dynamic island"
+  },
+  {
+    "slug": "helpful-prompt",
+    "name": "Helpful prompt"
+  },
+  {
+    "slug": "hover-card",
+    "name": "Hover card"
+  },
+  {
+    "slug": "live-indicator",
+    "name": "Live indicator"
+  },
+  {
+    "slug": "loader-set",
+    "name": "Loader set"
+  },
+  {
+    "slug": "notification-bell",
+    "name": "Notification bell"
+  },
+  {
+    "slug": "onboarding-checklist",
+    "name": "Onboarding checklist"
+  },
+  {
+    "slug": "pixel-loader",
+    "name": "Pixel loader"
+  },
+  {
+    "slug": "progress-stepper",
+    "name": "Progress stepper"
+  },
+  {
+    "slug": "promise-toast",
+    "name": "Promise toast"
+  },
+  {
+    "slug": "pull-to-refresh",
+    "name": "Pull to refresh"
+  },
+  {
+    "slug": "reading-progress",
+    "name": "Reading progress"
+  },
+  {
+    "slug": "selection-toolbar",
+    "name": "Selection toolbar"
+  },
+  {
+    "slug": "sheet",
+    "name": "Sheet"
+  },
+  {
+    "slug": "skeleton-loader",
+    "name": "Skeleton loader"
+  },
+  {
+    "slug": "stacked-drawer",
+    "name": "Stacked drawer"
+  },
+  {
+    "slug": "story-progress",
+    "name": "Story progress"
+  },
+  {
+    "slug": "toast-stack",
+    "name": "Toast stack"
+  },
+  {
+    "slug": "tooltip-group",
+    "name": "Tooltip group"
+  },
+  {
+    "slug": "undo-toast",
+    "name": "Undo toast"
+  },
+  {
+    "slug": "activity-timeline",
+    "name": "Activity timeline"
+  },
+  {
+    "slug": "bar-chart",
+    "name": "Bar chart"
+  },
+  {
+    "slug": "changelog-stack",
+    "name": "Changelog stack"
+  },
+  {
+    "slug": "contribution-heatmap",
+    "name": "Contribution heatmap"
+  },
+  {
+    "slug": "data-table",
+    "name": "Data table"
+  },
+  {
+    "slug": "donut-chart",
+    "name": "Donut chart"
+  },
+  {
+    "slug": "filter-list",
+    "name": "Filter list"
+  },
+  {
+    "slug": "gauge",
+    "name": "Gauge"
+  },
+  {
+    "slug": "kanban-board",
+    "name": "Kanban board"
+  },
+  {
+    "slug": "leaderboard",
+    "name": "Leaderboard"
+  },
+  {
+    "slug": "mini-clock",
+    "name": "Mini clock"
+  },
+  {
+    "slug": "odometer",
+    "name": "Odometer"
+  },
+  {
+    "slug": "order-tracker",
+    "name": "Order tracker"
+  },
+  {
+    "slug": "pricing-calculator",
+    "name": "Pricing calculator"
+  },
+  {
+    "slug": "sparkline",
+    "name": "Sparkline"
+  },
+  {
+    "slug": "stat-counter",
+    "name": "Stat counter"
+  },
+  {
+    "slug": "storage-meter",
+    "name": "Storage meter"
+  },
+  {
+    "slug": "store-hours",
+    "name": "Store hours"
+  },
+  {
+    "slug": "uptime-bar",
+    "name": "Uptime bar"
+  },
+  {
+    "slug": "arrow-callout",
+    "name": "Arrow callout"
+  },
+  {
+    "slug": "avatar-stack",
+    "name": "Avatar stack"
+  },
+  {
+    "slug": "carousel-3d",
+    "name": "Carousel 3d"
+  },
+  {
+    "slug": "chat-thread",
+    "name": "Chat thread"
+  },
+  {
+    "slug": "code-block",
+    "name": "Code block"
+  },
+  {
+    "slug": "code-morph",
+    "name": "Code morph"
+  },
+  {
+    "slug": "compare-slider",
+    "name": "Compare slider"
+  },
+  {
+    "slug": "drag-select",
+    "name": "Drag select"
+  },
+  {
+    "slug": "expanding-card",
+    "name": "Expanding card"
+  },
+  {
+    "slug": "feature-spotlight",
+    "name": "Feature spotlight"
+  },
+  {
+    "slug": "flip-card",
+    "name": "Flip card"
+  },
+  {
+    "slug": "footer-signature",
+    "name": "Footer signature"
+  },
+  {
+    "slug": "gift-wrap",
+    "name": "Gift wrap"
+  },
+  {
+    "slug": "image-hotspots",
+    "name": "Image hotspots"
+  },
+  {
+    "slug": "lens-reveal",
+    "name": "Lens reveal"
+  },
+  {
+    "slug": "logo-orbit",
+    "name": "Logo orbit"
+  },
+  {
+    "slug": "now-playing",
+    "name": "Now playing"
+  },
+  {
+    "slug": "reactions",
+    "name": "Reactions"
+  },
+  {
+    "slug": "reorder-list",
+    "name": "Reorder list"
+  },
+  {
+    "slug": "snap-carousel",
+    "name": "Snap carousel"
+  },
+  {
+    "slug": "sortable-grid",
+    "name": "Sortable grid"
+  },
+  {
+    "slug": "spotlight-card",
+    "name": "Spotlight card"
+  },
+  {
+    "slug": "sticky-stack",
+    "name": "Sticky stack"
+  },
+  {
+    "slug": "swipe-deck",
+    "name": "Swipe deck"
+  },
+  {
+    "slug": "testimonial-highlight",
+    "name": "Testimonial highlight"
+  },
+  {
+    "slug": "tilt-card",
+    "name": "Tilt card"
+  },
+  {
+    "slug": "voice-orb",
+    "name": "Voice orb"
+  },
+  {
+    "slug": "waveform-player",
+    "name": "Waveform player"
+  },
+  {
+    "slug": "balance-scale",
+    "name": "Balance scale"
+  },
+  {
+    "slug": "bubble-wrap",
+    "name": "Bubble wrap"
+  },
+  {
+    "slug": "cassette-scrubber",
+    "name": "Cassette scrubber"
+  },
+  {
+    "slug": "combination-lock",
+    "name": "Combination lock"
+  },
+  {
+    "slug": "envelope-send",
+    "name": "Envelope send"
+  },
+  {
+    "slug": "folded-map",
+    "name": "Folded map"
+  },
+  {
+    "slug": "ink-well",
+    "name": "Ink well"
+  },
+  {
+    "slug": "paper-shredder",
+    "name": "Paper shredder"
+  },
+  {
+    "slug": "pull-cord-switch",
+    "name": "Pull cord switch"
+  },
+  {
+    "slug": "receipt-printer",
+    "name": "Receipt printer"
+  },
+  {
+    "slug": "rotary-dial",
+    "name": "Rotary dial"
+  },
+  {
+    "slug": "rubber-stamp",
+    "name": "Rubber stamp"
+  },
+  {
+    "slug": "sticky-note-peel",
+    "name": "Sticky note peel"
+  },
+  {
+    "slug": "sundial-picker",
+    "name": "Sundial picker"
+  },
+  {
+    "slug": "tally-counter",
+    "name": "Tally counter"
+  },
+  {
+    "slug": "tape-measure",
+    "name": "Tape measure"
+  },
+  {
+    "slug": "tear-off-calendar",
+    "name": "Tear off calendar"
+  },
+  {
+    "slug": "tip-jar",
+    "name": "Tip jar"
+  },
+  {
+    "slug": "typing-seismograph",
+    "name": "Typing seismograph"
+  },
+  {
+    "slug": "zipper-reveal",
+    "name": "Zipper reveal"
+  },
+  {
+    "slug": "dot-grid",
+    "name": "Dot grid"
+  },
+  {
+    "slug": "easing-editor",
+    "name": "Easing editor"
+  },
+  {
+    "slug": "elastic-string",
+    "name": "Elastic string"
+  },
+  {
+    "slug": "infinite-canvas",
+    "name": "Infinite canvas"
+  },
+  {
+    "slug": "magnet-lines",
+    "name": "Magnet lines"
+  },
+  {
+    "slug": "spring-playground",
+    "name": "Spring playground"
+  },
+  {
+    "slug": "stagger-visualizer",
+    "name": "Stagger visualizer"
+  },
+  {
+    "slug": "copy-email",
+    "name": "Copy email"
+  },
+  {
+    "slug": "directional-underline",
+    "name": "Directional underline"
+  },
+  {
+    "slug": "focus-paragraph",
+    "name": "Focus paragraph"
+  },
+  {
+    "slug": "greeting",
+    "name": "Greeting"
+  },
+  {
+    "slug": "hover-preview-link",
+    "name": "Hover preview link"
+  },
+  {
+    "slug": "marquee",
+    "name": "Marquee"
+  },
+  {
+    "slug": "particle-text",
+    "name": "Particle text"
+  },
+  {
+    "slug": "quote-share",
+    "name": "Quote share"
+  },
+  {
+    "slug": "relative-time",
+    "name": "Relative time"
+  },
+  {
+    "slug": "scroll-reveal",
+    "name": "Scroll reveal"
+  },
+  {
+    "slug": "sidenotes",
+    "name": "Sidenotes"
+  },
+  {
+    "slug": "spoiler-text",
+    "name": "Spoiler text"
+  },
+  {
+    "slug": "text-progress",
+    "name": "Text progress"
+  },
+  {
+    "slug": "text-scramble",
+    "name": "Text scramble"
+  },
+  {
+    "slug": "typewriter",
+    "name": "Typewriter"
+  },
+  {
+    "slug": "wave-text",
+    "name": "Wave text"
+  },
+  {
+    "slug": "word-rotator",
+    "name": "Word rotator"
+  },
+  {
+    "slug": "signature-pad",
+    "name": "Design notes"
+  },
+  {
+    "slug": "reading-progress",
+    "name": "Acme Europe"
+  }
+]

@@ -1,18 +1,14 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import Link from 'next/link';
 import { calculateBill } from '@/lib/calculation/engine';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { storageManager } from '@/lib/storage';
-import {
-  PiggyBank,
-  CheckCircle2,
-  AlertCircle,
-  ArrowRight,
-  Gauge,
-  Sliders,
-} from 'lucide-react';
+import { Wallet, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import { KsebOdometer } from '@/components/ui/KsebOdometer';
+import { SlideToConfirm } from '@/components/ui/SlideToConfirm';
+import { ElasticSlider } from '@/components/ui/ElasticSlider';
 
 interface BudgetControllerProps {
   currentProjectedUnits?: number;
@@ -21,16 +17,16 @@ interface BudgetControllerProps {
 
 export default function BudgetController({
   currentProjectedUnits = 240,
-  currentPaceUnitsPerDay = 3.8,
+  currentPaceUnitsPerDay: _currentPaceUnitsPerDay = 3.8,
 }: BudgetControllerProps) {
-  const { lang, t } = useLanguage();
+  const { lang } = useLanguage();
   const [budgetRupees, setBudgetRupees] = useState<number>(2000);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  // Binary search or iterative solve for target units corresponding to budget amount in ₹
+  // Binary search to find target units corresponding to rupee budget
   const targetUnits = useMemo(() => {
     let low = 10;
-    let high = 1000;
+    let high = 1200;
     let best = 10;
 
     while (low <= high) {
@@ -48,12 +44,9 @@ export default function BudgetController({
 
   const headroomUnits = targetUnits - currentProjectedUnits;
   const isWithinBudget = headroomUnits >= 0;
-  const daysOfHeadroom = currentPaceUnitsPerDay > 0
-    ? Math.max(0, Math.round(Math.abs(headroomUnits) / currentPaceUnitsPerDay))
-    : 0;
+  const percentUsed = Math.min(100, Math.round((currentProjectedUnits / (targetUnits || 1)) * 100));
 
-  // Percentage of budget consumed
-  const percentUsed = Math.min(150, Math.round((currentProjectedUnits / (targetUnits || 1)) * 100));
+  const presets = [1000, 1500, 2000, 2500, 3000];
 
   const handleSaveBudget = () => {
     storageManager.saveBudget({
@@ -62,178 +55,148 @@ export default function BudgetController({
       createdDate: new Date().toISOString(),
     });
     setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+    setTimeout(() => setSavedSuccess(false), 3000);
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
-      {/* Title */}
-      <div>
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-          <PiggyBank className="h-4 w-4 text-sky-600" />
-          <span>{lang === 'ml' ? 'ബജറ്റ് കൺട്രോൾ' : 'Budget Control'}</span>
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5">
-          {t.budgetHeadline}
-        </h2>
-        <p className="mt-1 text-xs text-slate-600">
-          {lang === 'ml'
-            ? 'നിങ്ങൾ ഉദ്ദേശിക്കുന്ന തുക നൽകുക; എത്ര യൂണിറ്റ് വരെ ഉപയോഗിക്കാം എന്ന് കൃത്യമായി കണക്കാക്കാം.'
-            : 'Set your bi-monthly bill spending ceiling and monitor your usage headroom.'}
-        </p>
-      </div>
-
-      {/* Budget Input & Quick Presets */}
-      <div className="rounded-2xl bg-slate-50 p-5 border border-slate-100 space-y-4">
-        <div>
-          <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-            {lang === 'ml' ? 'രണ്ട് മാസത്തെ പരമാവധി തുക' : 'Bi-Monthly Target Limit'}
-          </label>
-          <div className="mt-1.5 relative flex items-center">
-            <span className="absolute left-4 font-mono text-2xl font-bold text-slate-400">
-              ₹
+    <div className="w-full space-y-5">
+      {/* -- Title & Rupee Goal with Odometer ------------------- */}
+      <div className="glass-card p-5 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-[#006FEE]" />
+            <span className="text-[12px] font-semibold text-[#71717A] uppercase tracking-wider">
+              {lang === 'ml' ? 'തുക ഇതിൽ താഴെ നിർത്താം' : 'Keep my bill under'}
             </span>
-            <input
-              type="number"
-              inputMode="numeric"
-              step="100"
-              value={budgetRupees}
-              onChange={e => setBudgetRupees(Math.max(100, Number(e.target.value)))}
-              className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-10 pr-4 font-mono text-2xl font-extrabold text-slate-900 focus:border-sky-500 focus:outline-none"
-            />
+          </div>
+          <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+            Bi-Monthly (60d)
+          </span>
+        </div>
+
+        <div className="space-y-1">
+          <span className="text-[13px] text-[#71717A] block font-medium">
+            {lang === 'ml' ? 'ലക്ഷ്യമിടുന്ന തുക' : 'Target bill amount'}
+          </span>
+          <div className="flex items-baseline">
+            <KsebOdometer value={budgetRupees} size="2xl" />
           </div>
         </div>
 
-        {/* Quick Presets */}
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-slate-400 font-medium">
-            {lang === 'ml' ? 'എളുപ്പത്തിലുള്ള തുകകൾ:' : 'Quick presets:'}
-          </span>
-          {[1000, 1500, 2000, 3000, 4000].map(amt => (
+        {/* Tactile Slider for budget */}
+        <div className="pt-1">
+          <ElasticSlider
+            value={budgetRupees}
+            min={500}
+            max={5000}
+            step={50}
+            unitLabel="₹"
+            onChange={(val) => setBudgetRupees(val)}
+            milestones={[
+              { value: 1000, label: '₹1k' },
+              { value: 2000, label: '₹2k' },
+              { value: 3000, label: '₹3k' },
+              { value: 4500, label: '₹4.5k', isDanger: true },
+            ]}
+          />
+        </div>
+
+        {/* Quick budget chip selector */}
+        <div className="grid grid-cols-5 gap-1.5 pt-2">
+          {presets.map((p) => (
             <button
-              key={amt}
-              onClick={() => setBudgetRupees(amt)}
-              className={`rounded-lg px-2.5 py-1 text-xs font-mono font-medium transition-colors ${
-                budgetRupees === amt
-                  ? 'bg-sky-600 text-white font-bold'
-                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+              key={p}
+              type="button"
+              onClick={() => setBudgetRupees(p)}
+              aria-pressed={budgetRupees === p}
+              aria-label={`Set budget to ₹${p}`}
+              className={`py-2 px-1 text-center rounded-full text-[12px] font-semibold num-tabular transition-all cursor-pointer active:scale-[0.96] border focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)] ${
+                budgetRupees === p
+                  ? 'bg-[#17171C] text-white border-[#17171C] shadow-xs'
+                  : 'bg-white border-black/[0.06] text-[#71717A] hover:text-[#17171C] hover:border-black/[0.12]'
               }`}
             >
-              ₹{amt}
+              ₹{p >= 1000 ? `${p / 1000}k` : p}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Visual Headroom Meter */}
-      <div className="rounded-2xl border border-slate-200 p-5 space-y-4">
-        <div className="flex items-center justify-between text-xs font-medium">
-          <span className="text-slate-600">
-            {lang === 'ml' ? 'ബജറ്റ് ഹെഡ്‌റൂം മീറ്റർ' : 'Budget Headroom Meter'}
-          </span>
-          <span className={`font-bold ${isWithinBudget ? 'text-emerald-700' : 'text-amber-700'}`}>
-            {lang === 'ml' ? `${percentUsed}% ഉപയോഗിച്ചു` : `${percentUsed}% consumed`}
-          </span>
-        </div>
-
-        {/* Horizontal Visual Meter */}
-        <div className="relative h-4 w-full overflow-hidden rounded-full bg-slate-100">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${
-              percentUsed > 100
-                ? 'bg-red-500'
-                : percentUsed > 80
-                ? 'bg-amber-500'
-                : 'bg-emerald-500'
-            }`}
-            style={{ width: `${Math.min(100, percentUsed)}%` }}
-          />
-        </div>
-
-        {/* Key Metrics Grid */}
-        <div className="grid grid-cols-2 gap-3 pt-2 text-sm">
-          <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
-            <div className="text-[11px] text-slate-500 font-medium">{t.targetConsumption}</div>
-            <div className="mt-1 font-mono text-lg font-bold text-slate-900 num-tabular">
-              ~{targetUnits} {t.units}
+      {/* -- Target Units & Headroom Card ----------------------- */}
+      <div className="glass-card p-5 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <span className="text-[12px] font-medium text-[#71717A] block mb-0.5">
+              {lang === 'ml' ? 'പരമാവധി ഉപയോഗം' : 'Unit ceiling'}
+            </span>
+            <div className="flex items-baseline">
+              <KsebOdometer value={targetUnits} size="xl" prefix="~" suffix="u" />
             </div>
-            <div className="text-[10px] text-slate-400">
-              {lang === 'ml' ? `₹${budgetRupees}-ൽ താഴെ നിർത്താൻ` : `to stay under ₹${budgetRupees}`}
-            </div>
+            <span className="text-[12px] text-[#71717A] mt-1 block">
+              {lang === 'ml' ? 'യൂണിറ്റ് പരമാവധി' : 'units / 60 days'}
+            </span>
           </div>
 
-          <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
-            <div className="text-[11px] text-slate-500 font-medium">{t.currentProjected}</div>
-            <div className="mt-1 font-mono text-lg font-bold text-slate-900 num-tabular">
-              {currentProjectedUnits} {t.units}
-            </div>
-            <div className="text-[10px] text-slate-400">
-              {lang === 'ml' ? `പ്രതിദിനം ${currentPaceUnitsPerDay} യൂണിറ്റ് വെച്ച്` : `at ${currentPaceUnitsPerDay} units/day`}
-            </div>
+          <div>
+            <span className="text-[12px] font-medium text-[#71717A] block mb-0.5">
+              {lang === 'ml' ? 'ബാക്കി പരിധി' : 'Headroom'}
+            </span>
+            <span
+              className={`num-hero text-4xl sm:text-5xl font-bold block leading-none ${
+                isWithinBudget ? 'text-[#0E7036]' : 'text-[#BE123C]'
+              }`}
+            >
+              {isWithinBudget ? `+${headroomUnits}` : `${headroomUnits}`}
+            </span>
+            <span className="text-[12px] text-[#71717A] mt-1 block">
+              {isWithinBudget
+                ? lang === 'ml'
+                  ? 'യൂണിറ്റ് ബാക്കി'
+                  : 'units headroom'
+                : lang === 'ml'
+                ? 'യൂണിറ്റ് കവിഞ്ഞു'
+                : 'units over target'}
+            </span>
           </div>
         </div>
 
-        {/* Outcome Statement */}
-        <div
-          className={`rounded-xl p-3.5 text-xs ${
-            isWithinBudget
-              ? 'bg-emerald-50 text-emerald-900 border border-emerald-100'
-              : 'bg-amber-50 text-amber-900 border border-amber-200'
-          }`}
-        >
-          <div className="flex items-start gap-2">
-            {isWithinBudget ? (
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-            ) : (
-              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-            )}
-            <div className="leading-relaxed">
-              {isWithinBudget ? (
-                lang === 'ml' ? (
-                  <span>
-                    <strong>ബാക്കിയുള്ള യൂണിറ്റുകൾ: ~{headroomUnits} യൂണിറ്റ്.</strong> നിലവിലെ ഉപയോഗ നിരക്കിൽ നിങ്ങളുടെ ബിൽ ₹{budgetRupees.toLocaleString('en-IN')} ലക്ഷ്യത്തിനുള്ളിൽ നിൽക്കും.
-                  </span>
-                ) : (
-                  <span>
-                    <strong>Estimated headroom: ~{headroomUnits} units.</strong> At your current pace, your projected bill stays within your ₹{budgetRupees.toLocaleString('en-IN')} target.
-                  </span>
-                )
-              ) : (
-                lang === 'ml' ? (
-                  <span>
-                    <strong>ശ്രദ്ധിക്കുക:</strong> നിലവിലെ നിരക്കിൽ തുടർന്നാൽ, അടുത്ത {daysOfHeadroom} ദിവസത്തിനുള്ളിൽ ₹{budgetRupees.toLocaleString('en-IN')} ബജറ്റിനേക്കാൾ ഏകദേശം {Math.abs(headroomUnits)} യൂണിറ്റ് അധികമായി ഉപയോഗിക്കാൻ സാധ്യതയുണ്ട്.
-                  </span>
-                ) : (
-                  <span>
-                    <strong>Pace alert:</strong> At your current rate, you are projected to exceed your ₹{budgetRupees.toLocaleString('en-IN')} budget by approximately {Math.abs(headroomUnits)} units in {daysOfHeadroom} days.
-                  </span>
-                )
-              )}
-            </div>
+        {/* Target Progress Bar */}
+        <div className="space-y-1.5 pt-2 border-t border-black/[0.05]">
+          <div className="flex justify-between items-center text-[12px] text-[#71717A]">
+            <span>{currentProjectedUnits} units projected</span>
+            <span className="font-semibold text-[#17171C] num-tabular">{percentUsed}% of budget</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-black/[0.05]">
+            <div
+              className={`h-full transition-all duration-500 ${
+                isWithinBudget ? 'bg-[#17C964]' : 'bg-[#F31260]'
+              }`}
+              style={{ width: `${percentUsed}%` }}
+            />
           </div>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-3 pt-2">
-        <button
-          onClick={handleSaveBudget}
-          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-5 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 active:scale-[0.98] transition-all touch-target"
-        >
-          <PiggyBank className="h-4 w-4" />
-          <span>
-            {savedSuccess
-              ? (lang === 'ml' ? 'ബജറ്റ് സേവ് ചെയ്തു!' : 'Budget Saved!')
-              : (lang === 'ml' ? 'ബജറ്റ് സേവ് ചെയ്യാം' : 'Save Budget Target')}
-          </span>
-        </button>
+      {/* -- Slide To Confirm Gesture --------------------------- */}
+      <div className="space-y-3 pt-1">
+        <SlideToConfirm
+          onConfirm={handleSaveBudget}
+          label={lang === 'ml' ? 'ബജറ്റ് ഉറപ്പിക്കാൻ സ്വൈപ്പ് ചെയ്യൂ' : 'Slide to lock budget ceiling'}
+          confirmedLabel={lang === 'ml' ? 'ബജറ്റ് രേഖപ്പെടുത്തി!' : 'Budget ceiling locked!'}
+        />
+
+        {savedSuccess && (
+          <div className="flex items-center justify-center gap-2 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-xs font-semibold animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span>{lang === 'ml' ? 'ബജറ്റ് ലക്ഷ്യം വിജയകരമായി സേവ് ചെയ്തു' : 'Budget target saved to device storage'}</span>
+          </div>
+        )}
 
         <Link
-          href={`/what-if?units=${currentProjectedUnits}`}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-4 py-3.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors touch-target"
+          href={`/what-if?units=${targetUnits}`}
+          className="ios-btn-primary w-full py-3.5 flex items-center justify-center gap-2"
         >
-          <Sliders className="h-4 w-4 text-slate-500" />
-          <span>{lang === 'ml' ? 'ഉപയോഗം ക്രമീകരിക്കാം' : 'Adjust my usage'}</span>
+          <span>{lang === 'ml' ? 'ഉപയോഗം ക്രമീകരിക്കാം' : 'Adjust usage →'}</span>
         </Link>
       </div>
     </div>

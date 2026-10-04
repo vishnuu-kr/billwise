@@ -140,8 +140,8 @@ describe('Phase 5: Public Beta & Launch Readiness', () => {
   describe('Feature Flags & Release Configuration', () => {
     it('provides valid release metadata and stage', () => {
       expect(APP_CONFIG.appName).toBe('BILLWISE');
-      expect(APP_CONFIG.version).toMatch(/^0\.[56]\.0-beta$/);
-      expect(APP_CONFIG.releaseStage).toMatch(/beta/i);
+      expect(APP_CONFIG.version).toMatch(/^0\.[56]\.0(-beta|-rc\.\d+)?$/);
+      expect(APP_CONFIG.releaseStage).toMatch(/(beta|launch candidate)/i);
       expect(APP_CONFIG.zeroPiiGuarantee).toBe(true);
     });
 
