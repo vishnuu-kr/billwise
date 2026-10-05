@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { ElectricityProvider, UniversalTariffVersion, SupplyPhase } from '@/lib/electricity/types';
 import { calculateUniversalBill } from '@/lib/electricity/engine/universalEngine';
-import { Calculator, CheckCircle2, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { Calculator, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Props {
   provider: ElectricityProvider;
@@ -18,6 +18,7 @@ export default function ProviderCalculatorClient({ provider, tariff }: Props) {
   const [isSlabsExpanded, setIsSlabsExpanded] = useState<boolean>(false);
 
   const result = useMemo(() => {
+    if (!tariff) return null;
     return calculateUniversalBill({
       providerId: provider.id,
       units: Math.max(0, units),
@@ -27,6 +28,27 @@ export default function ProviderCalculatorClient({ provider, tariff }: Props) {
       applyOptInSubsidies,
     }, tariff);
   }, [provider, tariff, units, phase, connectedLoadKw, applyOptInSubsidies]);
+
+  if (!tariff || !result) {
+    return (
+      <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-4 shadow-sm text-center">
+        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 mx-auto flex items-center justify-center font-bold text-xl">
+          ⏳
+        </div>
+        <h3 className="text-lg font-bold text-slate-900">
+          {provider.displayName} Tariff Under Regulatory Review
+        </h3>
+        <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+          BILLWISE never guesses tariff formulas. The official retail tariff schedule for {provider.shortName} ({provider.state}) is currently being verified against state regulatory commission orders.
+        </p>
+        <div className="pt-2">
+          <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">
+            Coverage Status: {provider.coverageStatus}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">

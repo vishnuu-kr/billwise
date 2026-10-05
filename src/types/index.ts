@@ -58,8 +58,8 @@ export interface BillInput {
   units?: number;
   previousReading?: number;
   presentReading?: number;
-  billingCycle: BillingCycle;
-  phase: Phase;
+  billingCycle?: BillingCycle;
+  phase?: Phase;
   connectedLoadWatts?: number;
   readingDate?: string;
   previousReadingDate?: string;
@@ -80,6 +80,17 @@ export interface SlabCalculationDetail {
   unitsBilled: number;
   ratePerUnit: number;
   amount: number;
+}
+
+export interface CalculationTraceStep {
+  step: number;
+  component: string;
+  basis: string;
+  rate?: number;
+  units?: number;
+  amount: number;
+  runningTotal: number;
+  formula: string;
 }
 
 export interface BillCalculationResult {
@@ -120,6 +131,28 @@ export interface BillCalculationResult {
   };
   isEstimate: boolean;
   discrepancyNote?: string;
+  trace?: CalculationTraceStep[];
+}
+
+export type BaselineStatus = 'NO_BASELINE' | 'LIMITED_BASELINE' | 'ESTABLISHED_BASELINE';
+
+export interface BaselineEvaluation {
+  status: BaselineStatus;
+  sampleCount: number;
+  averageUnits: number;
+  averageBill: number;
+  descriptionEn: string;
+  descriptionMl: string;
+}
+
+export type AnomalySeverity = 'NORMAL' | 'CHECK' | 'UNUSUAL';
+
+export interface AnomalyReport {
+  status: AnomalySeverity;
+  reasonEn: string;
+  reasonMl: string;
+  deviationPercent: number;
+  dominantDriver: string;
 }
 
 export interface PredictionInput {

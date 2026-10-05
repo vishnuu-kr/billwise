@@ -6,16 +6,21 @@ import {
   BillComponent,
   SupplyPhase,
 } from '../types';
-import { getProviderById, NATIONAL_PROVIDER_REGISTRY } from '../providers';
+import { getProviderById } from '../providers';
 import { getTariffByProviderId, UNIVERSAL_TARIFF_REGISTRY } from '../tariffs/registry';
 
 export function calculateConsumedUnitsFromInput(input: UniversalBillInput): { units: number; error?: string } {
   if (typeof input.units === 'number') {
+    if (isNaN(input.units)) return { units: 0, error: 'Consumed units cannot be NaN.' };
+    if (!isFinite(input.units)) return { units: 0, error: 'Consumed units must be a finite number.' };
     if (input.units < 0) return { units: 0, error: 'Consumed units cannot be negative.' };
     return { units: Math.round(input.units) };
   }
 
   if (input.previousReading !== undefined && input.presentReading !== undefined) {
+    if (isNaN(input.previousReading) || isNaN(input.presentReading)) {
+      return { units: 0, error: 'Meter readings must be valid numbers.' };
+    }
     if (input.isMeterReplaced) {
       const oldMeterFinal = input.oldMeterFinalReading ?? input.previousReading;
       const newMeterInitial = input.newMeterInitialReading ?? 0;
@@ -56,15 +61,23 @@ export function calculateUniversalBill(
     throw new Error(error);
   }
 
-  const provider: ElectricityProvider =
-    getProviderById(input.providerId) ||
-    NATIONAL_PROVIDER_REGISTRY['kseb'];
+  if (!input.providerId) {
+    throw new Error('Provider ID is required. BILLWISE will not calculate a bill without a specified provider.');
+  }
 
-  const tariff: UniversalTariffVersion =
+  const provider: ElectricityProvider | undefined = getProviderById(input.providerId);
+  if (!provider) {
+    throw new Error(`Unknown electricity provider: "${input.providerId}". BILLWISE requires a verified provider and will never guess or silently default to KSEB.`);
+  }
+
+  const tariff: UniversalTariffVersion | undefined =
     customTariff ||
     (input.tariffVersionId ? UNIVERSAL_TARIFF_REGISTRY[input.tariffVersionId] : undefined) ||
-    getTariffByProviderId(provider.id) ||
-    UNIVERSAL_TARIFF_REGISTRY['kseb-lt1a-2024'];
+    getTariffByProviderId(provider.id);
+
+  if (!tariff) {
+    throw new Error(`No active tariff configuration found for provider "${provider.displayName}" (${provider.id}). BILLWISE fails safely rather than guessing rates.`);
+  }
 
   const phase: SupplyPhase = input.phase || 'single';
   const connectedLoadKw = input.connectedLoadKw ?? (phase === 'three' ? 5 : 1);

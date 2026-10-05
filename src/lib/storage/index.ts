@@ -115,6 +115,35 @@ export class StorageManager {
 
   addRecord(record: Omit<HistoryRecord, 'id' | 'timestamp'>): HistoryRecord {
     const records = this.getHistory();
+
+    // Section 38: Duplicate detection — Match on dateLabel, consumedUnits, and meterReading
+    const existingIndex = records.findIndex(r => {
+      const sameDate = r.dateLabel === record.dateLabel;
+      const sameUnits = r.consumedUnits === record.consumedUnits;
+      const sameReading = record.meterReading === undefined || r.meterReading === record.meterReading;
+      return sameDate && sameUnits && sameReading;
+    });
+
+    if (existingIndex >= 0) {
+      // Idempotent merge without duplicate entry
+      const existing = records[existingIndex];
+      const merged: HistoryRecord = {
+        ...existing,
+        ...record,
+        id: existing.id,
+        timestamp: existing.timestamp,
+        actualBill: record.actualBill !== undefined ? record.actualBill : existing.actualBill,
+        predictedBill: record.predictedBill !== undefined ? record.predictedBill : existing.predictedBill,
+        notes: record.notes || existing.notes,
+      };
+      records[existingIndex] = merged;
+      this.saveHistory(records);
+      if (record.meterReading) {
+        this.saveLastReading(record.meterReading, record.dateLabel);
+      }
+      return merged;
+    }
+
     const newRecord: HistoryRecord = {
       calculationEngineVersion: SITE_CONFIG.calculationEngineVersion,
       predictionModelVersion: SITE_CONFIG.predictionModelVersion,

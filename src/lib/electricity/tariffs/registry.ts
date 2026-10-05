@@ -573,18 +573,103 @@ export function getTariffByProviderId(providerId: string): UniversalTariffVersio
   );
 }
 
-export function getActiveTariffForDate(providerId: string, asOfDate?: string): UniversalTariffVersion | undefined {
-  const norm = providerId.toLowerCase();
-  const dateStr = asOfDate || new Date().toISOString().slice(0, 10);
-  const tariffs = Object.values(UNIVERSAL_TARIFF_REGISTRY).filter(t => t.providerId.toLowerCase() === norm);
+export interface TariffSelectionResult {
+  tariff: UniversalTariffVersion | null;
+  status: 'EXACT_MATCH' | 'ZERO_MATCHES' | 'MULTIPLE_MATCHES' | 'EXPIRED_TARIFF' | 'FUTURE_TARIFF';
+  error?: string;
+}
+
+/**
+ * Deterministic tariff version selector (Section 10).
+ * Never randomly picks a tariff; detects zero matches, multiple matches, expired, or future tariffs.
+ */
+export function selectTariffVersion(
+  providerId: string,
+  options?: { asOfDate?: string; categoryCode?: string }
+): TariffSelectionResult {
+  const normProvider = providerId.toLowerCase();
+  const dateStr = options?.asOfDate || new Date().toISOString().slice(0, 10);
   
-  const matched = tariffs.find(t => {
+  let candidates = Object.values(UNIVERSAL_TARIFF_REGISTRY).filter(
+    t => t.providerId.toLowerCase() === normProvider
+  );
+
+  if (candidates.length === 0) {
+    return {
+      tariff: null,
+      status: 'ZERO_MATCHES',
+      error: `No registered tariffs found for provider "${providerId}".`,
+    };
+  }
+
+  if (options?.categoryCode) {
+    const normCategory = options.categoryCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+    candidates = candidates.filter(
+      t => t.categoryCode.toLowerCase().replace(/[^a-z0-9]/g, '') === normCategory
+    );
+    if (candidates.length === 0) {
+      return {
+        tariff: null,
+        status: 'ZERO_MATCHES',
+        error: `No tariff matches category code "${options.categoryCode}" for provider "${providerId}".`,
+      };
+    }
+  }
+
+  // Find tariffs matching effective date window
+  const matchingDateTariffs = candidates.filter(t => {
     const afterStart = t.effectiveFrom <= dateStr;
     const beforeEnd = !t.effectiveTo || t.effectiveTo >= dateStr;
     return afterStart && beforeEnd;
   });
 
-  return matched || tariffs.find(t => t.isCurrent) || tariffs[0];
+  if (matchingDateTariffs.length === 1) {
+    return {
+      tariff: matchingDateTariffs[0],
+      status: 'EXACT_MATCH',
+    };
+  }
+
+  if (matchingDateTariffs.length > 1) {
+    return {
+      tariff: null,
+      status: 'MULTIPLE_MATCHES',
+      error: `Ambiguous tariff selection: ${matchingDateTariffs.length} overlapping tariff schedules found for date "${dateStr}". Failing safely.`,
+    };
+  }
+
+  // Check if expired or future
+  const isAllExpired = candidates.every(t => t.effectiveTo && t.effectiveTo < dateStr);
+  if (isAllExpired) {
+    return {
+      tariff: null,
+      status: 'EXPIRED_TARIFF',
+      error: `All available tariffs for "${providerId}" expired before "${dateStr}".`,
+    };
+  }
+
+  const isAllFuture = candidates.every(t => t.effectiveFrom > dateStr);
+  if (isAllFuture) {
+    return {
+      tariff: null,
+      status: 'FUTURE_TARIFF',
+      error: `All available tariffs for "${providerId}" are scheduled for future dates after "${dateStr}".`,
+    };
+  }
+
+  return {
+    tariff: null,
+    status: 'ZERO_MATCHES',
+    error: `No applicable tariff configuration found for date "${dateStr}".`,
+  };
+}
+
+export function getActiveTariffForDate(providerId: string, asOfDate?: string): UniversalTariffVersion | undefined {
+  const result = selectTariffVersion(providerId, { asOfDate });
+  if (result.status === 'EXACT_MATCH' && result.tariff) {
+    return result.tariff;
+  }
+  return getTariffByProviderId(providerId);
 }
 
 export function getTariffById(id: string): UniversalTariffVersion | undefined {

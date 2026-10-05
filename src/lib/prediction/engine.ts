@@ -38,11 +38,27 @@ export function predictUsage(input: PredictionInput): PredictionResult {
 
   const rawProjected = unitsPerDay * totalCycleDays;
 
-  if (input.historicalAverageUnits && daysElapsed < 15) {
+  // Check for insufficient data (Section 22: Say "Not enough data yet")
+  const isMissingReadingData = input.currentCycleUnits === undefined &&
+    (input.previousReading === undefined || input.currentReading === undefined);
+
+  if (isMissingReadingData && !input.historicalAverageUnits) {
+    projectedUnits = 0;
+    confidence = 'low';
+    confidenceReason = 'Not enough data yet. Please record your present meter reading to start projecting.';
+  } else if (daysElapsed < 2 && currentUnits === 0 && !input.historicalAverageUnits) {
+    projectedUnits = 0;
+    confidence = 'low';
+    confidenceReason = 'Not enough data yet. Cycle has just begun; accuracy will improve after a few days of meter readings.';
+  } else if (input.historicalAverageUnits && daysElapsed < 15) {
     // Early in cycle with history: blend 40% current pace + 60% historical average
     projectedUnits = Math.round(rawProjected * 0.4 + input.historicalAverageUnits * 0.6);
     confidence = 'medium';
     confidenceReason = 'Blended with your historical average usage as you are early in the billing cycle.';
+  } else if (unitsPerDay > 100) {
+    projectedUnits = Math.min(5000, Math.round(rawProjected));
+    confidence = 'low';
+    confidenceReason = 'Extremely high usage pace detected. Please confirm your meter digits to prevent an inaccurate forecast.';
   } else if (daysElapsed >= 40) {
     projectedUnits = Math.round(rawProjected);
     confidence = 'high';
@@ -54,7 +70,9 @@ export function predictUsage(input: PredictionInput): PredictionResult {
   } else {
     projectedUnits = Math.round(rawProjected);
     confidence = 'low';
-    confidenceReason = 'Early estimate — accuracy will improve after a few more days of meter readings.';
+    confidenceReason = daysElapsed <= 2
+      ? 'Not enough data yet. Accuracy will improve after a few more days of meter readings.'
+      : 'Early estimate — accuracy will improve after a few more days of meter readings.';
   }
 
   // Calculate deterministic bill for the projected consumption

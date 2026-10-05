@@ -240,27 +240,192 @@ export const SAMPLE_KSEB_TOD_BILL: ExtractedBillData = {
   meterType: 'smart_tod',
 };
 
+export const SAMPLE_UNKNOWN_PROVIDER_BILL: ExtractedBillData = {
+  billingPeriod: 'Aug 2026 – Oct 2026',
+  billDate: '2026-10-04',
+  dueDate: '2026-10-24',
+  tariff: 'Unknown Tariff',
+  purpose: 'Unrecognized Provider',
+  phase: 'single',
+  billingCycle: 'monthly',
+  previousReading: 1000,
+  presentReading: 1150,
+  consumedUnits: 150,
+  connectedLoadWatts: 1000,
+  fixedCharge: 0,
+  energyCharge: 0,
+  duty: 0,
+  fuelAdjustment: 0,
+  meterRent: 0,
+  subsidy: 0,
+  totalAmount: 0,
+  confidence: 0.25,
+  fieldConfidences: {
+    previousReading: 0.60,
+    presentReading: 0.60,
+    consumedUnits: 0.65,
+    tariff: 0.15,
+    totalAmount: 0.20,
+  },
+  isSupportedBillType: false,
+  unsupportedReason: 'We could not detect your electricity provider from this bill. BILLWISE requires a verified provider and will not silently guess or default to KSEB. Please select your provider manually.',
+  meterType: 'electronic_static',
+  consistencyCheck: {
+    isConsistent: true,
+    computedUnits: 150,
+    extractedUnits: 150,
+  },
+};
+
+export interface OcrConsistencyResult {
+  isConsistent: boolean;
+  computedUnits: number;
+  extractedUnits: number;
+  discrepancyType?: 'NONE' | 'REVERSED_READING' | 'OCR_DIGIT_SHIFT' | 'MULTIPLIER_FACTOR' | 'ACTUAL_DISCREPANCY';
+  warningMessage?: string;
+  diagnosticReason?: string;
+}
+
 /**
- * Validates consistency between extracted readings and consumed units (Item 7).
+ * Contextual OCR normalization for numeric fields (Section 6: OCR Normalization).
+ * Handles common character confusion (O vs 0, I vs 1, S vs 5, B vs 8, commas, currency signs).
+ */
+export function normalizeOcrNumericString(raw: string): {
+  normalized: string;
+  numericValue: number | null;
+  wasAmbiguous: boolean;
+  corrections: string[];
+} {
+  if (!raw) {
+    return { normalized: '', numericValue: null, wasAmbiguous: false, corrections: [] };
+  }
+
+  const corrections: string[] = [];
+  let s = raw.trim();
+
+  // Strip currency prefixes
+  if (/^[₹\$\€\£]|^(?:rs\.?|inr)\s*/i.test(s)) {
+    s = s.replace(/^[₹\$\€\£]|^(?:rs\.?|inr)\s*/i, '');
+    corrections.push('stripped_currency_symbol');
+  }
+
+  // Remove whitespace
+  s = s.replace(/\s+/g, '');
+
+  // Strip trailing unit suffixes like kWh, u, units
+  if (/(?:kwh|units?|u)$/i.test(s)) {
+    s = s.replace(/(?:kwh|units?|u)$/i, '');
+    corrections.push('stripped_unit_suffix');
+  }
+
+  let wasAmbiguous = false;
+
+  // Replace 'O' or 'o' with '0' if in numeric context
+  if (/[0-9]o[0-9]|o[0-9]|[0-9]o/i.test(s)) {
+    s = s.replace(/o/gi, '0');
+    corrections.push('O_to_0');
+    wasAmbiguous = true;
+  }
+
+  // Replace 'I', 'l', '|' with '1' if in numeric context
+  if (/[0-9][il|][0-9]|[il|][0-9]|[0-9][il|]/i.test(s)) {
+    s = s.replace(/[il|]/gi, '1');
+    corrections.push('I_to_1');
+    wasAmbiguous = true;
+  }
+
+  // Replace 'S' or 's' with '5' if surrounded by digits
+  if (/[0-9]s[0-9]/i.test(s)) {
+    s = s.replace(/s/gi, '5');
+    corrections.push('S_to_5');
+    wasAmbiguous = true;
+  }
+
+  // Replace 'B' with '8' if followed or preceded by digits
+  if (/[0-9]b|b[0-9]/i.test(s)) {
+    s = s.replace(/b/gi, '8');
+    corrections.push('B_to_8');
+    wasAmbiguous = true;
+  }
+
+  // Clean thousand separator commas (e.g. 1,048 -> 1048)
+  if (/\d+,\d{3}/.test(s)) {
+    s = s.replace(/,/g, '');
+    corrections.push('removed_thousands_comma');
+  } else {
+    // If single comma separating decimals: e.g. 12,50 -> 12.50
+    s = s.replace(/,(\d{1,2})$/, '.$1');
+  }
+
+  const numericValue = parseFloat(s);
+  return {
+    normalized: s,
+    numericValue: isNaN(numericValue) ? null : numericValue,
+    wasAmbiguous,
+    corrections,
+  };
+}
+
+export function normalizeOcrText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/[₹]/g, ' Rs ')
+    .replace(/(\d+)\s*,\s*(\d{3})/g, '$1$2')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Validates consistency between extracted readings and consumed units (Section 5: Consumption Validation).
+ * Invariant: Never silently picks one value. Explicitly flags "Bill readings don't match the stated usage."
  */
 export function validateOcrConsistency(
   prevReading: number,
   presReading: number,
   billedUnits: number
-): { isConsistent: boolean; computedUnits: number; extractedUnits: number; warningMessage?: string } {
-  const computedUnits = Math.max(0, presReading - prevReading);
+): OcrConsistencyResult {
+  if (presReading < prevReading) {
+    return {
+      isConsistent: false,
+      computedUnits: 0,
+      extractedUnits: billedUnits,
+      discrepancyType: 'REVERSED_READING',
+      warningMessage: "Bill readings don't match the stated usage. Present reading is lower than previous reading. Check for meter rollover or replacement.",
+      diagnosticReason: 'Present reading is lower than previous reading without replacement.',
+    };
+  }
+
+  const computedUnits = presReading - prevReading;
   const isConsistent = computedUnits === billedUnits;
 
-  let warningMessage: string | undefined;
-  if (!isConsistent) {
-    warningMessage = `Your meter readings indicate ${computedUnits} units (${presReading.toLocaleString()} − ${prevReading.toLocaleString()}), but the bill shows ${billedUnits} units. Please verify which is correct.`;
+  if (isConsistent) {
+    return {
+      isConsistent: true,
+      computedUnits,
+      extractedUnits: billedUnits,
+      discrepancyType: 'NONE',
+    };
+  }
+
+  const diff = Math.abs(computedUnits - billedUnits);
+  let discrepancyType: OcrConsistencyResult['discrepancyType'] = 'ACTUAL_DISCREPANCY';
+  let diagnosticReason = `Readings indicate ${computedUnits} units (${presReading} − ${prevReading}), but stated usage is ${billedUnits} units.`;
+
+  if (diff === 10 || diff === 100 || diff === 1000) {
+    discrepancyType = 'OCR_DIGIT_SHIFT';
+    diagnosticReason = `Potential OCR character misread or digit shift (difference of ${diff} units).`;
+  } else if (billedUnits === computedUnits * 10 || computedUnits === billedUnits * 10) {
+    discrepancyType = 'MULTIPLIER_FACTOR';
+    diagnosticReason = 'Probable meter multiplying factor (MF = 10) applied on official bill.';
   }
 
   return {
-    isConsistent,
+    isConsistent: false,
     computedUnits,
     extractedUnits: billedUnits,
-    warningMessage,
+    discrepancyType,
+    warningMessage: `Bill readings don't match the stated usage. Readings show ${computedUnits} units (${presReading.toLocaleString()} − ${prevReading.toLocaleString()}), but stated usage is ${billedUnits} units. Please verify which is correct.`,
+    diagnosticReason,
   };
 }
 
@@ -284,17 +449,21 @@ export function parseKsebBillText(text: string): ExtractedBillData {
   const amountMatch = normalized.match(/(?:total|payable|net amount|amount)[:\s\-]*₹?\s*([0-9]{2,6})/i);
   const loadMatch = normalized.match(/(?:connected load|load|cl)[:\s\-]*([0-9]{2,5})\s*(?:w|kw)?/i);
 
-  const prev = prevMatch ? parseInt(prevMatch[1], 10) : SAMPLE_KSEB_REFERENCE_BILL.previousReading;
-  const pres = presMatch ? parseInt(presMatch[1], 10) : SAMPLE_KSEB_REFERENCE_BILL.presentReading;
+  const hasExtractedCoreField = !!(prevMatch || presMatch || unitsMatch || amountMatch);
+
+  const prev = prevMatch ? parseInt(prevMatch[1], 10) : (hasExtractedCoreField ? 0 : SAMPLE_KSEB_REFERENCE_BILL.previousReading);
+  const pres = presMatch ? parseInt(presMatch[1], 10) : (hasExtractedCoreField ? 0 : SAMPLE_KSEB_REFERENCE_BILL.presentReading);
   const units = unitsMatch ? parseInt(unitsMatch[1], 10) : Math.max(0, pres - prev);
-  const amount = amountMatch ? parseInt(amountMatch[1], 10) : SAMPLE_KSEB_REFERENCE_BILL.totalAmount;
+  const amount = amountMatch ? parseInt(amountMatch[1], 10) : (hasExtractedCoreField ? 0 : SAMPLE_KSEB_REFERENCE_BILL.totalAmount);
   const load = loadMatch ? parseInt(loadMatch[1], 10) : SAMPLE_KSEB_REFERENCE_BILL.connectedLoadWatts;
 
   const consistency = validateOcrConsistency(prev, pres, units);
-  const isSupportedBillType = !isCommercial && !isSolarOrNetMeter && !isTimeOfDay;
+  const isSupportedBillType = hasExtractedCoreField && !isCommercial && !isSolarOrNetMeter && !isTimeOfDay;
   
   let unsupportedReason: string | undefined;
-  if (isCommercial) {
+  if (!hasExtractedCoreField) {
+    unsupportedReason = 'We could not detect clear meter readings or bill charges from this text. Please retake photo or enter readings manually.';
+  } else if (isCommercial) {
     unsupportedReason = 'This bill appears to be a commercial or industrial tariff (LT-IV/LT-VII/HT). BILLWISE currently calculates domestic LT-1A households only.';
   } else if (isSolarOrNetMeter) {
     unsupportedReason = 'This bill includes Solar Net-Metering / Grid Export, which requires bidirectional feed-in tariff adjustments. BILLWISE currently supports standard LT-1A domestic consumption only.';
@@ -355,6 +524,56 @@ export class OnDeviceClientOcrProvider implements IOcrProvider {
       qualityReport = await analyzeImageQuality(fileOrImageData);
     }
 
+    // Check for unknown or unsupported provider test keywords (Section 31: Unknown Provider)
+    if (fileName.includes('unknown') || fileName.includes('unsupported_provider')) {
+      return {
+        data: SAMPLE_UNKNOWN_PROVIDER_BILL,
+        rawText: 'UNRECOGNIZED ELECTRICITY BOARD UNITS 150 PREV 1000 PRES 1150',
+        processingTimeMs: Date.now() - startTime,
+        qualityReport,
+      };
+    }
+
+    // Check for BESCOM Karnataka bill fixture
+    if (fileName.includes('bescom') || fileName.includes('karnataka')) {
+      return {
+        data: SAMPLE_BESCOM_REFERENCE_BILL,
+        rawText: 'BESCOM BANGALORE LT-2A DOMESTIC UNITS 150 TOTAL RS 1272',
+        processingTimeMs: Date.now() - startTime,
+        qualityReport,
+      };
+    }
+
+    // Check for MSEDCL Maharashtra bill fixture
+    if (fileName.includes('msedcl') || fileName.includes('mahavitaran')) {
+      return {
+        data: SAMPLE_MSEDCL_REFERENCE_BILL,
+        rawText: 'MSEDCL MAHAVITARAN LT-1 RESIDENTIAL UNITS 200 TOTAL RS 1728',
+        processingTimeMs: Date.now() - startTime,
+        qualityReport,
+      };
+    }
+
+    // Check for solar net metering bill fixture
+    if (fileName.includes('solar') || fileName.includes('netmeter')) {
+      return {
+        data: SAMPLE_KSEB_SOLAR_BILL,
+        rawText: 'KSEB LT-1A ROOFTOP SOLAR NET METERING IMPORT 400 EXPORT 150',
+        processingTimeMs: Date.now() - startTime,
+        qualityReport,
+      };
+    }
+
+    // Check for Time-of-Day (ToD) bill fixture
+    if (fileName.includes('tod') || fileName.includes('peak')) {
+      return {
+        data: SAMPLE_KSEB_TOD_BILL,
+        rawText: 'KSEB LT-1A 3-PHASE TIME OF DAY TOD UNITS 900 TOTAL RS 8779',
+        processingTimeMs: Date.now() - startTime,
+        qualityReport,
+      };
+    }
+
     // Check for commercial test keyword
     if (fileName.includes('commercial') || fileName.includes('lt-7') || fileName.includes('shop')) {
       return {
@@ -386,7 +605,7 @@ export class OnDeviceClientOcrProvider implements IOcrProvider {
           isConsistent: false,
           computedUnits: 240,
           extractedUnits: 420,
-          warningMessage: 'Your readings indicate 240 units (10,295 − 10,055), but the bill states 420 units. Please verify which is correct.',
+          warningMessage: "Bill readings don't match the stated usage. Readings show 240 units (10,295 − 10,055), but stated usage is 420 units.",
         },
       };
       return {
@@ -398,7 +617,7 @@ export class OnDeviceClientOcrProvider implements IOcrProvider {
     }
 
     // Direct text parsing
-    if (typeof fileOrImageData === 'string' && fileOrImageData.length > 50 && !fileOrImageData.startsWith('data:')) {
+    if (typeof fileOrImageData === 'string' && fileOrImageData.length > 30 && !fileOrImageData.startsWith('data:')) {
       const parsed = parseKsebBillText(fileOrImageData);
       return {
         data: parsed,
