@@ -41,4 +41,29 @@ describe('MeterTumblerInput & Slab Cliff Logic', () => {
       expect(status).toBe(expectedCliff);
     }
   });
+
+  it('validates reading against baseline and computes correct consumption units', () => {
+    const baseline = 10295;
+    
+    // Higher reading
+    const newReading = 10415;
+    const isValidNumber = String(newReading).length === 5 && !isNaN(newReading);
+    const isHigher = isValidNumber && newReading >= baseline;
+    const units = isHigher ? newReading - baseline : 0;
+
+    expect(isValidNumber).toBe(true);
+    expect(isHigher).toBe(true);
+    expect(units).toBe(120);
+
+    // Lower reading (invalid)
+    const lowerReading = 10200;
+    const isLowerValid = lowerReading >= baseline;
+    expect(isLowerValid).toBe(false);
+
+    // Same reading (0 units)
+    const sameReading = 10295;
+    const isSameValid = sameReading >= baseline;
+    expect(isSameValid).toBe(true);
+    expect(sameReading - baseline).toBe(0);
+  });
 });

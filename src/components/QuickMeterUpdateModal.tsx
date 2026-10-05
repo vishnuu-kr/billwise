@@ -52,7 +52,8 @@ export default function QuickMeterUpdateModal({
   }, [home.lastReadingDate]);
 
   const numReading = Number(readingInput);
-  const isValidNumber = readingInput.trim() !== '' && !isNaN(numReading) && numReading > 0;
+  const isComplete = readingInput.length === 5;
+  const isValidNumber = isComplete && !isNaN(numReading) && numReading > 0;
 
   const numPrev = prevReadingInput.trim() !== '' ? Number(prevReadingInput) : null;
   const effectivePrev = hasBaseline ? home.lastReading : (numPrev !== null && !isNaN(numPrev) ? numPrev : null);
@@ -62,7 +63,7 @@ export default function QuickMeterUpdateModal({
 
   // Instant prediction calculation
   const quickPrediction = useMemo(() => {
-    if (!isHigherThanLast || effectivePrev === null || unitsSinceLast <= 0) return null;
+    if (!isHigherThanLast || effectivePrev === null) return null;
     try {
       return predictUsage({
         previousReading: effectivePrev,
@@ -76,7 +77,7 @@ export default function QuickMeterUpdateModal({
     } catch {
       return null;
     }
-  }, [home, numReading, isHigherThanLast, effectivePrev, unitsSinceLast, daysElapsedSinceLastReading]);
+  }, [home, numReading, isHigherThanLast, effectivePrev, daysElapsedSinceLastReading]);
 
   // Real-time Slab Cliff & Subsidy Threshold Detection
   const slabStatus = useMemo(() => {
@@ -376,6 +377,43 @@ export default function QuickMeterUpdateModal({
               baselineReading={hasBaseline ? home.lastReading : null}
               autoFocus={true}
             />
+
+            {/* In-flight typing guidance */}
+            {readingInput.length > 0 && readingInput.length < 5 && (
+              <p className="text-[11.5px] text-[#71717A] text-center font-medium">
+                {lang === 'ml'
+                  ? `${readingInput.length}/5 അക്കങ്ങൾ നൽകി...`
+                  : `Entered ${readingInput.length} of 5 digits...`}
+              </p>
+            )}
+
+            {/* Validation alert if 5 digits are lower than previous reading */}
+            {isComplete && hasBaseline && numReading < home.lastReading && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3 rounded-xl bg-[#F5A524]/12 border border-[#F5A524]/30 text-[#935303] text-[12px] flex items-center gap-2"
+              >
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>
+                  {lang === 'ml'
+                    ? `റീഡിംഗ് (${numReading.toLocaleString('en-IN')}) കഴിഞ്ഞ റീഡിംഗിനേക്കാൾ (${home.lastReading.toLocaleString('en-IN')}) കുറവാണ്. മീറ്ററിലെ 5 കറുത്ത അക്കങ്ങൾ പരിശോധിക്കുക.`
+                    : `Reading (${numReading.toLocaleString('en-IN')}) cannot be lower than your previous reading (${home.lastReading.toLocaleString('en-IN')}).`}
+                </span>
+              </motion.div>
+            )}
+
+            {/* Same reading note */}
+            {isComplete && hasBaseline && numReading === home.lastReading && (
+              <div className="p-2.5 rounded-xl bg-black/[0.04] border border-black/[0.06] text-[#71717A] text-[11.5px] flex items-center gap-2">
+                <Gauge className="w-3.5 h-3.5 shrink-0 text-[#006FEE]" />
+                <span>
+                  {lang === 'ml'
+                    ? `കഴിഞ്ഞ റീഡിംഗിന് തുല്യം (${home.lastReading.toLocaleString('en-IN')}). അധിക ഉപയോഗമില്ല.`
+                    : `Same as last reading (${home.lastReading.toLocaleString('en-IN')}). 0 units consumed.`}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Optional previous reading if no baseline */}
@@ -510,11 +548,19 @@ export default function QuickMeterUpdateModal({
               type="button"
               onClick={handleSave}
               disabled={hasBaseline ? !isHigherThanLast : !isValidNumber}
-              className="ios-btn-primary w-full py-3.5 px-4 text-[14px] font-semibold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-[0.97]"
+              className="ios-btn-primary w-full h-13 py-3.5 px-4 text-[14px] font-semibold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-[0.97]"
             >
-              <Check className="w-4 h-4" />
+              <Check className="w-4 h-4 shrink-0" />
               <span>
-                {hasBaseline
+                {readingInput.length < 5
+                  ? lang === 'ml'
+                    ? `5 അക്കങ്ങൾ നൽകുക (${readingInput.length}/5)`
+                    : `Enter 5 digits (${readingInput.length}/5)`
+                  : hasBaseline && numReading < home.lastReading
+                  ? lang === 'ml'
+                    ? `കുറഞ്ഞത് ${home.lastReading.toLocaleString('en-IN')} നൽകുക`
+                    : `Must be ≥ ${home.lastReading.toLocaleString('en-IN')}`
+                  : hasBaseline
                   ? lang === 'ml'
                     ? 'സേവ് ചെയ്ത് ബിൽ കാണുക'
                     : 'Save reading & see estimate'
