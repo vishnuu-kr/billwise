@@ -1,6 +1,7 @@
-import { HistoryRecord, BudgetConfig, UserFeedbackRecord, FeedbackSummaryStats, SavedHomeProfile, CycleComparisonDetail } from '@/types';
+import { HistoryRecord, BudgetConfig, UserFeedbackRecord, FeedbackSummaryStats, SavedHomeProfile, CycleComparisonDetail, ReconciledComparison } from '@/types';
 import { SITE_CONFIG } from '@/lib/config/site';
 import { calculateBill } from '@/lib/calculation/engine';
+import { explainEstimateVsActual, isDuplicateBill, getPredictionLearning } from '@/lib/retention/intelligence';
 
 export const CURRENT_SCHEMA_VERSION = 2;
 
@@ -271,6 +272,8 @@ export class StorageManager {
       currentReading,
       currentReadingDate: readingDate,
       latestPrediction: prediction || home.latestPrediction,
+      // User entered a new reading for active cycle: clear previous reconciled comparison
+      lastReconciledComparison: undefined,
       updatedAt: new Date().toISOString(),
     };
 
@@ -278,11 +281,12 @@ export class StorageManager {
     return updatedHome;
   }
 
-  recordActualBillForHome(actualAmount: number, date?: string): { success: boolean; diff: number; diffPercent: number } {
+  recordActualBillForHome(actualAmount: number, date?: string): { success: boolean; diff: number; diffPercent: number; comparison?: ReconciledComparison } {
     const home = this.getSavedHome();
     if (!home) return { success: false, diff: 0, diffPercent: 0 };
 
     const predicted = home.latestPrediction?.estimatedBill || home.lastBillAmount || 0;
+    const predictedUnits = home.latestPrediction?.projectedUnits;
     const diff = Math.round(actualAmount - predicted);
     const diffPercent = predicted > 0 ? Math.round((Math.abs(diff) / predicted) * 100) : 0;
 
@@ -302,7 +306,21 @@ export class StorageManager {
       notes: `Reconciled bill (diff: ₹${diff})`,
     });
 
-    // Advance home baseline to this new cycle
+    const explanation = explainEstimateVsActual(predicted, actualAmount, predictedUnits, units);
+    const comparison: ReconciledComparison = {
+      predictedBill: predicted,
+      actualBill: actualAmount,
+      diff: explanation.diff,
+      diffPercent: explanation.diffPercent,
+      predictedUnits,
+      actualUnits: units,
+      unitsDiff: predictedUnits ? units - predictedUnits : undefined,
+      dominantReasonEn: explanation.dominantReasonEn,
+      dominantReasonMl: explanation.dominantReasonMl,
+      reconciledAt: new Date().toISOString(),
+    };
+
+    // Advance home baseline to this new cycle and preserve the comparison for Homepage State D
     const nextHome: SavedHomeProfile = {
       ...home,
       lastBillAmount: actualAmount,
@@ -313,11 +331,29 @@ export class StorageManager {
       currentReading: undefined,
       currentReadingDate: undefined,
       latestPrediction: undefined,
+      lastReconciledComparison: comparison,
       updatedAt: new Date().toISOString(),
     };
 
     this.saveHome(nextHome);
-    return { success: true, diff, diffPercent };
+    return { success: true, diff, diffPercent, comparison };
+  }
+
+  clearReconciledComparison(): void {
+    const home = this.getSavedHome();
+    if (!home || !home.lastReconciledComparison) return;
+    const updated = { ...home, lastReconciledComparison: undefined };
+    this.saveHome(updated);
+  }
+
+  isDuplicateBill(bill: {
+    presentReading?: number;
+    previousReading?: number;
+    consumedUnits?: number;
+    totalAmount?: number;
+    billingPeriod?: string;
+  }) {
+    return isDuplicateBill(bill, this.getHistory());
   }
 
   deleteSavedHome(): void {
@@ -404,23 +440,16 @@ export class StorageManager {
     totalEvaluated: number;
     averageErrorRupees: number;
     accuracyStatement: string;
+    hasSufficientData?: boolean;
+    tendency?: 'overestimate' | 'underestimate' | 'balanced' | 'insufficient_data';
   } {
-    const records = this.getHistory().filter(r => r.predictedBill > 0 && typeof r.actualBill === 'number');
-    if (records.length === 0) {
-      return {
-        totalEvaluated: 0,
-        averageErrorRupees: 0,
-        accuracyStatement: 'Enter your actual bill when it arrives to see prediction accuracy calibration.',
-      };
-    }
-
-    const totalDiff = records.reduce((sum, r) => sum + Math.abs((r.actualBill as number) - r.predictedBill), 0);
-    const avgDiff = Math.round(totalDiff / records.length);
-
+    const stats = getPredictionLearning(this.getHistory());
     return {
-      totalEvaluated: records.length,
-      averageErrorRupees: avgDiff,
-      accuracyStatement: `Based on ${records.length} evaluated billing cycle${records.length > 1 ? 's' : ''}, estimates have been within approx ₹${avgDiff} of actual KSEB bills.`,
+      totalEvaluated: stats.sampleCount,
+      averageErrorRupees: stats.averageVarianceRupees,
+      accuracyStatement: stats.learningStatementEn,
+      hasSufficientData: stats.hasSufficientData,
+      tendency: stats.tendency,
     };
   }
 

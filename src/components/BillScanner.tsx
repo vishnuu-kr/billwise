@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import {
@@ -16,6 +16,7 @@ import { detectProviderFromBillText } from '@/lib/electricity/detection/provider
 import { ElectricityProvider } from '@/lib/electricity/types';
 import { NATIONAL_PROVIDER_REGISTRY } from '@/lib/electricity/providers';
 import { ProviderSelectModal } from './ProviderSelectModal';
+import { storageManager } from '@/lib/storage';
 import {
   Camera,
   Upload,
@@ -24,7 +25,7 @@ import {
   ArrowRight,
   X,
   AlertCircle,
-  Building2,
+  AlertTriangle,
 } from 'lucide-react';
 import { FileDropzone } from '@/components/ui/FileDropzone';
 import { TextScramble } from '@/components/ui/TextScramble';
@@ -54,6 +55,18 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [qualityReport, setQualityReport] = useState<ImageQualityReport | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDuplicateDismissed, setIsDuplicateDismissed] = useState<boolean>(false);
+
+  const duplicateCheck = useMemo(() => {
+    if (stage !== 'verify') return { isDuplicate: false };
+    return storageManager.isDuplicateBill({
+      presentReading: extractedData.presentReading,
+      previousReading: extractedData.previousReading,
+      consumedUnits: extractedData.consumedUnits,
+      totalAmount: extractedData.totalAmount,
+      billingPeriod: extractedData.billingPeriod,
+    });
+  }, [stage, extractedData]);
 
   // Revoke object URL on unmount to prevent image blob memory leaks
   useEffect(() => {
@@ -73,6 +86,7 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
 
   const handleFileProcess = async (file: File) => {
     setErrorMessage(null);
+    setIsDuplicateDismissed(false);
     setStage('reading');
     setReadingStep(0);
     setQualityReport(null);
@@ -409,6 +423,42 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
               {lang === 'ml' ? 'മാറ്റുക' : 'Change'}
             </button>
           </div>
+
+          {/* Duplicate Protection Alert (Section 20) */}
+          {duplicateCheck.isDuplicate && !isDuplicateDismissed && (
+            <div className="rounded-2xl bg-amber-500/10 border border-amber-500/25 p-4 space-y-2.5">
+              <div className="flex items-center gap-2 text-amber-900 text-[13px] font-bold">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  {lang === 'ml'
+                    ? 'ഈ ബിൽ ഇതിനകം നിങ്ങളുടെ ചരിത്രത്തിലുണ്ട്'
+                    : 'This bill is already in your history.'}
+                </span>
+              </div>
+              <p className="text-[12px] text-amber-800 leading-relaxed">
+                {lang === 'ml'
+                  ? 'സമാനമായ റീഡിംഗുകളും തുകയുമുള്ള ബിൽ ചരിത്രത്തിൽ രേഖപ്പെടുത്തിയിട്ടുണ്ട്.'
+                  : 'A bill with identical meter readings or billing period was already recorded in your history.'}
+              </p>
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => router.push('/history')}
+                  className="ios-btn-primary py-2 px-3.5 text-[12px] font-semibold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <span>{lang === 'ml' ? 'ചരിത്രം കാണുക' : 'View in history'}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsDuplicateDismissed(true)}
+                  className="text-[12px] font-medium text-amber-900/80 hover:text-amber-950 underline cursor-pointer"
+                >
+                  {lang === 'ml' ? 'തുടരുക' : 'Continue anyway'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Image Quality Diagnostic Alert */}
           {qualityReport && !qualityReport.isAcceptable && (

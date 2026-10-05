@@ -27,6 +27,8 @@ export default function ActualBillModal({
     actual: number;
     diff: number;
     diffPercent: number;
+    dominantReasonEn?: string;
+    dominantReasonMl?: string;
   } | null>(null);
   const [accuracyFeedback, setAccuracyFeedback] = useState<'accurate' | 'too_high' | 'too_low' | null>(null);
 
@@ -36,15 +38,17 @@ export default function ActualBillModal({
     const num = parseFloat(actualAmountInput);
     if (isNaN(num) || num <= 0) return;
 
-    storageManager.recordActualBillForHome(num);
-    const diff = predicted > 0 ? Math.round(num - predicted) : 0;
-    const diffPercent = predicted > 0 ? Math.round((Math.abs(diff) / predicted) * 100) : 0;
+    const res = storageManager.recordActualBillForHome(num);
+    const diff = res.diff;
+    const diffPercent = res.diffPercent;
 
     setComparisonResult({
       predicted,
       actual: num,
       diff,
       diffPercent,
+      dominantReasonEn: res.comparison?.dominantReasonEn,
+      dominantReasonMl: res.comparison?.dominantReasonMl,
     });
 
     analytics.track('actual_bill_recorded', {
@@ -239,6 +243,19 @@ export default function ActualBillModal({
                       : `−₹${Math.abs(comparisonResult.diff)} (${comparisonResult.diffPercent}%)`}
                   </span>
                 </div>
+
+                {(comparisonResult.dominantReasonEn || comparisonResult.dominantReasonMl) && (
+                  <div className="p-3 bg-white rounded-xl text-[12px] text-[#71717A] border border-black/[0.04]">
+                    <span className="font-semibold text-[#17171C] block mb-0.5">
+                      {lang === 'ml' ? 'വ്യത്യാസത്തിന് കാരണം:' : 'Why this difference:'}
+                    </span>
+                    <span>
+                      {lang === 'ml'
+                        ? comparisonResult.dominantReasonMl || comparisonResult.dominantReasonEn
+                        : comparisonResult.dominantReasonEn || comparisonResult.dominantReasonMl}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 

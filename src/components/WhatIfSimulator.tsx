@@ -24,9 +24,10 @@ const SundialPicker = dynamic(
 
 interface WhatIfSimulatorProps {
   initialUnits?: number;
+  isFromSavedHome?: boolean;
 }
 
-export default function WhatIfSimulator({ initialUnits = 240 }: WhatIfSimulatorProps) {
+export default function WhatIfSimulator({ initialUnits = 240, isFromSavedHome = false }: WhatIfSimulatorProps) {
   const { lang } = useLanguage();
   const [units, setUnits] = useState<number>(initialUnits);
   const deferredUnits = useDeferredValue(units);
@@ -111,6 +112,35 @@ export default function WhatIfSimulator({ initialUnits = 240 }: WhatIfSimulatorP
             ~{dailyPace} {lang === 'ml' ? 'യൂണിറ്റ് / ദിവസം (60-ദിവസം)' : 'units / day (60-day cycle)'}
           </span>
         </div>
+
+        {isFromSavedHome && (
+          <div className="p-3 bg-[#006FEE]/5 border border-[#006FEE]/15 rounded-xl text-[12px] flex items-center justify-between">
+            <div>
+              <span className="font-semibold text-[#17171C] block">
+                {lang === 'ml' ? 'നിങ്ങളുടെ നിലവിലെ ഉപയോഗം:' : 'Your current usage:'} {initialUnits} kWh
+              </span>
+              <span className="text-[#71717A]">
+                {lang === 'ml' ? 'കഴിഞ്ഞ ബില്ലിൽ നിന്നുള്ള അടിസ്ഥാനം' : 'Anchored to your saved home'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setUnits(Math.max(20, initialUnits - 20))}
+                className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-[11px] border border-emerald-200 cursor-pointer active:scale-95 transition-all"
+              >
+                −20 kWh
+              </button>
+              <button
+                type="button"
+                onClick={() => setUnits(initialUnits + 20)}
+                className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold text-[11px] border border-amber-200 cursor-pointer active:scale-95 transition-all"
+              >
+                +20 kWh
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* -- Elastic Slider with Magnetic Snap Points --------- */}
         <div className="pt-2">

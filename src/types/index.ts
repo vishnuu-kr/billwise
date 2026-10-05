@@ -134,16 +134,53 @@ export interface BillCalculationResult {
   trace?: CalculationTraceStep[];
 }
 
-export type BaselineStatus = 'NO_BASELINE' | 'LIMITED_BASELINE' | 'ESTABLISHED_BASELINE';
+export type BaselineStatus = 'NO_HISTORY' | 'NO_BASELINE' | 'LIMITED_HISTORY' | 'LIMITED_BASELINE' | 'ESTABLISHED_BASELINE';
 
 export interface BaselineEvaluation {
   status: BaselineStatus;
   sampleCount: number;
   averageUnits: number;
   averageBill: number;
+  usualDailyUnits?: number;
+  normalRangeMin?: number;
+  normalRangeMax?: number;
+  rangeContextEn?: string;
+  rangeContextMl?: string;
   descriptionEn: string;
   descriptionMl: string;
 }
+
+export type BillHealthStatus = 'INSUFFICIENT_HISTORY' | 'HEALTHY' | 'NEEDS_ATTENTION' | 'UNUSUAL';
+
+export interface BillHealthAssessment {
+  status: BillHealthStatus;
+  headlineEn: string;
+  headlineMl: string;
+  explanationEn: string;
+  explanationMl: string;
+  factorsChecked: {
+    readingConsistency: boolean;
+    tariffConsistency: boolean;
+    usagePlausibility: boolean;
+    chargesConsistency: boolean;
+  };
+}
+
+export interface PredictionLearningStats {
+  sampleCount: number;
+  hasSufficientData: boolean;
+  averageVarianceRupees: number;
+  tendency: 'overestimate' | 'underestimate' | 'balanced' | 'insufficient_data';
+  learningStatementEn: string;
+  learningStatementMl: string;
+}
+
+export type HomepageLifecycleState =
+  | 'STATE_A_NEW'
+  | 'STATE_B_FIRST_BILL'
+  | 'STATE_C_ACTIVE_CYCLE'
+  | 'STATE_D_ACTUAL_RECORDED'
+  | 'STATE_UNUSUAL';
 
 export type AnomalySeverity = 'NORMAL' | 'CHECK' | 'UNUSUAL';
 
@@ -351,6 +388,21 @@ export interface InputSanityReport {
   warningMessageMl?: string;
 }
 
+export interface ReconciledComparison {
+  predictedBill: number;
+  actualBill: number;
+  diff: number; // actual - predicted
+  diffPercent: number;
+  predictedUnits?: number;
+  actualUnits?: number;
+  unitsDiff?: number;
+  dominantReasonEn: string;
+  dominantReasonMl: string;
+  secondaryFactorsEn?: string[];
+  secondaryFactorsMl?: string[];
+  reconciledAt: string;
+}
+
 export interface SavedHomeProfile {
   id: string;
   name?: string;
@@ -379,6 +431,8 @@ export interface SavedHomeProfile {
     daysRemaining: number;
     timestamp: string;
   };
+  lastReconciledComparison?: ReconciledComparison;
+  lastScannedBillFingerprint?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -6,14 +6,28 @@ import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { ChevronLeft } from 'lucide-react';
 
+import { storageManager } from '@/lib/storage';
+
 export default function WhatIfPage() {
   const { lang } = useLanguage();
   const [initialUnits, setInitialUnits] = useState(240);
+  const [isFromSavedHome, setIsFromSavedHome] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search).get('units');
-      if (p) setInitialUnits(Number(p));
+      if (p && !isNaN(Number(p))) {
+        setInitialUnits(Number(p));
+      } else {
+        const home = storageManager.getSavedHome();
+        if (home?.lastBillUnits) {
+          setInitialUnits(home.lastBillUnits);
+          setIsFromSavedHome(true);
+        } else if (home?.currentReading && home.lastReading && home.currentReading >= home.lastReading) {
+          setInitialUnits(home.currentReading - home.lastReading);
+          setIsFromSavedHome(true);
+        }
+      }
     }
   }, []);
 
@@ -28,7 +42,7 @@ export default function WhatIfPage() {
         <span>{lang === 'ml' ? 'ബിൽ ഫലത്തിലേക്ക്' : 'Back to result'}</span>
       </Link>
 
-      <WhatIfSimulator initialUnits={initialUnits} />
+      <WhatIfSimulator initialUnits={initialUnits} isFromSavedHome={isFromSavedHome} />
     </div>
   );
 }
