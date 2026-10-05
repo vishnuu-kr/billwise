@@ -231,9 +231,9 @@ export default function HomePage() {
 
               {estimatedBill ? (
                 <div>
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex items-baseline gap-1.5">
                     <KsebOdometer value={estimatedBill} size="2xl" prefix="₹" />
-                    <span className="text-[14px] font-medium text-[#71717A] ml-1">
+                    <span className="text-[14px] font-medium text-[#71717A]">
                       {lang === 'ml' ? 'ഏകദേശം' : 'estimated'}
                     </span>
                   </div>
@@ -279,10 +279,18 @@ export default function HomePage() {
                 {billDiff !== null ? (
                   <span
                     className={`font-bold num-tabular text-[14px] ${
-                      billDiff > 0 ? 'text-[#B45309]' : 'text-[#0E7036]'
+                      billDiff > 0
+                        ? 'text-[#B45309]'
+                        : billDiff < 0
+                        ? 'text-[#0E7036]'
+                        : 'text-[#71717A]'
                     }`}
                   >
-                    {billDiff > 0 ? `+₹${billDiff}` : `−₹${Math.abs(billDiff)}`}
+                    {billDiff > 0
+                      ? `+₹${billDiff}`
+                      : billDiff < 0
+                      ? `−₹${Math.abs(billDiff)}`
+                      : '₹0'}
                   </span>
                 ) : (
                   <span className="text-[13px] text-[#71717A] font-medium">—</span>
@@ -408,19 +416,21 @@ export default function HomePage() {
             <Link
               href="/scan"
               onClick={() => analytics.track('flow_started', { flow: 'bill_ocr' })}
-              className="ios-btn-primary w-full py-3.5 px-3 flex items-center justify-center gap-2 rounded-2xl text-[14px] font-semibold shadow-sm active:scale-[0.97]"
+              className="ios-btn-primary w-full h-12 px-2.5 sm:px-3 flex items-center justify-center gap-1.5 rounded-2xl text-[13.5px] sm:text-[14px] font-semibold shadow-sm active:scale-[0.97] whitespace-nowrap"
             >
               <Camera className="w-4 h-4 shrink-0" />
-              <span>{lang === 'ml' ? 'ബിൽ സ്കാൻ ചെയ്യാം' : 'Scan bill →'}</span>
+              <span>{lang === 'ml' ? 'ബിൽ സ്കാൻ' : 'Scan bill'}</span>
+              <ArrowRight className="w-3.5 h-3.5 shrink-0 opacity-70" />
             </Link>
 
             <Link
               href="/manual"
               onClick={() => analytics.track('flow_started', { flow: 'direct_units' })}
-              className="ios-btn-secondary w-full py-3.5 px-3 flex items-center justify-center gap-2 rounded-2xl text-[14px] font-semibold text-[#17171C] active:scale-[0.97]"
+              className="ios-btn-secondary w-full h-12 px-2.5 sm:px-3 flex items-center justify-center gap-1.5 rounded-2xl text-[13.5px] sm:text-[14px] font-semibold text-[#17171C] active:scale-[0.97] whitespace-nowrap"
             >
               <Gauge className="w-4 h-4 shrink-0 text-[#71717A]" />
-              <span>{lang === 'ml' ? 'യൂണിറ്റ് നൽകുക' : 'Enter units →'}</span>
+              <span>{lang === 'ml' ? 'യൂണിറ്റ് നൽകുക' : 'Enter units'}</span>
+              <ArrowRight className="w-3.5 h-3.5 shrink-0 text-[#71717A] opacity-70" />
             </Link>
           </div>
 

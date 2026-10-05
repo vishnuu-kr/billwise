@@ -29,14 +29,18 @@ function OdometerDigit({ digit }: DigitProps) {
 
   if (shouldReduceMotion) {
     return (
-      <span className="inline-block h-[1.15em] w-[0.58em] text-center font-sans tabular-nums leading-none">
+      <span className="inline-block h-[1.15em] w-[0.55em] text-center font-sans tabular-nums leading-none">
         {digit}
       </span>
     );
   }
 
   return (
-    <span className="relative inline-block h-[1.15em] w-[0.58em] overflow-hidden text-center font-sans tabular-nums leading-none select-none align-baseline">
+    <span className="relative inline-block h-[1.15em] w-[0.55em] overflow-hidden text-center font-sans tabular-nums leading-none select-none align-baseline">
+      {/* In-flow hidden character ensures browser computes exact font baseline */}
+      <span className="invisible select-none pointer-events-none" aria-hidden="true">
+        {digit}
+      </span>
       <motion.span
         style={{ y }}
         className="absolute inset-x-0 top-0 flex flex-col items-center justify-start"
@@ -104,9 +108,9 @@ export function KsebOdometer({
   if (!mounted) {
     return (
       <span className={cn('inline-flex items-baseline font-sans tabular-nums tracking-tight', sizeClasses, className)}>
-        {prefix && <span className="font-sans font-medium text-muted-foreground mr-0.5 text-[0.8em]">{prefix}</span>}
+        {prefix && <span className="font-sans font-bold text-muted-foreground mr-1 text-[0.82em]">{prefix}</span>}
         <span>{formattedStr}</span>
-        {suffix && <span className="font-sans font-normal text-muted-foreground ml-0.5 text-[0.7em]">{suffix}</span>}
+        {suffix && <span className="font-sans font-normal text-muted-foreground ml-1 text-[0.7em]">{suffix}</span>}
       </span>
     );
   }
@@ -121,7 +125,7 @@ export function KsebOdometer({
       aria-label={`${prefix}${safeVal}${suffix}`}
     >
       {prefix && (
-        <span className="font-sans font-medium text-[#71717A] mr-0.5 text-[0.8em] select-none self-baseline">
+        <span className="font-sans font-bold text-[#71717A] mr-1 text-[0.82em] select-none inline-block">
           {prefix}
         </span>
       )}
@@ -132,7 +136,8 @@ export function KsebOdometer({
           return (
             <span
               key={`comma-${index}`}
-              className="relative inline-flex items-end justify-center h-[1.15em] w-[0.24em] select-none text-current pb-[0.14em]"
+              className="relative inline-block select-none text-current font-sans text-center leading-none"
+              style={{ width: '0.15em', marginRight: '0.04em' }}
             >
               ,
             </span>
@@ -145,7 +150,12 @@ export function KsebOdometer({
       {/* Decimal separator and digits */}
       {decPart && (
         <>
-          <span className="relative inline-flex items-end justify-center h-[1.15em] w-[0.24em] select-none text-current pb-[0.14em]">.</span>
+          <span
+            className="relative inline-block select-none text-current font-sans text-center leading-none"
+            style={{ width: '0.15em', marginRight: '0.04em' }}
+          >
+            .
+          </span>
           {decPart.split('').map((char, index) => {
             const digitNum = parseInt(char, 10);
             return <OdometerDigit key={`dec-${index}`} digit={digitNum} />;
@@ -154,7 +164,7 @@ export function KsebOdometer({
       )}
 
       {suffix && (
-        <span className="font-sans font-normal text-[#71717A] ml-0.5 text-[0.7em] select-none">
+        <span className="font-sans font-normal text-[#71717A] ml-1 text-[0.7em] select-none">
           {suffix}
         </span>
       )}

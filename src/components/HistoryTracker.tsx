@@ -119,31 +119,31 @@ export default function HistoryTracker() {
             </p>
           </div>
 
-          <div className="pt-2 flex flex-col gap-2.5">
+          <div className="pt-2 flex flex-col gap-2.5 max-w-sm mx-auto w-full">
             <Link
               href="/predict"
-              className="ios-btn-primary w-full py-3"
+              className="ios-btn-primary w-full h-12 px-4 rounded-2xl flex items-center justify-center gap-2 text-[14px] font-semibold shadow-sm active:scale-[0.98] whitespace-nowrap"
             >
               <span>{lang === 'ml' ? 'റീഡിംഗ് ചേർക്കുക' : 'Add reading'}</span>
-              <ArrowRight className="w-4 h-4 ml-auto" />
+              <ArrowRight className="w-4 h-4 shrink-0" />
             </Link>
 
             {!storageManager.hasSavedHome() && (
               <Link
                 href="/"
-                className="ios-btn-secondary w-full py-3 text-[13px] text-[#006FEE] font-semibold flex items-center justify-center gap-2"
+                className="ios-btn-secondary w-full h-12 px-4 rounded-2xl flex items-center justify-center gap-2 text-[13px] font-semibold text-[#006FEE] border border-[#006FEE]/20 hover:bg-[#006FEE]/5 active:scale-[0.98] whitespace-nowrap"
               >
-                <Sparkles className="w-3.5 h-3.5 text-[#006FEE]" />
-                <span>{lang === 'ml' ? 'വീട് സജ്ജീകരിക്കാം (30 സെക്കൻഡ്)' : 'Complete 30-sec home setup'}</span>
+                <Sparkles className="w-4 h-4 text-[#006FEE] shrink-0" />
+                <span>{lang === 'ml' ? 'വീട് സജ്ജീകരിക്കാം (30s)' : 'Complete 30-sec home setup'}</span>
               </Link>
             )}
 
             <button
               type="button"
               onClick={handleLoadSample}
-              className="ios-btn-secondary w-full py-3 text-[13px] text-[#71717A]"
+              className="ios-btn-secondary w-full h-11 px-4 rounded-2xl flex items-center justify-center gap-2 text-[13px] font-medium text-[#71717A] hover:text-[#17171C] active:scale-[0.98] whitespace-nowrap cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5 text-[#71717A]" />
+              <Sparkles className="w-3.5 h-3.5 text-[#71717A] shrink-0" />
               <span>{lang === 'ml' ? 'മാതൃകാ വിവരങ്ങൾ കാണുക' : 'Try sample data'}</span>
             </button>
           </div>
