@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Receipt,
   ChevronLeft,
+  ShieldCheck,
 } from 'lucide-react';
 import { motion, useSpring, useTransform, AnimatePresence } from 'motion/react';
 import dynamic from 'next/dynamic';
@@ -24,6 +25,10 @@ import FeedbackWidget from './FeedbackWidget';
 import { KsebSlabStorageMeter } from '@/components/ui/KsebSlabStorageMeter';
 import { DynamicIslandBanner } from '@/components/ui/DynamicIslandBanner';
 import { ConfettiButton } from '@/components/ui/ConfettiButton';
+import TrustCenterModal from './TrustCenterModal';
+import { buildBillEvidence } from '@/lib/trust/evidenceEngine';
+import { generateCalculationTrace } from '@/lib/trust/replayEngine';
+import { UNIVERSAL_TARIFF_REGISTRY } from '@/lib/electricity/tariffs/registry';
 
 const ShareModal = dynamic(() => import('./ShareModal'), { ssr: false });
 const ThermalBillReceipt = dynamic(
@@ -56,6 +61,7 @@ export default function ResultCard({
   const { lang } = useLanguage();
   const [showShareModal, setShowShareModal] = useState(false);
   const [showBreakdownSheet, setShowBreakdownSheet] = useState(false);
+  const [showTrustCenter, setShowTrustCenter] = useState(false);
   const [isSlabsExpanded, setIsSlabsExpanded] = useState(false);
   const [viewFormat, setViewFormat] = useState<'card' | 'receipt'>('card');
 
@@ -72,6 +78,29 @@ export default function ResultCard({
 
   const calc = prediction.calculatedBillResult;
   const totalPayable = calc.total;
+
+  const evidenceModel = React.useMemo(() => {
+    return buildBillEvidence({
+      providerId: 'kseb',
+      tariffVersionId: 'kseb-lt1a-2024',
+      calculatedResult: calc,
+      predictionResult: prediction,
+    });
+  }, [calc, prediction]);
+
+  const calculationTrace = React.useMemo(() => {
+    const tariff = UNIVERSAL_TARIFF_REGISTRY['kseb-lt1a-2024'];
+    return generateCalculationTrace(
+      calc,
+      {
+        providerId: 'kseb',
+        units: prediction.projectedUnits,
+        phase: calc.phase,
+        billingCycle: calc.billingCycle === 'monthly' ? 'MONTHLY' : 'BIMONTHLY',
+      },
+      tariff
+    );
+  }, [calc, prediction]);
 
   const energyRupees = Math.max(0, calc.grossEnergyCharge - calc.energySubsidy);
   const fixedRupees = calc.netFixedCharge;
@@ -163,9 +192,20 @@ export default function ResultCard({
                   {lang === 'ml' ? 'അടുത്ത ബിൽ പ്രവചനം' : 'Next Electricity Bill Estimate'}
                 </span>
               </div>
-              <span className="text-[11px] font-medium text-[#71717A] bg-black/[0.04] px-2.5 py-0.5 rounded-full border border-black/[0.04]">
-                {calc.phase === 'three' ? '3-Phase' : '1-Phase'} · {calc.billingCycle === 'bi-monthly' ? 'Bi-monthly' : 'Monthly'}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTrustCenter(true)}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0E7036] bg-[#17C964]/10 hover:bg-[#17C964]/20 border border-[#17C964]/20 px-2 py-0.5 rounded-full cursor-pointer transition-colors"
+                  title="View Trust Center & Calculation Trace"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#17C964]" />
+                  <span>{lang === 'ml' ? 'വിശ്വാസ്യത' : 'Trust & Trace'}</span>
+                </button>
+                <span className="text-[11px] font-medium text-[#71717A] bg-black/[0.04] px-2.5 py-0.5 rounded-full border border-black/[0.04]">
+                  {calc.phase === 'three' ? '3-Phase' : '1-Phase'}
+                </span>
+              </div>
             </div>
 
             {/* Hero Figure with Mechanical Odometer */}
@@ -280,13 +320,24 @@ export default function ResultCard({
               {lang === 'ml' ? 'തുക വിഭജനം' : 'Where your money goes'}
             </h3>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowBreakdownSheet(true)}
-            className="text-[12px] font-semibold text-[#006FEE] hover:underline cursor-pointer"
-          >
-            {lang === 'ml' ? 'കണക്കുകൂട്ടിയ രീതി' : 'See how we calculated it'}
-          </button>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setShowTrustCenter(true)}
+              className="text-[12px] font-semibold text-[#0E7036] hover:underline cursor-pointer flex items-center gap-1"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#17C964]" />
+              <span>{lang === 'ml' ? 'വിശ്വാസ്യത' : 'Trust'}</span>
+            </button>
+            <span className="text-black/20 text-xs">·</span>
+            <button
+              type="button"
+              onClick={() => setShowBreakdownSheet(true)}
+              className="text-[12px] font-semibold text-[#006FEE] hover:underline cursor-pointer"
+            >
+              {lang === 'ml' ? 'കണക്കുകൂട്ടിയ രീതി' : 'Breakdown'}
+            </button>
+          </div>
         </div>
 
         {/* Proportional breakdown bar */}
@@ -647,6 +698,14 @@ export default function ResultCard({
           onClose={() => setShowShareModal(false)}
         />
       )}
+
+      {/* Trust Center Modal */}
+      <TrustCenterModal
+        isOpen={showTrustCenter}
+        onClose={() => setShowTrustCenter(false)}
+        evidence={evidenceModel}
+        trace={calculationTrace}
+      />
     </div>
   );
 }

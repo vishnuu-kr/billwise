@@ -26,6 +26,7 @@ import {
   X,
   AlertCircle,
   AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
 import { FileDropzone } from '@/components/ui/FileDropzone';
 import { TextScramble } from '@/components/ui/TextScramble';
@@ -33,6 +34,8 @@ import { RubberStamp } from '@/components/ui/RubberStamp';
 import { PixelLoader } from '@/components/ui/PixelLoader';
 import { LensReveal } from '@/components/ui/LensReveal';
 import { Spinner } from '@/components/ui/LoaderSet';
+import { buildBillEvidence, recordUserCorrection } from '@/lib/trust/evidenceEngine';
+import { UserCorrectionProvenance } from '@/lib/trust/types';
 
 interface BillScannerProps {
   onVerified?: (data: ExtractedBillData) => void;
@@ -56,6 +59,7 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
   const [qualityReport, setQualityReport] = useState<ImageQualityReport | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDuplicateDismissed, setIsDuplicateDismissed] = useState<boolean>(false);
+  const [userCorrections, setUserCorrections] = useState<UserCorrectionProvenance[]>([]);
 
   const duplicateCheck = useMemo(() => {
     if (stage !== 'verify') return { isDuplicate: false };
@@ -67,6 +71,18 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
       billingPeriod: extractedData.billingPeriod,
     });
   }, [stage, extractedData]);
+
+  const trustAssessment = useMemo(() => {
+    if (stage !== 'verify') return null;
+    const rawConf = qualityReport ? (qualityReport.isAcceptable ? 0.95 : 0.60) : (extractedData.confidence || 0.95);
+    const ev = buildBillEvidence({
+      providerId: activeProvider.id,
+      extracted: extractedData,
+      userCorrections,
+      rawImageConfidence: rawConf,
+    });
+    return ev.assessment;
+  }, [stage, activeProvider.id, extractedData, userCorrections, qualityReport]);
 
   // Revoke object URL on unmount to prevent image blob memory leaks
   useEffect(() => {
@@ -155,6 +171,8 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
   };
 
   const handleFieldChange = (field: keyof ExtractedBillData, value: string | number | boolean | undefined) => {
+    const originalOcr = extractedData[field];
+    setUserCorrections(prev => recordUserCorrection(prev, field as string, value, originalOcr, 'User edited in verification list'));
     setExtractedData(prev => {
       const updated = { ...prev, [field]: value };
       if (field === 'presentReading' || field === 'previousReading') {
@@ -172,6 +190,7 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
     } else {
       try {
         sessionStorage.setItem('billwise_scanned_bill', JSON.stringify(extractedData));
+        sessionStorage.setItem('billwise_user_corrections', JSON.stringify(userCorrections));
       } catch {
         // ignore
       }
@@ -510,6 +529,23 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
                   className="max-h-44"
                 />
               </div>
+            </div>
+          )}
+
+          {/* Trust Assessment Badge Chip */}
+          {trustAssessment && (
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-black/[0.03] border border-black/[0.06] text-xs">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#17C964]" />
+                <span className="font-semibold text-[#17171C]">
+                  {trustAssessment.grade === 'HIGH_CONFIDENCE'
+                    ? (lang === 'ml' ? 'വിശ്വാസ്യത: ഉയർന്നത്' : 'Trust: High Confidence')
+                    : (lang === 'ml' ? 'വിശ്വാസ്യത: നല്ലത്' : 'Trust: Good Confidence')}
+                </span>
+              </div>
+              <span className="text-[11px] text-[#71717A] num-tabular">
+                {(trustAssessment.overallConfidenceScore * 100).toFixed(0)}% verification index
+              </span>
             </div>
           )}
 
