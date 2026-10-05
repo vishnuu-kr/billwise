@@ -95,7 +95,26 @@ export class StorageManager {
       if (!data) {
         return [];
       }
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if (!Array.isArray(parsed)) {
+        this.saveHistory([]);
+        return [];
+      }
+      const validRecords: HistoryRecord[] = parsed.filter((r): r is HistoryRecord => {
+        return (
+          r !== null &&
+          typeof r === 'object' &&
+          typeof r.id === 'string' &&
+          typeof r.consumedUnits === 'number' &&
+          !isNaN(r.consumedUnits) &&
+          isFinite(r.consumedUnits) &&
+          r.consumedUnits >= 0
+        );
+      });
+      if (validRecords.length !== parsed.length) {
+        this.saveHistory(validRecords);
+      }
+      return validRecords;
     } catch {
       return [];
     }
@@ -114,13 +133,18 @@ export class StorageManager {
   }
 
   addRecord(record: Omit<HistoryRecord, 'id' | 'timestamp'>): HistoryRecord {
+    const sanitizedRecord = {
+      ...record,
+      notes: record.notes ? record.notes.slice(0, 500) : undefined,
+      dateLabel: record.dateLabel ? record.dateLabel.slice(0, 50) : 'Current Bill',
+    };
     const records = this.getHistory();
 
     // Section 38: Duplicate detection — Match on dateLabel, consumedUnits, and meterReading
     const existingIndex = records.findIndex(r => {
-      const sameDate = r.dateLabel === record.dateLabel;
-      const sameUnits = r.consumedUnits === record.consumedUnits;
-      const sameReading = record.meterReading === undefined || r.meterReading === record.meterReading;
+      const sameDate = r.dateLabel === sanitizedRecord.dateLabel;
+      const sameUnits = r.consumedUnits === sanitizedRecord.consumedUnits;
+      const sameReading = sanitizedRecord.meterReading === undefined || r.meterReading === sanitizedRecord.meterReading;
       return sameDate && sameUnits && sameReading;
     });
 
@@ -129,17 +153,17 @@ export class StorageManager {
       const existing = records[existingIndex];
       const merged: HistoryRecord = {
         ...existing,
-        ...record,
+        ...sanitizedRecord,
         id: existing.id,
         timestamp: existing.timestamp,
-        actualBill: record.actualBill !== undefined ? record.actualBill : existing.actualBill,
-        predictedBill: record.predictedBill !== undefined ? record.predictedBill : existing.predictedBill,
-        notes: record.notes || existing.notes,
+        actualBill: sanitizedRecord.actualBill !== undefined ? sanitizedRecord.actualBill : existing.actualBill,
+        predictedBill: sanitizedRecord.predictedBill !== undefined ? sanitizedRecord.predictedBill : existing.predictedBill,
+        notes: sanitizedRecord.notes || existing.notes,
       };
       records[existingIndex] = merged;
       this.saveHistory(records);
-      if (record.meterReading) {
-        this.saveLastReading(record.meterReading, record.dateLabel);
+      if (sanitizedRecord.meterReading) {
+        this.saveLastReading(sanitizedRecord.meterReading, sanitizedRecord.dateLabel);
       }
       return merged;
     }
@@ -148,7 +172,7 @@ export class StorageManager {
       calculationEngineVersion: SITE_CONFIG.calculationEngineVersion,
       predictionModelVersion: SITE_CONFIG.predictionModelVersion,
       tariffVersionId: SITE_CONFIG.activeTariffId,
-      ...record,
+      ...sanitizedRecord,
       id: `hist-${Date.now()}`,
       timestamp: new Date().toISOString(),
     };
@@ -200,7 +224,10 @@ export class StorageManager {
     try {
       const data = this.getItem(STORAGE_KEYS.HOME_PROFILE);
       if (!data) return null;
-      const parsed: SavedHomeProfile = JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if (typeof parsed !== 'object' || parsed === null || typeof parsed.id !== 'string') {
+        return null;
+      }
       // Backwards-compatibility: default providerId to 'kseb' for legacy records
       if (!parsed.providerId) {
         parsed.providerId = 'kseb';
@@ -208,7 +235,7 @@ export class StorageManager {
         parsed.providerShortName = 'KSEB';
         parsed.state = 'Kerala';
       }
-      return parsed;
+      return parsed as SavedHomeProfile;
     } catch {
       return null;
     }
@@ -298,12 +325,30 @@ export class StorageManager {
   }
 
   compareTwoCycles(prevRecord: HistoryRecord, currRecord: HistoryRecord): CycleComparisonDetail {
-    const prevUnits = prevRecord.consumedUnits;
-    const currUnits = currRecord.consumedUnits;
+    if (!prevRecord || !currRecord) {
+      return {
+        prevUnits: 0,
+        currUnits: 0,
+        unitsDiff: 0,
+        prevBill: 0,
+        currBill: 0,
+        billDiff: 0,
+        energyImpact: 0,
+        fixedImpact: 0,
+        dutyImpact: 0,
+        subsidyImpact: 0,
+        fuelAndRentImpact: 0,
+        isIncrease: false,
+        percentageChange: 0,
+      };
+    }
+
+    const prevUnits = typeof prevRecord.consumedUnits === 'number' && !isNaN(prevRecord.consumedUnits) ? Math.max(0, prevRecord.consumedUnits) : 0;
+    const currUnits = typeof currRecord.consumedUnits === 'number' && !isNaN(currRecord.consumedUnits) ? Math.max(0, currRecord.consumedUnits) : 0;
     const unitsDiff = currUnits - prevUnits;
 
-    const prevBill = prevRecord.actualBill ?? prevRecord.predictedBill;
-    const currBill = currRecord.actualBill ?? currRecord.predictedBill;
+    const prevBill = prevRecord.actualBill ?? prevRecord.predictedBill ?? 0;
+    const currBill = currRecord.actualBill ?? currRecord.predictedBill ?? 0;
     const billDiff = currBill - prevBill;
 
     // Calculate component breakdowns
@@ -387,7 +432,18 @@ export class StorageManager {
     };
     try {
       const data = this.getItem(STORAGE_KEYS.BUDGET);
-      return data ? JSON.parse(data) : defaultBudget;
+      if (!data) return defaultBudget;
+      const parsed = JSON.parse(data);
+      if (
+        typeof parsed !== 'object' ||
+        parsed === null ||
+        typeof parsed.monthlyTargetRupees !== 'number' ||
+        isNaN(parsed.monthlyTargetRupees) ||
+        parsed.monthlyTargetRupees <= 0
+      ) {
+        return defaultBudget;
+      }
+      return parsed;
     } catch {
       return defaultBudget;
     }

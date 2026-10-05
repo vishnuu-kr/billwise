@@ -165,6 +165,7 @@ export interface PredictionInput {
   phase?: Phase;
   billingCycle?: BillingCycle;
   connectedLoadWatts?: number;
+  providerId?: string;
 }
 
 export interface PredictionResult {

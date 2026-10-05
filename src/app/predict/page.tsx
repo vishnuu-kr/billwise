@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { predictUsage } from '@/lib/prediction/engine';
 import { storageManager } from '@/lib/storage';
-import { PredictionResult, SavedHomeProfile } from '@/types';
+import { PredictionResult, SavedHomeProfile, BillingCycle } from '@/types';
 import MeterVisualGuide from '@/components/MeterVisualGuide';
 import ResultCard from '@/components/ResultCard';
 import CardSkeleton from '@/components/CardSkeleton';
@@ -25,7 +25,12 @@ function PredictContent() {
   const [prevReading, setPrevReading] = useState<number | null>(null);
   const [currentReading, setCurrentReading] = useState<string>('');
   const [daysElapsed, setDaysElapsed] = useState<number>(DEFAULT_DAYS);
-  const totalCycleDays = 60;
+  
+  const providerParam = searchParams.get('provider') || searchParams.get('providerId') || 'kseb';
+  const isMonthlyProvider = providerParam === 'bescom' || providerParam === 'msedcl';
+  const totalCycleDays = isMonthlyProvider ? 30 : 60;
+  const billingCycle: BillingCycle = isMonthlyProvider ? 'monthly' : 'bi-monthly';
+
   const [phase, setPhase] = useState<'single' | 'three'>('single');
   const [previousBillAmount, setPreviousBillAmount] = useState<number | undefined>(undefined);
   
@@ -40,7 +45,7 @@ function PredictContent() {
 
   const handleApplyDateRange = (range: Range) => {
     setSelectedDateRange(range);
-    const diff = Math.min(60, Math.max(1, daysBetween(range.start, range.end) + 1));
+    const diff = Math.min(totalCycleDays, Math.max(1, daysBetween(range.start, range.end) + 1));
     setDaysElapsed(diff);
     runCalculation(prevReading, currentReading, diff, isMeterReplaced, phase);
     setShowCalendarModal(false);
@@ -56,16 +61,17 @@ function PredictContent() {
     setValidationError(null);
     setIsLowerError(false);
 
-    const curr = Number(currStr);
-    const hasCurrent = currStr.trim() !== '' && !isNaN(curr);
+    const sanitizedCurr = currStr.replace(/[₹\s,]/g, '');
+    const curr = Number(sanitizedCurr);
+    const hasCurrent = sanitizedCurr.trim() !== '' && !isNaN(curr);
 
     if (prev === null) {
       // Only nag about the previous reading once the user has started typing a current one
       if (hasCurrent) {
         setValidationError(
           lang === 'ml'
-            ? 'കഴിഞ്ഞ KSEB ബില്ലിലെ റീഡിംഗ് ആദ്യം നൽകുക.'
-            : 'Enter the reading from your last KSEB bill first.'
+            ? 'കഴിഞ്ഞ ബില്ലിലെ റീഡിംഗ് ആദ്യം നൽകുക.'
+            : 'Enter the reading from your last bill first.'
         );
       }
       setPrediction(null);
@@ -89,8 +95,9 @@ function PredictContent() {
         currentReading: curr,
         daysElapsed: days,
         totalCycleDays,
-        billingCycle: 'bi-monthly',
+        billingCycle,
         phase: selectedPhase,
+        providerId: providerParam,
       });
 
       setPrediction(res);
@@ -98,7 +105,7 @@ function PredictContent() {
       setValidationError((e as Error).message || 'Error occurred calculating prediction.');
       setPrediction(null);
     }
-  }, [totalCycleDays, lang]);
+  }, [totalCycleDays, billingCycle, providerParam, lang]);
 
   const [isBaselineSaved, setIsBaselineSaved] = useState<boolean>(false);
 
@@ -290,10 +297,10 @@ function PredictContent() {
           </div>
           <input
             id="prev-reading-input"
-            type="number"
+            type="text"
             inputMode="numeric"
             value={prevReading !== null ? prevReading : ''}
-            onChange={e => handlePrevChange(e.target.value ? Number(e.target.value) : null)}
+            onChange={e => handlePrevChange(e.target.value ? Number(e.target.value.replace(/[₹\s,]/g, '')) : null)}
             placeholder="10055"
             className="w-full h-12 rounded-xl bg-[#F7F7F5] px-3.5 font-semibold text-xl num-tabular text-[#17171C] border border-black/[0.08] outline-none focus:border-[#006FEE] focus:bg-white transition-all"
           />
@@ -316,7 +323,7 @@ function PredictContent() {
           </div>
           <input
             id="curr-reading-input"
-            type="number"
+            type="text"
             inputMode="numeric"
             value={currentReading}
             onChange={e => handleCurrentChange(e.target.value)}

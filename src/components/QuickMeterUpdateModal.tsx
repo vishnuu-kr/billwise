@@ -51,11 +51,13 @@ export default function QuickMeterUpdateModal({
     return Math.min(58, Math.max(1, diffDays));
   }, [home.lastReadingDate]);
 
-  const numReading = Number(readingInput);
-  const isComplete = readingInput.length === 5;
-  const isValidNumber = isComplete && !isNaN(numReading) && numReading > 0;
+  const cleanedReading = readingInput.replace(/[^0-9]/g, '');
+  const numReading = Number(cleanedReading);
+  const isComplete = cleanedReading.length >= 1 && cleanedReading.length <= 8;
+  const isValidNumber = isComplete && !isNaN(numReading) && numReading >= 0;
 
-  const numPrev = prevReadingInput.trim() !== '' ? Number(prevReadingInput) : null;
+  const cleanedPrev = prevReadingInput.replace(/[^0-9]/g, '');
+  const numPrev = cleanedPrev !== '' ? Number(cleanedPrev) : null;
   const effectivePrev = hasBaseline ? home.lastReading : (numPrev !== null && !isNaN(numPrev) ? numPrev : null);
 
   const isHigherThanLast = isValidNumber && effectivePrev !== null && numReading >= effectivePrev;

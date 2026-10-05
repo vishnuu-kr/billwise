@@ -53,6 +53,7 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
   const [rotationAngle, setRotationAngle] = useState<number>(0);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [qualityReport, setQualityReport] = useState<ImageQualityReport | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Revoke object URL on unmount to prevent image blob memory leaks
   useEffect(() => {
@@ -71,6 +72,7 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
   ];
 
   const handleFileProcess = async (file: File) => {
+    setErrorMessage(null);
     setStage('reading');
     setReadingStep(0);
     setQualityReport(null);
@@ -105,10 +107,13 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
         setQualityReport(result.qualityReport);
       }
       setStage('verify');
-    } catch {
+    } catch (err: unknown) {
       clearInterval(stepInterval);
-      setExtractedData(SAMPLE_KSEB_REFERENCE_BILL);
-      setStage('verify');
+      const msg = (err as Error).message || (lang === 'ml'
+        ? 'ബിൽ വായിക്കാൻ കഴിഞ്ഞില്ല. ചിത്രം വ്യക്തമാണെന്ന് ഉറപ്പാക്കുക അല്ലെങ്കിൽ നേരിട്ട് റീഡിംഗ് നൽകുക.'
+        : 'Could not read bill from this file. Please take a clearer photo or enter readings manually.');
+      setErrorMessage(msg);
+      setStage('upload');
     }
   };
 
@@ -157,7 +162,7 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
         // ignore
       }
       router.push(
-        `/predict?prevReading=${extractedData.presentReading}&prevBill=${extractedData.totalAmount}&phase=${extractedData.phase}&load=${extractedData.connectedLoadWatts}`
+        `/predict?provider=${activeProvider.id}&prevReading=${extractedData.presentReading}&prevBill=${extractedData.totalAmount}&phase=${extractedData.phase}&load=${extractedData.connectedLoadWatts}`
       );
     }
   };
@@ -184,6 +189,12 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
       {/* STAGE 1: CAMERA SCREEN (Section 31) */}
       {stage === 'upload' && (
         <div className="space-y-4">
+          {errorMessage && (
+            <div className="flex items-center gap-2 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-[13px] text-rose-800">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
           <div className="relative w-full rounded-3xl bg-[#121316] p-5 sm:p-6 flex flex-col text-white shadow-xl">
             {/* Instruction Overlay */}
             <div className="text-center pb-3">
@@ -357,7 +368,7 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
               </h2>
             </div>
             <div className="flex items-center gap-2">
-              {!previewUrl && (
+              {!previewUrl && extractedData.isSupportedBillType !== false && activeProvider.coverageStatus === 'FULL' && (
                 <RubberStamp text={`${activeProvider.shortName} VERIFIED`} subtext="OCR MATCH" color="emerald" className="scale-90 origin-right" />
               )}
               <button
@@ -410,9 +421,11 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
           {/* Document Preview Thumbnail */}
           {previewUrl && (
             <div className="relative rounded-[var(--radius-md)] bg-[var(--surface-secondary)] border border-[var(--border)] p-3 text-center overflow-hidden">
-              <div className="absolute top-2 right-2 z-10 pointer-events-none">
-                <RubberStamp text="KSERC 24-25" subtext="OCR VERIFIED" color="emerald" />
-              </div>
+              {extractedData.isSupportedBillType !== false && activeProvider.coverageStatus === 'FULL' && (
+                <div className="absolute top-2 right-2 z-10 pointer-events-none">
+                  <RubberStamp text={`${activeProvider.regulatorId.toUpperCase()} 24-25`} subtext="OCR VERIFIED" color="emerald" />
+                </div>
+              )}
               <div className="flex justify-between items-center text-[12px] text-[var(--secondary)] pb-1.5">
                 <span>{lang === 'ml' ? 'ബിൽ ചിത്രം' : 'Bill image'}</span>
                 <div className="flex items-center gap-3">

@@ -1,5 +1,6 @@
 import { PredictionInput, PredictionResult } from '@/types';
 import { calculateBill, calculateConsumedUnits } from '@/lib/calculation/engine';
+import { calculateUniversalBill } from '@/lib/electricity/engine/universalEngine';
 import { SITE_CONFIG } from '@/lib/config/site';
 
 /**
@@ -8,8 +9,17 @@ import { SITE_CONFIG } from '@/lib/config/site';
  * never AI guessing or fake precision.
  */
 export function predictUsage(input: PredictionInput): PredictionResult {
+  if (input.previousReading !== undefined && (isNaN(input.previousReading) || input.previousReading < 0)) {
+    throw new Error('Previous reading cannot be negative or invalid.');
+  }
+  if (input.currentReading !== undefined && (isNaN(input.currentReading) || input.currentReading < 0)) {
+    throw new Error('Current reading cannot be negative or invalid.');
+  }
+
   const isBiMonthly = (input.billingCycle ?? 'bi-monthly') === 'bi-monthly';
-  const totalCycleDays = input.totalCycleDays || (isBiMonthly ? 60 : 30);
+  const totalCycleDays = (input.totalCycleDays && input.totalCycleDays > 0)
+    ? input.totalCycleDays
+    : (isBiMonthly ? 60 : 30);
   const daysElapsed = Math.max(1, Math.min(input.daysElapsed, totalCycleDays));
   const daysRemaining = Math.max(0, totalCycleDays - daysElapsed);
 
@@ -75,7 +85,30 @@ export function predictUsage(input: PredictionInput): PredictionResult {
       : 'Early estimate — accuracy will improve after a few more days of meter readings.';
   }
 
-  // Calculate deterministic bill for the projected consumption
+  // Calculate bill for the projected consumption
+  const computeBillAmount = (units: number): number => {
+    if (input.providerId && input.providerId !== 'kseb') {
+      try {
+        const uRes = calculateUniversalBill({
+          providerId: input.providerId,
+          units,
+          billingCycle: isBiMonthly ? 'BIMONTHLY' : 'MONTHLY',
+          phase: input.phase || 'single',
+          connectedLoadKw: input.connectedLoadWatts ? Math.round(input.connectedLoadWatts / 100) / 10 : 1,
+        });
+        return uRes.total;
+      } catch {
+        // Fall back to standard tariff engine if universal engine not initialized for provider
+      }
+    }
+    return calculateBill({
+      units,
+      billingCycle: input.billingCycle ?? 'bi-monthly',
+      phase: input.phase ?? 'single',
+      connectedLoadWatts: input.connectedLoadWatts ?? 982,
+    }).total;
+  };
+
   const calculatedBillResult = calculateBill({
     units: projectedUnits,
     billingCycle: input.billingCycle ?? 'bi-monthly',
@@ -83,7 +116,7 @@ export function predictUsage(input: PredictionInput): PredictionResult {
     connectedLoadWatts: input.connectedLoadWatts ?? 982,
   });
 
-  const estimatedBill = calculatedBillResult.total;
+  const estimatedBill = computeBillAmount(projectedUnits);
 
   // Calculate realistic range based on variance & days elapsed
   // Early in cycle -> ±10-15%, late in cycle -> ±3-5%
@@ -93,19 +126,8 @@ export function predictUsage(input: PredictionInput): PredictionResult {
   const minUnits = Math.max(0, projectedUnits - rangeMarginUnits);
   const maxUnits = projectedUnits + rangeMarginUnits;
 
-  const minBillResult = calculateBill({
-    units: minUnits,
-    billingCycle: input.billingCycle ?? 'bi-monthly',
-    phase: input.phase ?? 'single',
-    connectedLoadWatts: input.connectedLoadWatts ?? 982,
-  });
-
-  const maxBillResult = calculateBill({
-    units: maxUnits,
-    billingCycle: input.billingCycle ?? 'bi-monthly',
-    phase: input.phase ?? 'single',
-    connectedLoadWatts: input.connectedLoadWatts ?? 982,
-  });
+  const minBillTotal = computeBillAmount(minUnits);
+  const maxBillTotal = computeBillAmount(maxUnits);
 
   // Calculate approaching higher band / slab warning
   // Key KSEB thresholds: 80, 160, 200, 240 (subsidy cliff!), 250, 300, 500 (non-telescopic cliff!)
@@ -185,8 +207,8 @@ export function predictUsage(input: PredictionInput): PredictionResult {
     unitsPerDay,
     projectedUnits,
     estimatedBill,
-    likelyRangeMin: minBillResult.total,
-    likelyRangeMax: maxBillResult.total,
+    likelyRangeMin: minBillTotal,
+    likelyRangeMax: maxBillTotal,
     confidence,
     confidenceReason,
     approachingSlab,

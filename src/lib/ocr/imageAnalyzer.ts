@@ -17,6 +17,38 @@ export interface ImageQualityReport {
  */
 export async function analyzeImageQuality(file: File): Promise<ImageQualityReport> {
   return new Promise((resolve) => {
+    // Environment safety guard (Node.js test or SSR environment)
+    if (typeof window === 'undefined' || typeof Image === 'undefined' || typeof URL === 'undefined' || typeof URL.createObjectURL === 'undefined') {
+      resolve({ isAcceptable: true, isBlurry: false, isDark: false, brightness: 128, contrastScore: 50 });
+      return;
+    }
+
+    // Empty file validation
+    if (file.size === 0) {
+      resolve({
+        isAcceptable: false,
+        isBlurry: false,
+        isDark: false,
+        brightness: 0,
+        contrastScore: 0,
+        recommendation: 'File is empty (0 bytes). Please upload a valid bill photo or document.',
+      });
+      return;
+    }
+
+    // Oversized file guard
+    if (file.size > 25 * 1024 * 1024) {
+      resolve({
+        isAcceptable: false,
+        isBlurry: false,
+        isDark: false,
+        brightness: 128,
+        contrastScore: 50,
+        recommendation: 'File exceeds 25MB. Please upload a smaller compressed image.',
+      });
+      return;
+    }
+
     // If not an image file (e.g. PDF), skip optical check
     if (!file.type.startsWith('image/')) {
       resolve({
