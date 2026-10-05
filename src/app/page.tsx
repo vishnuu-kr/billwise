@@ -22,11 +22,7 @@ import ProductPreviewCard from '@/components/ProductPreviewCard';
 import ManglishQueryBar from '@/components/ManglishQueryBar';
 import CycleComparisonCard from '@/components/CycleComparisonCard';
 import { KsebOdometer } from '@/components/ui/KsebOdometer';
-
-import BillAutopsyWidget from '@/components/BillAutopsyWidget';
-import CliffRecoveryPlan from '@/components/CliffRecoveryPlan';
-import CliffCalendarAlarm from '@/components/CliffCalendarAlarm';
-import { calculateBill } from '@/lib/calculation/engine';
+import { cn } from '@/lib/cn';
 
 const QuickMeterUpdateModal = dynamic(() => import('@/components/QuickMeterUpdateModal'), { ssr: false });
 const ActualBillModal = dynamic(() => import('@/components/ActualBillModal'), { ssr: false });
@@ -57,6 +53,10 @@ export default function HomePage() {
     setSavedHome(home);
     setHistory(hist);
 
+    const isFirstTime = !home && hist.length === 0 && !storageManager.isOnboardingCompleted();
+    if (isFirstTime) {
+      setShowOnboarding(true);
+    }
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const mode = params.get('mode');
@@ -123,11 +123,6 @@ export default function HomePage() {
   const totalCycleDays = savedHome?.billingCycle === 'monthly' ? 30 : 60;
   const cycleDaysRemaining = Math.max(0, totalCycleDays - cycleDaysElapsed);
 
-  // Danger Window vs Calm Zone calculations
-  const isDangerWindow = cycleDaysElapsed >= 40 && cycleDaysElapsed <= 52;
-  const isCalmZone = cycleDaysElapsed < 40;
-  const daysUntilDangerWindow = Math.max(0, 42 - cycleDaysElapsed);
-
   // Cycle comparison if 2+ records exist in history
   const recentComparison: CycleComparisonDetail | null = useMemo(() => {
     if (history.length >= 2) {
@@ -145,33 +140,49 @@ export default function HomePage() {
   const rangeMax = savedHome?.latestPrediction?.likelyRangeMax;
   const unitsPerDay = savedHome?.latestPrediction?.unitsPerDay;
   const projectedUnits = savedHome?.latestPrediction?.projectedUnits;
-  const isCliffRisk = (projectedUnits || 0) > 240;
 
   // Last bill difference
   const lastBillAmount = savedHome?.lastBillAmount;
   const billDiff = estimatedBill && lastBillAmount ? estimatedBill - lastBillAmount : null;
 
-  const handleRecoveryPlanApplied = (rescuedUnits: number) => {
-    if (savedHome && savedHome.latestPrediction) {
-      const recalculated = calculateBill({
-        units: rescuedUnits,
-        phase: savedHome.phase,
-        billingCycle: savedHome.billingCycle,
-      });
-      const updated: SavedHomeProfile = {
-        ...savedHome,
-        latestPrediction: {
-          ...savedHome.latestPrediction,
-          projectedUnits: rescuedUnits,
-          estimatedBill: recalculated.total,
-          likelyRangeMin: Math.round(recalculated.total * 0.96),
-          likelyRangeMax: Math.round(recalculated.total * 1.05),
-        },
-      };
-      storageManager.saveHome(updated);
-      setSavedHome(updated);
+  // Real-time Home Slab Status
+  const homeSlabStatus = useMemo(() => {
+    if (!projectedUnits) return null;
+    if (savedHome?.billingCycle === 'monthly') {
+      if (projectedUnits > 250) {
+        return {
+          type: 'danger' as const,
+          label: lang === 'ml' ? 'നോൺ-ടെലിസ്കോപ്പിക്' : '>250u High Tier',
+        };
+      }
+      if (projectedUnits > 125) {
+        return {
+          type: 'warning' as const,
+          label: lang === 'ml' ? 'ഉയർന്ന സ്ലാബ്' : '>125u Next Slab',
+        };
+      }
+    } else {
+      if (projectedUnits > 500) {
+        return {
+          type: 'danger' as const,
+          label: lang === 'ml' ? 'നോൺ-ടെലിസ്കോപ്പിക്' : '>500u Non-Telescopic',
+        };
+      }
+      if (projectedUnits > 240) {
+        return {
+          type: 'warning' as const,
+          label: lang === 'ml' ? '240u സബ്‌സിഡി കടന്നു' : '>240u Subsidy Cliff',
+        };
+      }
+      if (projectedUnits >= 200 && projectedUnits <= 240) {
+        return {
+          type: 'success' as const,
+          label: lang === 'ml' ? '240u പരിധിക്കുള്ളിൽ' : '<=240u Subsidized',
+        };
+      }
     }
-  };
+    return null;
+  }, [projectedUnits, savedHome?.billingCycle, lang]);
 
   return (
     <div className="relative max-w-[430px] mx-auto px-4 pt-3 pb-6 space-y-5">
@@ -190,58 +201,26 @@ export default function HomePage() {
                 {lang === 'ml' ? 'നിങ്ങളുടെ വൈദ്യുതി' : 'Your electricity'}
               </h1>
             </div>
-            <span className="text-[11px] font-semibold text-[#006FEE] bg-[#006FEE]/10 border border-[#006FEE]/15 px-2.5 py-1 rounded-full">
-              {savedHome?.providerShortName || 'KSEB'} · {savedHome?.tariff || 'LT-1A'}
-            </span>
+            <div className="flex items-center gap-1.5">
+              {homeSlabStatus && (
+                <span
+                  className={cn(
+                    'text-[10px] font-bold px-2 py-0.5 rounded-full border',
+                    homeSlabStatus.type === 'danger'
+                      ? 'bg-[#F31260]/10 border-[#F31260]/25 text-[#900B37]'
+                      : homeSlabStatus.type === 'warning'
+                      ? 'bg-[#F5A524]/12 border-[#F5A524]/30 text-[#935303]'
+                      : 'bg-[#17C964]/10 border-[#17C964]/25 text-[#0E7036]'
+                  )}
+                >
+                  {homeSlabStatus.label}
+                </span>
+              )}
+              <span className="text-[11px] font-semibold text-[#006FEE] bg-[#006FEE]/10 border border-[#006FEE]/15 px-2.5 py-1 rounded-full">
+                {savedHome?.providerShortName || 'KSEB'} · {savedHome?.tariff || 'LT-1A'}
+              </span>
+            </div>
           </div>
-
-          {/* -- High Urgency Danger Window Banner -- */}
-          {isDangerWindow && (
-            <div className="p-4 rounded-2xl bg-[#E11D48]/10 border border-[#E11D48]/25 space-y-2.5 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-[#E11D48] uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#E11D48] animate-ping" />
-                  {lang === 'ml' ? 'ഡെയ്ഞ്ചർ വിൻഡോ സജീവം (ഡേ 42)' : '⚠️ Danger Window Active (Day 42)'}
-                </span>
-                <span className="text-[11px] font-semibold text-[#E11D48] num-tabular">
-                  {cycleDaysRemaining}d remaining
-                </span>
-              </div>
-              <p className="text-[12px] text-[#17171C] leading-relaxed">
-                {lang === 'ml'
-                  ? `സൈക്കിൾ തീരാൻ ${cycleDaysRemaining} ദിവസം മാത്രം. 240 യൂണിറ്റ് സബ്സിഡി നഷ്ടപ്പെടാതിരിക്കാൻ ഇപ്പോൾ മീറ്റർ റീഡിംഗ് രേഖപ്പെടുത്തൂ.`
-                  : `Only ${cycleDaysRemaining} days left in your cycle. Update your meter now to protect your ₹148 subsidy before it's too late.`}
-              </p>
-              <button
-                type="button"
-                onClick={() => setShowQuickUpdate(true)}
-                className="w-full py-2.5 px-3 rounded-xl bg-[#E11D48] hover:bg-[#c9143c] text-white text-[13px] font-bold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition-all"
-              >
-                <Gauge className="w-4 h-4 shrink-0" />
-                <span>{lang === 'ml' ? 'റീഡിംഗ് നൽകി സബ്സിഡി സംരക്ഷിക്കാം' : 'Check Reading in 5s →'}</span>
-              </button>
-            </div>
-          )}
-
-          {/* -- Safe Zone Status (No checks needed) -- */}
-          {isCalmZone && (
-            <div className="p-3.5 rounded-2xl bg-[#17C964]/10 border border-[#17C964]/20 flex items-center justify-between text-[12px]">
-              <div className="flex items-center gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-[#0E7036] shrink-0" />
-                <div>
-                  <span className="font-bold text-[#0E7036] block">
-                    {lang === 'ml' ? 'സുരക്ഷിതമായ സമയം — മീറ്റർ നോക്കേണ്ടതില്ല' : 'Safe Zone — No checks needed'}
-                  </span>
-                  <span className="text-[#71717A] text-[11px]">
-                    {lang === 'ml'
-                      ? `ഡെയ്ഞ്ചർ വിൻഡോയിലേക്ക് ഇനിയും ${daysUntilDangerWindow} ദിവസമുണ്ട്.`
-                      : `Next check in ${daysUntilDangerWindow} days (Day 42).`}
-                  </span>
-                </div>
-              </div>
-              <CliffCalendarAlarm compact cycleStartDate={savedHome?.lastReadingDate ? new Date(savedHome.lastReadingDate) : undefined} />
-            </div>
-          )}
 
           {/* -- Dominant Next Bill Card (iOS Utility Clean) -- */}
           <div className="rounded-[24px] bg-white border border-black/[0.06] p-5 sm:p-6 space-y-4 shadow-sm relative overflow-hidden">
@@ -363,18 +342,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* -- Prescriptive Cliff Recovery Plan (If trending over 240u) -- */}
-          {isCliffRisk && projectedUnits && (
-            <div className="pt-1">
-              <CliffRecoveryPlan
-                currentProjectedUnits={projectedUnits}
-                daysRemaining={cycleDaysRemaining}
-                phase={savedHome?.phase}
-                onPlanApplied={handleRecoveryPlanApplied}
-              />
-            </div>
-          )}
-
           {/* -- "What Changed?" Recent Cycle Comparison (if available) -- */}
           {recentComparison && (
             <div className="pt-1">
@@ -392,57 +359,69 @@ export default function HomePage() {
            EXPERIENCE B: FIRST-TIME USER (NEW VISITOR)
            --------------------------------------------------------- */
         <div className="space-y-5 animate-fade-in">
-          {/* Day-1 Instant Hook: Bill Autopsy & Cliff Protection */}
-          <BillAutopsyWidget onProtected={() => loadData()} />
-
-          {/* Alternative Quick Actions */}
-          <div className="space-y-2.5 pt-1">
-            <span className="text-[12px] font-bold text-[#71717A] uppercase tracking-wider block px-1">
-              {lang === 'ml' ? 'മറ്റ് വഴികൾ' : 'Alternative Options'}
-            </span>
-
-            {/* Quick Setup Card */}
-            <button
-              type="button"
-              onClick={() => setShowOnboarding(true)}
-              className="w-full text-left p-3.5 rounded-2xl bg-white border border-black/[0.08] hover:border-[#006FEE]/40 transition-all cursor-pointer shadow-2xs group flex items-center justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#006FEE]/10 flex items-center justify-center text-[#006FEE] group-hover:scale-105 transition-transform shrink-0">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="text-[13px] font-bold text-[#17171C] block">
-                    {lang === 'ml' ? '30 സെക്കൻഡിൽ വീട് സജ്ജീകരിക്കാം' : 'Full Guided Home Setup'}
-                  </span>
-                  <span className="text-[11px] text-[#71717A] block">
-                    {lang === 'ml' ? 'താരിഫും ആദ്യ റീഡിംഗും ചേർക്കുക' : 'Configure tariff, phase, and initial meter reading'}
-                  </span>
-                </div>
-              </div>
-              <ArrowRight className="w-4 h-4 text-[#71717A] group-hover:text-[#006FEE] group-hover:translate-x-0.5 transition-all shrink-0" />
-            </button>
-
-            {/* Scan or Enter Units */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <Link
-                href="/scan"
-                onClick={() => analytics.track('flow_started', { flow: 'bill_ocr' })}
-                className="ios-btn-secondary w-full py-3 px-3 flex items-center justify-center gap-2 rounded-2xl text-[13px] font-semibold text-[#17171C] border border-black/[0.08] shadow-2xs active:scale-[0.97]"
-              >
-                <Camera className="w-4 h-4 shrink-0 text-[#71717A]" />
-                <span>{lang === 'ml' ? 'ബിൽ സ്കാൻ ചെയ്യാം' : 'Scan Bill →'}</span>
-              </Link>
-
-              <Link
-                href="/manual"
-                onClick={() => analytics.track('flow_started', { flow: 'direct_units' })}
-                className="ios-btn-secondary w-full py-3 px-3 flex items-center justify-center gap-2 rounded-2xl text-[13px] font-semibold text-[#17171C] border border-black/[0.08] shadow-2xs active:scale-[0.97]"
-              >
-                <Gauge className="w-4 h-4 shrink-0 text-[#71717A]" />
-                <span>{lang === 'ml' ? 'യൂണിറ്റ് നൽകുക' : 'Enter Units →'}</span>
-              </Link>
+          {/* Header Metadata & Confident Headline */}
+          <div className="space-y-2 pt-1 text-center sm:text-left">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#006FEE]/10 text-[#006FEE] border border-[#006FEE]/15 text-[11px] font-semibold tracking-wide uppercase mx-auto sm:mx-0 shadow-2xs">
+              <Sparkles className="w-3 h-3 text-[#006FEE]" />
+              <span>{lang === 'ml' ? 'KSEB · കേരളം' : 'KSEB Kerala · Domestic LT-1A'}</span>
             </div>
+
+            <h1 className="text-[34px] sm:text-[38px] font-bold tracking-tight text-[#111116] leading-[1.12]">
+              {lang === 'ml' ? (
+                <>ബിൽ വരുന്നതിനു<br />മുൻപ് അറിയൂ.</>
+              ) : (
+                <>Know your bill<br />before it arrives.</>
+              )}
+            </h1>
+
+            <p className="text-[14px] text-[#71717A] leading-relaxed max-w-sm mx-auto sm:mx-0">
+              {lang === 'ml'
+                ? 'ഒരു തവണ നോക്കൂ. എത്ര തുക വരുമെന്ന് മുൻകൂട്ടി അറിയാം.'
+                : "One quick check. Know what you're likely to pay."}
+            </p>
+          </div>
+
+          {/* Quick Setup Card for First-Time Users */}
+          <button
+            type="button"
+            onClick={() => setShowOnboarding(true)}
+            className="w-full text-left p-4 rounded-2xl bg-gradient-to-br from-[#006FEE]/10 via-[#006FEE]/5 to-transparent border border-[#006FEE]/25 hover:border-[#006FEE]/50 transition-all cursor-pointer shadow-2xs group flex items-center justify-between active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#006FEE] flex items-center justify-center text-white shadow-xs group-hover:scale-105 transition-transform shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[14px] font-bold text-[#17171C] block">
+                  {lang === 'ml' ? '30 സെക്കൻഡിൽ വീട് സജ്ജീകരിക്കാം' : 'Set up your home in 30s'}
+                </span>
+                <span className="text-[12px] text-[#71717A] block">
+                  {lang === 'ml' ? 'താരിഫും ആദ്യ റീഡിംഗും ചേർക്കുക' : 'Guided setup for first-time visitors'}
+                </span>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-[#006FEE] group-hover:translate-x-0.5 transition-transform shrink-0" />
+          </button>
+
+          {/* Primary & Secondary Native Actions */}
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 pt-1">
+            <Link
+              href="/scan"
+              onClick={() => analytics.track('flow_started', { flow: 'bill_ocr' })}
+              className="ios-btn-primary w-full py-3.5 px-3 flex items-center justify-center gap-2 rounded-2xl text-[14px] font-semibold shadow-sm active:scale-[0.97]"
+            >
+              <Camera className="w-4 h-4 shrink-0" />
+              <span>{lang === 'ml' ? 'ബിൽ സ്കാൻ ചെയ്യാം' : 'Scan bill →'}</span>
+            </Link>
+
+            <Link
+              href="/manual"
+              onClick={() => analytics.track('flow_started', { flow: 'direct_units' })}
+              className="ios-btn-secondary w-full py-3.5 px-3 flex items-center justify-center gap-2 rounded-2xl text-[14px] font-semibold text-[#17171C] active:scale-[0.97]"
+            >
+              <Gauge className="w-4 h-4 shrink-0 text-[#71717A]" />
+              <span>{lang === 'ml' ? 'യൂണിറ്റ് നൽകുക' : 'Enter units →'}</span>
+            </Link>
           </div>
 
           {/* Privacy Guarantee Reassurance */}

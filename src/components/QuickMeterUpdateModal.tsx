@@ -6,10 +6,20 @@ import { storageManager } from '@/lib/storage';
 import { SavedHomeProfile } from '@/types';
 import { predictUsage } from '@/lib/prediction/engine';
 import { analytics } from '@/lib/observability/analytics';
-import { Camera, X, Check, AlertCircle, Gauge } from 'lucide-react';
+import {
+  Camera,
+  X,
+  Check,
+  AlertCircle,
+  Gauge,
+  AlertTriangle,
+  ShieldCheck,
+} from 'lucide-react';
 import MeterScanner from '@/components/MeterScanner';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { KsebOdometer } from '@/components/ui/KsebOdometer';
+import { MeterTumblerInput } from '@/components/ui/MeterTumblerInput';
+import { cn } from '@/lib/cn';
 
 interface QuickMeterUpdateModalProps {
   home: SavedHomeProfile;
@@ -68,6 +78,62 @@ export default function QuickMeterUpdateModal({
     }
   }, [home, numReading, isHigherThanLast, effectivePrev, unitsSinceLast, daysElapsedSinceLastReading]);
 
+  // Real-time Slab Cliff & Subsidy Threshold Detection
+  const slabStatus = useMemo(() => {
+    if (!quickPrediction) return null;
+    const proj = quickPrediction.projectedUnits;
+    if (home.billingCycle === 'monthly') {
+      if (proj > 250) {
+        return {
+          type: 'danger' as const,
+          title: lang === 'ml' ? 'നോൺ-ടെലിസ്കോപ്പിക് താരിഫ് മുന്നറിയിപ്പ്' : 'Non-Telescopic High Tariff Warning',
+          desc: lang === 'ml'
+            ? `പ്രതീക്ഷിക്കുന്നത് ~${proj} യൂണിറ്റ്. 250 യൂണിറ്റിന് മുകളിലുള്ള ഉപയോഗത്തിന് ഉയർന്ന നോൺ-ടെലിസ്കോപ്പിക് നിരക്ക് ബാധകമാകും.`
+            : `Pacing ~${proj} units. Passing 250 units shifts your bill into non-telescopic high rates.`,
+        };
+      }
+      if (proj > 120 && proj <= 125) {
+        return {
+          type: 'warning' as const,
+          title: lang === 'ml' ? 'സ്ലാബ് പരിധി അടുക്കുന്നു' : 'Approaching Slab Cliff',
+          desc: lang === 'ml'
+            ? `~${proj} യൂണിറ്റ്. 125 യൂണിറ്റ് കഴിഞ്ഞാൽ അടുത്ത ഉയർന്ന സ്ലാബ് നിരക്ക് ബാധകമാകും.`
+            : `~${proj} units projected. Exceeding 125 units jumps to the next higher slab.`,
+        };
+      }
+    } else {
+      // Bi-monthly (standard KSEB LT-1A)
+      if (proj > 500) {
+        return {
+          type: 'danger' as const,
+          title: lang === 'ml' ? '500u നോൺ-ടെലിസ്കോപ്പിക് മുന്നറിയിപ്പ്' : '500u Non-Telescopic Cliff Warning',
+          desc: lang === 'ml'
+            ? `പ്രതീക്ഷിക്കുന്നത് ~${proj} യൂണിറ്റ്. 500 യൂണിറ്റ് കഴിഞ്ഞാൽ മുഴുവൻ യൂണിറ്റുകൾക്കും ഉയർന്ന നോൺ-ടെലിസ്കോപ്പിക് നിരക്ക് വരും.`
+            : `Projecting ~${proj} units. Passing 500 units drops telescopic slabs and applies higher non-telescopic rates across all units.`,
+        };
+      }
+      if (proj > 240 && proj <= 270) {
+        return {
+          type: 'warning' as const,
+          title: lang === 'ml' ? '240 യൂണിറ്റ് സബ്‌സിഡി പരിധി കടന്നു' : 'Crossed 240u Subsidy Cliff',
+          desc: lang === 'ml'
+            ? `പ്രതീക്ഷിക്കുന്നത് ~${proj} യൂണിറ്റ്. 240 യൂണിറ്റ് കഴിഞ്ഞതിനാൽ ₹5.90/u ഉയർന്ന സ്ലാബും +₹50 അധിക ഫിക്സഡ് ചാർജും വരും.`
+            : `Pacing ~${proj} units. Above 240 units, energy charges jump to ₹5.90/u and fixed charge increases by +₹50.`,
+        };
+      }
+      if (proj >= 210 && proj <= 240) {
+        return {
+          type: 'success' as const,
+          title: lang === 'ml' ? '240 യൂണിറ്റ് പരിധിക്കുള്ളിൽ' : 'Within 240u Subsidy Threshold',
+          desc: lang === 'ml'
+            ? `പ്രതീക്ഷിക്കുന്നത് ~${proj} യൂണിറ്റ്. നിലവിലെ വേഗതയിൽ 240 യൂണിറ്റിന് താഴെ നിലനിർത്താൻ സാധിക്കും.`
+            : `Projecting ~${proj} units. You are on track to stay within the subsidized lower tier (<= 240 units).`,
+        };
+      }
+    }
+    return null;
+  }, [quickPrediction, home.billingCycle, lang]);
+
   const handleSave = () => {
     setErrorMsg(null);
     if (!isValidNumber) {
@@ -109,6 +175,12 @@ export default function QuickMeterUpdateModal({
         unitsSinceLast,
         projectedUnits: quickPrediction?.projectedUnits ?? 0,
       });
+
+      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate([15, 40, 20]);
+        } catch {}
+      }
 
       if (updated) onSuccess(updated);
       onClose();
@@ -278,10 +350,10 @@ export default function QuickMeterUpdateModal({
             </div>
           )}
 
-          {/* Reading Input Field */}
-          <div className="space-y-1.5">
+          {/* Reading Input Field: Physical Mechanical Tumbler */}
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label htmlFor="quick-reading-input" className="text-[13px] font-semibold text-[#17171C]">
+              <label className="text-[13px] font-semibold text-[#17171C]">
                 {lang === 'ml' ? 'ഇപ്പോഴത്തെ മീറ്റർ റീഡിംഗ്' : "Today's meter reading"}
               </label>
               <button
@@ -294,23 +366,16 @@ export default function QuickMeterUpdateModal({
               </button>
             </div>
 
-            <div className="relative">
-              <input
-                id="quick-reading-input"
-                type="number"
-                inputMode="numeric"
-                autoFocus
-                value={readingInput}
-                onChange={(e) => setReadingInput(e.target.value)}
-                placeholder={hasBaseline ? String(home.lastReading + 120) : '10450'}
-                className="w-full h-14 rounded-2xl bg-[#F7F7F5] px-4 font-bold text-2xl num-tabular text-[#17171C] border border-[#006FEE]/30 outline-none focus:border-[#006FEE] focus:bg-white transition-all shadow-inner"
-              />
-              {isHigherThanLast && unitsSinceLast > 0 && (
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#0E7036] bg-[#17C964]/15 px-2.5 py-1 rounded-full num-tabular">
-                  +{unitsSinceLast}u
-                </span>
-              )}
-            </div>
+            <MeterTumblerInput
+              value={readingInput}
+              onChange={(val) => {
+                setReadingInput(val);
+                if (errorMsg) setErrorMsg(null);
+              }}
+              placeholder={hasBaseline ? String(home.lastReading + 120) : '10450'}
+              baselineReading={hasBaseline ? home.lastReading : null}
+              autoFocus={true}
+            />
           </div>
 
           {/* Optional previous reading if no baseline */}
@@ -333,54 +398,111 @@ export default function QuickMeterUpdateModal({
 
           {/* Error Message */}
           {errorMsg && (
-            <div className="p-3 rounded-xl bg-[#F31260]/10 border border-[#F31260]/25 text-[#900B37] text-[12px] flex items-center gap-2">
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-3 rounded-xl bg-[#F31260]/10 border border-[#F31260]/25 text-[#900B37] text-[12px] flex items-center gap-2"
+            >
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
-            </div>
+            </motion.div>
           )}
 
-          {/* Real-time Dynamic Projection Preview */}
-          {quickPrediction && (
-            <div className="rounded-2xl bg-[#006FEE]/5 border border-[#006FEE]/15 p-4 space-y-3 animate-in fade-in duration-200">
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider block">
-                    {lang === 'ml' ? 'പ്രതീക്ഷിക്കുന്ന ബിൽ' : 'Estimated next bill'}
-                  </span>
-                  <div className="pt-0.5">
-                    <KsebOdometer value={quickPrediction.estimatedBill} size="xl" prefix="₹" />
+          {/* Real-time Dynamic Projection Preview with Spring Physics */}
+          <AnimatePresence>
+            {quickPrediction && (
+              <motion.div
+                initial={{ opacity: 0, y: 14, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+                className="rounded-2xl bg-gradient-to-br from-[#006FEE]/10 via-[#006FEE]/5 to-white border border-[#006FEE]/20 p-4 space-y-3.5 shadow-sm"
+              >
+                <div className="flex items-baseline justify-between">
+                  <div>
+                    <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider block">
+                      {lang === 'ml' ? 'പ്രതീക്ഷിക്കുന്ന അടുത്ത ബിൽ' : 'Estimated next bill'}
+                    </span>
+                    <div className="pt-0.5 flex items-baseline gap-2">
+                      <KsebOdometer value={quickPrediction.estimatedBill} size="xl" prefix="₹" />
+                      {isHigherThanLast && unitsSinceLast > 0 && (
+                        <motion.span
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="text-[11px] font-bold text-[#0E7036] bg-[#17C964]/15 px-2 py-0.5 rounded-full num-tabular"
+                        >
+                          +{unitsSinceLast}u
+                        </motion.span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[11px] text-[#71717A] block font-medium">
+                      {lang === 'ml' ? 'പ്രതിദിന വേഗത' : 'Daily pace'}
+                    </span>
+                    <motion.div
+                      key={quickPrediction.unitsPerDay}
+                      initial={{ scale: 0.82, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: 'spring', stiffness: 450, damping: 22 }}
+                      className="text-[16px] font-extrabold text-[#17171C] num-tabular"
+                    >
+                      {quickPrediction.unitsPerDay}{' '}
+                      <span className="text-[11px] font-medium text-[#71717A]">u/day</span>
+                    </motion.div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-[11px] text-[#71717A] block font-medium">
-                    {lang === 'ml' ? 'പ്രതിദിന വേഗത' : 'Daily pace'}
-                  </span>
-                  <span className="text-[15px] font-bold text-[#17171C] num-tabular">
-                    {quickPrediction.unitsPerDay} <span className="text-[11px] font-normal text-[#71717A]">u/day</span>
-                  </span>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#006FEE]/10 text-[12px]">
-                <div>
-                  <span className="text-[#71717A] block">
-                    {lang === 'ml' ? 'കഴിഞ്ഞ ചെക്ക് മുതൽ' : 'Units since last check'}
-                  </span>
-                  <span className="font-semibold text-[#17171C] num-tabular">
-                    {unitsSinceLast} {lang === 'ml' ? 'യൂണിറ്റ്' : 'units'}
-                  </span>
+                {/* Subsidized Slab Cliff Detection & Warning */}
+                {slabStatus && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={cn(
+                      'p-2.5 rounded-xl border text-[11px] space-y-0.5',
+                      slabStatus.type === 'danger'
+                        ? 'bg-[#F31260]/10 border-[#F31260]/25 text-[#900B37]'
+                        : slabStatus.type === 'warning'
+                        ? 'bg-[#F5A524]/12 border-[#F5A524]/30 text-[#935303]'
+                        : 'bg-[#17C964]/10 border-[#17C964]/25 text-[#0E7036]'
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold">
+                      {slabStatus.type === 'danger' ? (
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      ) : slabStatus.type === 'warning' ? (
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      ) : (
+                        <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                      )}
+                      <span>{slabStatus.title}</span>
+                    </div>
+                    <p className="opacity-95 leading-relaxed pl-5 font-medium">{slabStatus.desc}</p>
+                  </motion.div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#006FEE]/10 text-[12px]">
+                  <div>
+                    <span className="text-[#71717A] block font-medium">
+                      {lang === 'ml' ? 'കഴിഞ്ഞ ചെക്ക് മുതൽ' : 'Units since last check'}
+                    </span>
+                    <span className="font-semibold text-[#17171C] num-tabular">
+                      {unitsSinceLast} {lang === 'ml' ? 'യൂണിറ്റ്' : 'units'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[#71717A] block font-medium">
+                      {lang === 'ml' ? 'ആകെ പ്രതീക്ഷിക്കുന്നത്' : 'Projected cycle'}
+                    </span>
+                    <span className="font-semibold text-[#17171C] num-tabular">
+                      ~{quickPrediction.projectedUnits} {lang === 'ml' ? 'യൂണിറ്റ്' : 'units'}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[#71717A] block">
-                    {lang === 'ml' ? 'ആകെ പ്രതീക്ഷിക്കുന്നത്' : 'Projected 60-day cycle'}
-                  </span>
-                  <span className="font-semibold text-[#17171C] num-tabular">
-                    ~{quickPrediction.projectedUnits} {lang === 'ml' ? 'യൂണിറ്റ്' : 'units'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
 
           {/* Action Button */}
           <div className="space-y-2 pt-1">

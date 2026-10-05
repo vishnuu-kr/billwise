@@ -400,12 +400,7 @@ export type AnalyticsEventName =
   | 'feedback_submitted'
   | 'onboarding_started'
   | 'onboarding_dismissed'
-  | 'onboarding_completed'
-  | 'autopsy_protected_clicked'
-  | 'cliff_alarm_calendar_downloaded'
-  | 'cliff_alarm_google_calendar_opened'
-  | 'cliff_push_granted'
-  | 'cliff_recovery_plan_applied';
+  | 'onboarding_completed';
 
 // ==========================================
 // Phase 5: Public Beta, Feedback & Funnel Types
