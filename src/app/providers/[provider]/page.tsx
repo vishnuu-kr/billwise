@@ -5,7 +5,7 @@ import { getProviderById, getAllProviders } from '@/lib/electricity/providers';
 import { getTariffByProviderId } from '@/lib/electricity/tariffs/registry';
 import { REGULATOR_REGISTRY } from '@/lib/electricity/regulators';
 import ProviderCalculatorClient from './ProviderCalculatorClient';
-import { ShieldCheck, MapPin, Building, ExternalLink, ArrowLeft, Camera, FileText } from 'lucide-react';
+import { ExternalLink, ArrowLeft, Camera } from 'lucide-react';
 
 interface PageProps {
   params: Promise<{ provider: string }>;

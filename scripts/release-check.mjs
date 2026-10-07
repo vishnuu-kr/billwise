@@ -134,10 +134,10 @@ step('HTTP Security Headers Enforced (next.config.ts)', () => {
 });
 
 // 7. PWA Service Worker & Cache Version
-step('PWA Service Worker & Cache Versioning (billwise-v0.6.0-rc1)', () => {
+step('PWA Service Worker & Cache Versioning (billwise-v0.6.0-rc2)', () => {
   const swContent = readFileSync('public/sw.js', 'utf-8');
-  if (!swContent.includes("CACHE_NAME = 'billwise-v0.6.0-rc1'")) {
-    throw new Error("Service Worker CACHE_NAME must match 'billwise-v0.6.0-rc1'.");
+  if (!swContent.includes("CACHE_NAME = 'billwise-v0.6.0-rc2'")) {
+    throw new Error("Service Worker CACHE_NAME must match 'billwise-v0.6.0-rc2'.");
   }
   if (!swContent.includes("url.pathname.startsWith('/api/')")) {
     throw new Error("Service Worker must exclude API routes from cache.");

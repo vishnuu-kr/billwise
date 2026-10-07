@@ -15,7 +15,6 @@ import {
   Receipt,
   ChevronRight,
   ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import ProductPreviewCard from '@/components/ProductPreviewCard';
@@ -30,10 +29,17 @@ import {
   getPredictionLearning,
 } from '@/lib/retention/intelligence';
 import { cn } from '@/lib/cn';
+import { haptics } from '@/lib/haptics';
+
+import { getProviderById, NATIONAL_PROVIDER_REGISTRY } from '@/lib/electricity/providers';
 
 const QuickMeterUpdateModal = dynamic(() => import('@/components/QuickMeterUpdateModal'), { ssr: false });
 const ActualBillModal = dynamic(() => import('@/components/ActualBillModal'), { ssr: false });
 const OnboardingWizardModal = dynamic(() => import('@/components/OnboardingWizardModal'), { ssr: false });
+const ProviderSelectModal = dynamic(
+  () => import('@/components/ProviderSelectModal').then((m) => m.ProviderSelectModal),
+  { ssr: false }
+);
 
 export default function HomePage() {
   const { lang } = useLanguage();
@@ -41,11 +47,16 @@ export default function HomePage() {
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [isClientLoaded, setIsClientLoaded] = useState(false);
 
-  // Modals
+  // Modals & State Provider
+  const [previewProviderId, setPreviewProviderId] = useState('kseb');
+  const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
   const [showQuickUpdate, setShowQuickUpdate] = useState(false);
   const [showActualBillModal, setShowActualBillModal] = useState(false);
-  const [showExamplePreview, setShowExamplePreview] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const activePreviewProvider = useMemo(() => {
+    return getProviderById(previewProviderId) || NATIONAL_PROVIDER_REGISTRY['kseb'];
+  }, [previewProviderId]);
 
   const loadData = () => {
     const home = storageManager.getSavedHome();
@@ -256,90 +267,95 @@ export default function HomePage() {
   }, [isClientLoaded, savedHome, history]);
 
   return (
-    <div className="relative max-w-[430px] mx-auto px-4 pt-3 pb-6 space-y-5">
+    <div className="relative max-w-[430px] mx-auto px-4 pt-3 pb-16 md:pb-10 space-y-5">
       {/* =========================================================
-          STATE A: NEW USER (Clean, Focused, Nothing Dominates)
+          STATE A: NEW USER (App Instrument Dashboard First)
          ========================================================= */}
       {homeState === 'STATE_A_NEW' && (
-        <div className="space-y-6 pt-5 pb-2 animate-fade-in text-center sm:text-left">
-          <div className="space-y-2">
-            <span className="text-[12px] font-bold text-[#006FEE] tracking-wider uppercase block">
-              BILLWISE
-            </span>
-            <h1 className="text-[34px] sm:text-[40px] font-bold tracking-tight text-[#111116] leading-[1.14]">
-              {lang === 'ml' ? (
-                <>വൈദ്യുതി ബിൽ<br />വ്യക്തമായി മനസ്സിലാക്കൂ.</>
-              ) : (
-                <>Understand your<br />electricity bill.</>
-              )}
-            </h1>
-            <p className="text-[14px] text-[#71717A] max-w-sm mx-auto sm:mx-0 leading-relaxed">
-              {lang === 'ml'
-                ? 'ഒരു തവണ സ്കാൻ ചെയ്യൂ. സ്ലാബുകളും നിരക്കുകളും മുൻകൂട്ടി അറിയാം.'
-                : 'One quick scan. Know what you are likely to pay before it arrives.'}
-            </p>
+        <div className="space-y-4 pt-1 animate-fade-in">
+          {/* Native App Top Status Bar */}
+          <div className="flex items-center justify-between px-0.5">
+            <div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[11px] font-semibold text-[#006FEE] uppercase tracking-wider bg-[#006FEE]/10 px-2.5 py-0.5 rounded-full border border-[#006FEE]/20 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#006FEE]" />
+                  {activePreviewProvider.state} · {activePreviewProvider.shortName}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsProviderModalOpen(true)}
+                  className="text-[11px] font-semibold text-[#71717A] hover:text-[#17171C] cursor-pointer flex items-center gap-0.5 transition-colors"
+                >
+                  <span>{lang === 'ml' ? 'ബോർഡ് മാറ്റാം' : 'Change Board'}</span>
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+              </div>
+              <h1 className="text-[20px] font-bold text-[#17171C] tracking-tight mt-1">
+                {lang === 'ml' ? 'വൈദ്യുതി ഡാഷ്‌ബോർഡ്' : 'Electricity Dashboard'}
+              </h1>
+              <p className="text-[12px] text-[#71717A] leading-tight mt-0.5">
+                {lang === 'ml'
+                  ? 'ഗാർഹിക വൈദ്യുതി ബിൽ കണക്കുകൂട്ടലും സ്ലാബ് വിശകലനവും'
+                  : 'Smart bill predictor & tariff intelligence across India'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowOnboarding(true)}
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#006FEE] bg-[#006FEE]/10 border border-[#006FEE]/20 px-2.5 py-1 rounded-full cursor-pointer hover:bg-[#006FEE]/15 active:scale-95 transition-all self-start mt-1 shrink-0"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{lang === 'ml' ? 'വീട് ചേർക്കാം' : 'Set up home'}</span>
+            </button>
           </div>
 
-          {/* ONE Primary Action */}
-          <div className="space-y-3 pt-2">
+          {/* Live Instrument Card — Always Alive & Interactive */}
+          <div className="rounded-[26px] bg-white/95 backdrop-blur-md border border-black/[0.06] p-4 sm:p-5 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.02] space-y-4">
+            <ProductPreviewCard
+              interactive={true}
+              selectedProviderId={previewProviderId}
+              onSelectProviderId={setPreviewProviderId}
+              onOpenProviderModal={() => setIsProviderModalOpen(true)}
+            />
+          </div>
+
+          {/* Native Action Buttons: Scan (Primary) & Check Meter (Secondary) */}
+          <div className="grid grid-cols-2 gap-2.5 pt-1">
             <Link
-              href="/scan"
-              onClick={() => analytics.track('flow_started', { flow: 'bill_ocr' })}
-              className="ios-btn-primary w-full h-14 px-4 flex items-center justify-center gap-2 rounded-2xl text-[16px] font-semibold shadow-sm active:scale-[0.97]"
+              href={`/scan?provider=${previewProviderId}`}
+              onClick={() => {
+                haptics.impact();
+                analytics.track('flow_started', { flow: 'bill_ocr' });
+              }}
+              className="ios-btn-primary w-full min-h-[50px] h-auto py-2.5 px-3 flex items-center justify-center gap-2 rounded-2xl text-[13px] sm:text-[14px] font-semibold shadow-sm active:scale-[0.97]"
             >
-              <Camera className="w-5 h-5 shrink-0" />
-              <span>{lang === 'ml' ? 'ബിൽ സ്കാൻ ചെയ്യുക' : 'Scan your bill'}</span>
-              <ArrowRight className="w-4 h-4 ml-auto" />
+              <Camera className="w-4 h-4 shrink-0" />
+              <span>{lang === 'ml' ? 'ബിൽ സ്കാൻ' : 'Scan bill'}</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-auto opacity-70 shrink-0" />
             </Link>
 
-            <div className="text-center pt-1">
-              <Link
-                href="/manual"
-                onClick={() => analytics.track('flow_started', { flow: 'direct_units' })}
-                className="text-[13px] font-medium text-[#71717A] hover:text-[#17171C] transition-colors"
-              >
-                {lang === 'ml' ? 'അല്ലെങ്കിൽ യൂണിറ്റ് നൽകാം' : 'Enter manually'}
-              </Link>
-            </div>
+            <Link
+              href={`/predict?provider=${previewProviderId}`}
+              onClick={() => {
+                haptics.impact();
+                analytics.track('flow_started', { flow: 'meter_prediction' });
+              }}
+              className="ios-btn-secondary w-full min-h-[50px] h-auto py-2.5 px-3 flex items-center justify-center gap-2 rounded-2xl text-[13px] sm:text-[14px] font-semibold text-[#17171C] active:scale-[0.97]"
+            >
+              <Gauge className="w-4 h-4 shrink-0 text-[#71717A]" />
+              <span>{lang === 'ml' ? 'മീറ്റർ റീഡിംഗ്' : 'Check meter'}</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-auto text-[#71717A] opacity-70 shrink-0" />
+            </Link>
           </div>
 
           {/* Privacy Guarantee Reassurance */}
-          <div className="pt-2 flex items-center justify-center gap-1.5 text-[11px] text-[#71717A]">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#17C964]" />
-            <span>
+          <div className="flex items-start justify-center gap-1.5 text-[11px] text-[#71717A] pt-1 text-center">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#17C964] shrink-0 mt-0.5" />
+            <span className="leading-snug">
               {lang === 'ml'
                 ? 'ലോഗിൻ ആവശ്യമില്ല · നിങ്ങളുടെ വിവരങ്ങൾ ഈ ഫോണിൽ മാത്രം'
                 : 'No login required · your bill stays on this device'}
             </span>
-          </div>
-
-          {/* Clean Example Preview Toggle */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => setShowExamplePreview((prev) => !prev)}
-              className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-white border border-black/[0.06] text-[13px] text-[#71717A] hover:text-[#17171C] cursor-pointer shadow-2xs"
-            >
-              <span className="font-medium flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#006FEE]" />
-                {lang === 'ml' ? 'ഒരു മാതൃക കാണണോ? (240 യൂണിറ്റ്)' : 'See an example estimate'}
-              </span>
-              {showExamplePreview ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-
-            {showExamplePreview && (
-              <div className="mt-2.5 p-4 rounded-2xl bg-white border border-black/[0.06] shadow-sm animate-fade-in">
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-black/[0.05]">
-                  <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider">
-                    {lang === 'ml' ? 'മാതൃക കണക്ക്' : 'Example estimate'}
-                  </span>
-                  <span className="text-[11px] text-[#71717A] bg-black/[0.04] px-2 py-0.5 rounded-full">
-                    Sample Data
-                  </span>
-                </div>
-                <ProductPreviewCard interactive={true} />
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -365,8 +381,9 @@ export default function HomePage() {
           </div>
 
           {/* Dominant Last Bill Card */}
-          <div className="rounded-[24px] bg-white border border-black/[0.06] p-5 sm:p-6 space-y-4 shadow-sm">
-            <div className="space-y-1">
+          <div className="rounded-[26px] bg-white/95 backdrop-blur-md border border-black/[0.06] p-5 sm:p-6 space-y-4 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.02] relative overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#006FEE]/[0.05] rounded-full blur-3xl pointer-events-none" />
+            <div className="space-y-1 relative">
               <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider block">
                 {lang === 'ml' ? 'കഴിഞ്ഞ ബിൽ' : 'Last bill'}
               </span>
@@ -500,8 +517,9 @@ export default function HomePage() {
           </div>
 
           {/* Dominant Next Bill Card */}
-          <div className="rounded-[24px] bg-white border border-black/[0.06] p-5 sm:p-6 space-y-4 shadow-sm relative overflow-hidden">
-            <div className="space-y-1">
+          <div className="rounded-[26px] bg-white/95 backdrop-blur-md border border-black/[0.06] p-5 sm:p-6 space-y-4 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.02] relative overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#006FEE]/[0.08] rounded-full blur-3xl pointer-events-none" />
+            <div className="space-y-1 relative">
               <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider block">
                 {lang === 'ml' ? 'അടുത്ത ബിൽ എസ്റ്റിമേറ്റ്' : 'Next bill estimate'}
               </span>
@@ -625,7 +643,7 @@ export default function HomePage() {
           </div>
 
           {/* Dominant Reconciled Card */}
-          <div className="rounded-[24px] bg-white border border-black/[0.06] p-5 sm:p-6 space-y-4 shadow-sm">
+          <div className="rounded-[26px] bg-white/95 backdrop-blur-md border border-black/[0.06] p-5 sm:p-6 space-y-4 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.02]">
             <div className="grid grid-cols-2 gap-3 text-center">
               <div className="p-3 bg-black/[0.02] rounded-xl border border-black/[0.04]">
                 <span className="text-[11px] text-[#71717A] block font-medium">
@@ -740,6 +758,16 @@ export default function HomePage() {
           setSavedHome(newHome);
           loadData();
         }}
+      />
+
+      <ProviderSelectModal
+        isOpen={isProviderModalOpen}
+        onClose={() => setIsProviderModalOpen(false)}
+        onSelectProvider={(p) => {
+          setPreviewProviderId(p.id);
+          setIsProviderModalOpen(false);
+        }}
+        selectedProviderId={previewProviderId}
       />
     </div>
   );

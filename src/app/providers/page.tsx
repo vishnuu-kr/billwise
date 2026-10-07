@@ -2,11 +2,10 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { getAllProviders, searchProviders, getProvidersByState, getNationalCoverageStats } from '@/lib/electricity/providers';
 import { REGULATOR_REGISTRY } from '@/lib/electricity/regulators';
 import { CoverageStatus, ElectricityProvider } from '@/lib/electricity/types';
-import { Search, MapPin, Building, ExternalLink, ShieldCheck, ChevronRight } from 'lucide-react';
+import { Search, MapPin, Building, ShieldCheck, ChevronRight } from 'lucide-react';
 
 const STATES = [
   'All',
@@ -26,7 +25,6 @@ const STATES = [
 ];
 
 export default function ProvidersDirectoryPage() {
-  const { lang } = useLanguage();
   const [query, setQuery] = useState('');
   const [selectedState, setSelectedState] = useState('All');
   const stats = useMemo(() => getNationalCoverageStats(), []);

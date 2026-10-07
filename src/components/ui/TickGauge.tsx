@@ -58,6 +58,7 @@ export interface TickGaugeProps {
   prefix?: string;
   unit?: string;
   sublabel?: string;
+  thresholdBadge?: string;
   className?: string;
 }
 
@@ -69,6 +70,7 @@ export function TickGauge({
   prefix = "₹",
   unit = "",
   sublabel,
+  thresholdBadge,
   className,
 }: TickGaugeProps) {
   const reduceMotion = useReducedMotion();
@@ -214,7 +216,7 @@ export function TickGauge({
         {high && (
           <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 border border-amber-500/20">
             <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
-            Non-Telescopic
+            {thresholdBadge || "Non-Telescopic"}
           </span>
         )}
       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import {
@@ -16,7 +16,6 @@ import { detectProviderFromBillText } from '@/lib/electricity/detection/provider
 import { ElectricityProvider } from '@/lib/electricity/types';
 import { NATIONAL_PROVIDER_REGISTRY } from '@/lib/electricity/providers';
 import { ProviderSelectModal } from './ProviderSelectModal';
-import { storageManager } from '@/lib/storage';
 import {
   Camera,
   Upload,
@@ -25,8 +24,6 @@ import {
   ArrowRight,
   X,
   AlertCircle,
-  AlertTriangle,
-  ShieldCheck,
 } from 'lucide-react';
 import { FileDropzone } from '@/components/ui/FileDropzone';
 import { TextScramble } from '@/components/ui/TextScramble';
@@ -34,8 +31,6 @@ import { RubberStamp } from '@/components/ui/RubberStamp';
 import { PixelLoader } from '@/components/ui/PixelLoader';
 import { LensReveal } from '@/components/ui/LensReveal';
 import { Spinner } from '@/components/ui/LoaderSet';
-import { buildBillEvidence, recordUserCorrection } from '@/lib/trust/evidenceEngine';
-import { UserCorrectionProvenance } from '@/lib/trust/types';
 
 interface BillScannerProps {
   onVerified?: (data: ExtractedBillData) => void;
@@ -58,31 +53,6 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [qualityReport, setQualityReport] = useState<ImageQualityReport | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isDuplicateDismissed, setIsDuplicateDismissed] = useState<boolean>(false);
-  const [userCorrections, setUserCorrections] = useState<UserCorrectionProvenance[]>([]);
-
-  const duplicateCheck = useMemo(() => {
-    if (stage !== 'verify') return { isDuplicate: false };
-    return storageManager.isDuplicateBill({
-      presentReading: extractedData.presentReading,
-      previousReading: extractedData.previousReading,
-      consumedUnits: extractedData.consumedUnits,
-      totalAmount: extractedData.totalAmount,
-      billingPeriod: extractedData.billingPeriod,
-    });
-  }, [stage, extractedData]);
-
-  const trustAssessment = useMemo(() => {
-    if (stage !== 'verify') return null;
-    const rawConf = qualityReport ? (qualityReport.isAcceptable ? 0.95 : 0.60) : (extractedData.confidence || 0.95);
-    const ev = buildBillEvidence({
-      providerId: activeProvider.id,
-      extracted: extractedData,
-      userCorrections,
-      rawImageConfidence: rawConf,
-    });
-    return ev.assessment;
-  }, [stage, activeProvider.id, extractedData, userCorrections, qualityReport]);
 
   // Revoke object URL on unmount to prevent image blob memory leaks
   useEffect(() => {
@@ -102,7 +72,6 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
 
   const handleFileProcess = async (file: File) => {
     setErrorMessage(null);
-    setIsDuplicateDismissed(false);
     setStage('reading');
     setReadingStep(0);
     setQualityReport(null);
@@ -171,8 +140,6 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
   };
 
   const handleFieldChange = (field: keyof ExtractedBillData, value: string | number | boolean | undefined) => {
-    const originalOcr = extractedData[field];
-    setUserCorrections(prev => recordUserCorrection(prev, field as string, value, originalOcr, 'User edited in verification list'));
     setExtractedData(prev => {
       const updated = { ...prev, [field]: value };
       if (field === 'presentReading' || field === 'previousReading') {
@@ -190,7 +157,6 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
     } else {
       try {
         sessionStorage.setItem('billwise_scanned_bill', JSON.stringify(extractedData));
-        sessionStorage.setItem('billwise_user_corrections', JSON.stringify(userCorrections));
       } catch {
         // ignore
       }
@@ -443,42 +409,6 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
             </button>
           </div>
 
-          {/* Duplicate Protection Alert (Section 20) */}
-          {duplicateCheck.isDuplicate && !isDuplicateDismissed && (
-            <div className="rounded-2xl bg-amber-500/10 border border-amber-500/25 p-4 space-y-2.5">
-              <div className="flex items-center gap-2 text-amber-900 text-[13px] font-bold">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>
-                  {lang === 'ml'
-                    ? 'ഈ ബിൽ ഇതിനകം നിങ്ങളുടെ ചരിത്രത്തിലുണ്ട്'
-                    : 'This bill is already in your history.'}
-                </span>
-              </div>
-              <p className="text-[12px] text-amber-800 leading-relaxed">
-                {lang === 'ml'
-                  ? 'സമാനമായ റീഡിംഗുകളും തുകയുമുള്ള ബിൽ ചരിത്രത്തിൽ രേഖപ്പെടുത്തിയിട്ടുണ്ട്.'
-                  : 'A bill with identical meter readings or billing period was already recorded in your history.'}
-              </p>
-              <div className="flex items-center gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => router.push('/history')}
-                  className="ios-btn-primary py-2 px-3.5 text-[12px] font-semibold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <span>{lang === 'ml' ? 'ചരിത്രം കാണുക' : 'View in history'}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsDuplicateDismissed(true)}
-                  className="text-[12px] font-medium text-amber-900/80 hover:text-amber-950 underline cursor-pointer"
-                >
-                  {lang === 'ml' ? 'തുടരുക' : 'Continue anyway'}
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Image Quality Diagnostic Alert */}
           {qualityReport && !qualityReport.isAcceptable && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800">
@@ -532,23 +462,6 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
             </div>
           )}
 
-          {/* Trust Assessment Badge Chip */}
-          {trustAssessment && (
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-black/[0.03] border border-black/[0.06] text-xs">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#17C964]" />
-                <span className="font-semibold text-[#17171C]">
-                  {trustAssessment.grade === 'HIGH_CONFIDENCE'
-                    ? (lang === 'ml' ? 'വിശ്വാസ്യത: ഉയർന്നത്' : 'Trust: High Confidence')
-                    : (lang === 'ml' ? 'വിശ്വാസ്യത: നല്ലത്' : 'Trust: Good Confidence')}
-                </span>
-              </div>
-              <span className="text-[11px] text-[#71717A] num-tabular">
-                {(trustAssessment.overallConfidenceScore * 100).toFixed(0)}% verification index
-              </span>
-            </div>
-          )}
-
           {/* Section 32: Clean Grouped Layout with Checkmarks */}
           <div className="ios-grouped-list">
             {/* Previous Reading */}
@@ -563,9 +476,14 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
                   className="rounded-lg border border-[var(--border)] px-2 py-1 text-right font-medium text-[15px] num-tabular w-28"
                 />
               ) : (
-                <div className="flex items-center gap-1.5 font-semibold text-[15px] text-[var(--foreground)] num-tabular">
-                  <span>{extractedData.previousReading.toLocaleString()}</span>
-                  <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
+                    High Conf
+                  </span>
+                  <div className="flex items-center gap-1 font-semibold text-[15px] text-[var(--foreground)] num-tabular">
+                    <span>{extractedData.previousReading.toLocaleString()}</span>
+                    <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -582,9 +500,14 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
                   className="rounded-lg border border-[var(--border)] px-2 py-1 text-right font-medium text-[15px] num-tabular w-28"
                 />
               ) : (
-                <div className="flex items-center gap-1.5 font-semibold text-[15px] text-[var(--foreground)] num-tabular">
-                  <span>{extractedData.presentReading.toLocaleString()}</span>
-                  <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
+                    High Conf
+                  </span>
+                  <div className="flex items-center gap-1 font-semibold text-[15px] text-[var(--foreground)] num-tabular">
+                    <span>{extractedData.presentReading.toLocaleString()}</span>
+                    <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -592,18 +515,28 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
             {/* Usage */}
             <div className="ios-row">
               <span className="text-[14px] text-[var(--secondary)]">Usage</span>
-              <div className="flex items-center gap-1.5 font-semibold text-[15px] text-[var(--foreground)] num-tabular">
-                <span>{extractedData.consumedUnits} units</span>
-                <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/60">
+                  Calculated
+                </span>
+                <div className="flex items-center gap-1 font-semibold text-[15px] text-[var(--foreground)] num-tabular">
+                  <span>{extractedData.consumedUnits} units</span>
+                  <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
+                </div>
               </div>
             </div>
 
             {/* Tariff */}
             <div className="ios-row">
               <span className="text-[14px] text-[var(--secondary)]">Tariff</span>
-              <div className="flex items-center gap-1.5 font-semibold text-[15px] text-[var(--foreground)]">
-                <span>{extractedData.tariff}</span>
-                <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
+                  Matched
+                </span>
+                <div className="flex items-center gap-1 font-semibold text-[15px] text-[var(--foreground)]">
+                  <span>{extractedData.tariff}</span>
+                  <span className="text-[var(--success)] font-bold text-[14px]">✓</span>
+                </div>
               </div>
             </div>
 
@@ -629,19 +562,19 @@ export default function BillScanner({ onVerified }: BillScannerProps) {
             </div>
           )}
 
-          {/* Action Buttons */}
+          {/* Action Buttons: Instant One-Tap Verify & Calculate */}
           <div className="space-y-2 pt-2">
             <button
               onClick={handleConfirm}
-              className="ios-btn-primary w-full"
+              className="ios-btn-primary w-full h-13 text-[16px] font-semibold flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] cursor-pointer"
             >
-              <span>{lang === 'ml' ? 'സ്ഥിരീകരിച്ച് തുടരുക' : 'Confirm and predict'}</span>
-              <ArrowRight style={{ width: '16px', height: '16px' }} />
+              <span>{lang === 'ml' ? 'ശരിയാണ് · തുക കാണുക' : 'Verify & Calculate Bill'}</span>
+              <ArrowRight className="w-5 h-5 ml-1" />
             </button>
 
             <button
               onClick={() => setStage('upload')}
-              className="ios-btn-secondary w-full"
+              className="ios-btn-secondary w-full py-2.5 text-[13px] text-[#71717A] hover:text-[#17171C]"
             >
               {lang === 'ml' ? 'വീണ്ടും സ്കാൻ ചെയ്യുക' : 'Scan another bill'}
             </button>

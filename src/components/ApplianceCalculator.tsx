@@ -315,8 +315,8 @@ export default function ApplianceCalculator() {
                 <span className="num-tabular text-[14px] sm:text-[15px] font-bold text-[#17171C] block">
                   {item.biMonthlyKwh} u
                 </span>
-                <span className="text-[11px] font-medium text-[#71717A] num-tabular block">
-                  {item.sharePct}% share
+                <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 num-tabular inline-block mt-0.5">
+                  ~₹{item.estimatedBiMonthlyCost}
                 </span>
               </div>
             </div>

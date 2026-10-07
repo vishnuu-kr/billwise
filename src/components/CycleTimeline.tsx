@@ -36,7 +36,7 @@ export default function CycleTimeline({
       <div className="relative pt-1 pb-2">
         <div className="h-1.5 w-full bg-black/[0.06] rounded-full overflow-hidden relative">
           <div
-            className="h-full bg-[#006FEE] rounded-full transition-all duration-300"
+            className="h-full bg-gradient-to-r from-[#006FEE] to-[#38BDF8] rounded-full transition-all duration-300 shadow-xs"
             style={{ width: `${Math.max(4, Math.min(98, progressPct))}%` }}
           />
         </div>
@@ -46,7 +46,7 @@ export default function CycleTimeline({
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none"
           style={{ left: `${Math.max(4, Math.min(96, progressPct))}%` }}
         >
-          <div className="w-3.5 h-3.5 rounded-full bg-white border-2 border-[#006FEE] shadow-sm flex items-center justify-center">
+          <div className="w-3.5 h-3.5 rounded-full bg-white border-2 border-[#006FEE] shadow-[0_1px_4px_rgba(0,111,238,0.35)] flex items-center justify-center">
             <div className="w-1.5 h-1.5 rounded-full bg-[#006FEE]" />
           </div>
         </div>

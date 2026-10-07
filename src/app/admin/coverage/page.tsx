@@ -5,25 +5,21 @@ import Link from 'next/link';
 import {
   ShieldCheck,
   CheckCircle2,
-  AlertCircle,
   HelpCircle,
   ExternalLink,
   Search,
-  Filter,
   ArrowLeft,
   Award,
-  FileText,
   Building2,
   Layers,
   Database,
   Check,
-  X,
 } from 'lucide-react';
 import { getAllProviders, getCoverageQualityScore, getNationalCoverageSummary } from '@/lib/electricity/api';
 import { getAllGoldenBills } from '@/lib/electricity/golden/goldenBills';
 import { getAllUniversalTariffs } from '@/lib/electricity/tariffs/registry';
 import { validateAllRegisteredTariffs } from '@/lib/electricity/validation/tariffValidator';
-import { CoverageStatus, ElectricityProvider } from '@/lib/electricity/types';
+import { CoverageStatus } from '@/lib/electricity/types';
 
 export default function NationalCoverageDashboard() {
   const [searchTerm, setSearchTerm] = useState('');

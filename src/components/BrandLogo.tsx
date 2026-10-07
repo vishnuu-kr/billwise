@@ -48,7 +48,7 @@ export function BrandLogo({ size = 20, showBeta = true, className = '' }: BrandL
           BILLWISE
         </span>
         {showBeta && (
-          <span className="text-[10px] font-medium tracking-[0.02em] text-[var(--tertiary)] uppercase">
+          <span className="text-[9px] font-bold tracking-[0.05em] px-1.5 py-0.5 rounded-full bg-black/[0.05] text-[#71717A] uppercase leading-none">
             beta
           </span>
         )}

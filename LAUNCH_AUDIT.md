@@ -25,7 +25,7 @@ Every system component has been verified against the actual repository code and 
 | **Security & Headers** | **READY** | `next.config.ts`, `scripts/release-check.mjs`. HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Permissions-Policy enforced. | Zero secrets/keys in code. Read-only diagnostics on `/admin` (no unauthenticated mutations). |
 | **Privacy & Disclosures** | **READY** | `src/app/privacy/page.tsx`, `src/app/about/page.tsx`. Full audit verified zero bill images or consumer numbers leave device. | Clearly states independence: BILLWISE is an independent tool, not KSEB. |
 | **SEO & Canonical URLs**| **READY** | `src/app/sitemap.ts`, `src/app/robots.ts`, `src/lib/config/site.ts`. Single canonical domain `https://billwise.app` across 28 routes. | Disallows `/admin` and `/api/`. Comprehensive OpenGraph and meta descriptions. |
-| **PWA & Offline Mode** | **READY** | `public/sw.js`, `public/manifest.json`. Cache version `billwise-v0.6.0-rc1`. Offline shell for calculator and saved data. | Service worker excludes dynamic `/api/` routes. Safe area insets respected. |
+| **PWA & Offline Mode** | **READY** | `public/sw.js`, `public/manifest.json`. Cache version `billwise-v0.6.0-rc2`. Offline shell for calculator and saved data. | Service worker excludes dynamic `/api/` routes. Safe area insets respected. |
 | **UI Hierarchy & Style** | **READY** | Restrained native mobile tab bar (`Home`, `Meter`, `History`, `More`) replacing floating dock dock. Spacing-driven hierarchy. | iOS/Android native sheet for More drawer. No decorative icons or cards. |
 | **Malayalam & Manglish** | **READY** | `src/lib/i18n/translations.ts`, `src/lib/i18n/manglishParser.ts`. Natural colloquial phrases (*"എന്താണ് നിങ്ങളുടെ മീറ്ററിൽ?"*). | Manually checked fonts, line-heights, and sheet widths. |
 | **Operations & Health** | **READY** | `/api/health`, `/api/events`, `/api/feedback`. Rate limiting enforced. Versioned status and FAC tracking. | Removed unauthenticated DELETE endpoint. Health check reports 200 OK. |
@@ -47,7 +47,7 @@ Every system component has been verified against the actual repository code and 
    * Removed hardcoded fallback `1284` from `ActualBillModal`.
    * Connected `/budget` to pull real `projectedUnits` from `savedHome` rather than defaulting to 240.
 4. **PWA & Version Sync (Item 85)**:
-   * Synchronized launch candidate version `0.6.0-rc.1` across `package.json`, `site.ts`, `release-check.mjs`, and `sw.js` (`billwise-v0.6.0-rc1`).
+   * Synchronized launch candidate version `0.6.0-rc.1` across `package.json`, `site.ts`, `release-check.mjs`, and `sw.js` (`billwise-v0.6.0-rc2`).
 
 ---
 

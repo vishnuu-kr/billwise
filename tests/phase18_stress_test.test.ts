@@ -1,26 +1,20 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { storageManager, CURRENT_SCHEMA_VERSION } from '@/lib/storage';
+import { storageManager } from '@/lib/storage';
 import { calculateBill, calculateConsumedUnits } from '@/lib/calculation/engine';
 import { calculateUniversalBill, calculateConsumedUnitsFromInput } from '@/lib/electricity/engine/universalEngine';
 import { detectProviderFromBillText } from '@/lib/electricity/detection/providerDetector';
-import { selectTariffVersion, UNIVERSAL_TARIFF_REGISTRY } from '@/lib/electricity/tariffs/registry';
+import { selectTariffVersion } from '@/lib/electricity/tariffs/registry';
 import { predictUsage } from '@/lib/prediction/engine';
 import {
   evaluatePersonalBaseline,
   evaluateConsumptionAnomaly,
   normalizeUsageMetrics,
-  formatInr,
 } from '@/lib/electricity/scoring/baselineEngine';
 import {
   normalizeOcrNumericString,
   validateOcrConsistency,
-  parseKsebBillText,
   OnDeviceClientOcrProvider,
   extractMeterReadingFromImage,
-  SAMPLE_KSEB_REFERENCE_BILL,
-  SAMPLE_BESCOM_REFERENCE_BILL,
-  SAMPLE_MSEDCL_REFERENCE_BILL,
-  SAMPLE_UNKNOWN_PROVIDER_BILL,
 } from '@/lib/ocr/extractor';
 import { HistoryRecord, SavedHomeProfile } from '@/types';
 

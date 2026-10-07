@@ -17,11 +17,9 @@ import {
   ShieldCheck,
   ArrowRight,
   ChevronLeft,
-  X,
   Check,
   Building2,
   CheckCircle2,
-  SlidersHorizontal,
 } from 'lucide-react';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useRouter } from 'next/navigation';
@@ -48,10 +46,9 @@ export default function OnboardingWizardModal({
   const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>('single');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('bi-monthly');
-  const [connectedLoadWatts, setConnectedLoadWatts] = useState<number>(2000);
+  const [connectedLoadWatts] = useState<number>(2000);
 
   // Path data
-  const [chosenPath, setChosenPath] = useState<'scan' | 'meter' | 'units'>('units');
   const [meterReadingInput, setMeterReadingInput] = useState<string>('');
   const [optionalPrevReading, setOptionalPrevReading] = useState<string>('');
   const [selectedUnits, setSelectedUnits] = useState<number>(240);
@@ -97,7 +94,6 @@ export default function OnboardingWizardModal({
         );
         return;
       }
-      const consumedUnits = currNum - prevNum;
       const prediction = predictUsage({
         previousReading: prevNum,
         currentReading: currNum,

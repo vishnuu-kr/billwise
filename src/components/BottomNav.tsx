@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { TabBar, type TabBarItem } from '@/components/ui/TabBar';
+import { haptics } from '@/lib/haptics';
 import {
   Camera,
   SlidersHorizontal,
@@ -75,6 +76,7 @@ export default function BottomNav() {
   }, [router]);
 
   const handleTabChange = (id: string) => {
+    haptics.selection();
     if (id === 'home') {
       setIsMoreOpen(false);
       router.push('/');
@@ -207,12 +209,12 @@ export default function BottomNav() {
 
   return (
     <>
-      {/* -- Dock / Menu Bar ----------------- */}
+      {/* -- Dock / Menu Bar (Mobile Only) ----------------- */}
       <nav
         aria-label="App Navigation"
-        className="fixed bottom-0 inset-x-0 z-40 flex justify-center pb-[max(env(safe-area-inset-bottom,0px),8px)] pt-1 px-3 pointer-events-none select-none transition-transform"
+        className="fixed bottom-0 inset-x-0 z-40 flex justify-center pb-[max(env(safe-area-inset-bottom,0px),8px)] pt-1 px-3 pointer-events-none select-none transition-transform md:hidden"
       >
-        <div className="pointer-events-auto w-full max-w-[420px] rounded-[32px] bg-white/94 backdrop-blur-xl border border-black/[0.08] px-2 py-1 shadow-raised">
+        <div className="pointer-events-auto w-full max-w-[420px] rounded-[32px] bg-white/88 backdrop-blur-2xl border border-white/80 shadow-[0_8px_32px_-4px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04),inset_0_1px_1px_rgba(255,255,255,0.95)] ring-1 ring-black/[0.05] px-2 py-1">
           <TabBar
             idBase="billwise-dock"
             label="App Navigation"

@@ -83,7 +83,7 @@ export function SegmentedControl<T extends string | number>({
                   damping: 35,
                   mass: 0.5,
                 }}
-                className="absolute inset-0 rounded-xl bg-white shadow-xs border border-black/[0.08] z-0"
+                className="absolute inset-0 rounded-xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_1px_rgba(0,0,0,0.04)] border border-black/[0.06] z-0"
               />
             )}
             {option.icon && <span className="relative z-10 size-4 flex items-center justify-center">{option.icon}</span>}

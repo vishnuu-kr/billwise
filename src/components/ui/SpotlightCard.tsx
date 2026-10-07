@@ -34,18 +34,28 @@ export function SpotlightCard({
     mouseY.set(e.clientY - rect.top);
   };
 
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!cardRef.current || e.touches.length === 0) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    mouseX.set(e.touches[0].clientX - rect.left);
+    mouseY.set(e.touches[0].clientY - rect.top);
+    if (!isHovered) setIsHovered(true);
+  };
+
   return (
     <div
       ref={cardRef}
       onMouseMove={handleMouseMove}
+      onTouchMove={handleTouchMove}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onTouchEnd={() => setTimeout(() => setIsHovered(false), 800)}
       className={cn(
-        'group relative overflow-hidden rounded-3xl border border-black/[0.06] bg-white/95 backdrop-blur-xl transition-all shadow-sm hover:shadow-md',
+        'group relative overflow-hidden rounded-[26px] border border-black/[0.06] bg-white/95 backdrop-blur-xl transition-all shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.02]',
         className
       )}
     >
-      {/* Specular Spotlight Glow following cursor */}
+      {/* Specular Spotlight Glow following cursor / finger */}
       <motion.div
         className={cn(
           'pointer-events-none absolute -inset-px opacity-0 transition-opacity duration-300',
@@ -53,6 +63,9 @@ export function SpotlightCard({
         )}
         style={{ background }}
       />
+
+      {/* Subtle ambient lighting for mobile touch devices */}
+      <div className="pointer-events-none absolute -top-16 -right-16 w-40 h-40 bg-[#006FEE]/[0.05] rounded-full blur-2xl" />
 
       <div className="relative z-10">{children}</div>
     </div>

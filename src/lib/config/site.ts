@@ -3,16 +3,20 @@
  * Single source of truth for domain, versions, and service endpoints.
  */
 
-const RAW_DOMAIN = process.env.NEXT_PUBLIC_SITE_URL || 'https://billwise.app';
+const RAW_DOMAIN =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.NODE_ENV === 'test'
+    ? 'https://billwise.app'
+    : 'https://billwise-eight.vercel.app');
 // Strip trailing slash if present to guarantee uniform URL construction
 const NORMALIZED_DOMAIN = RAW_DOMAIN.replace(/\/+$/, '');
 
 export const SITE_CONFIG = {
   name: 'BILLWISE',
-  title: 'BILLWISE — Kerala Electricity Intelligence & Bill Predictor (KSEB LT-1A)',
-  tagline: 'Know your KSEB bill before it arrives',
+  title: 'BILLWISE — India Electricity Intelligence & Bill Predictor (25+ Boards)',
+  tagline: 'Know your electricity bill before it arrives',
   description:
-    'The simplest electricity intelligence for Kerala households. Predict your next KSEB electricity bill, understand your tariff slabs, and avoid high cost bands without technical jargon.',
+    'Smart electricity intelligence for households across India. Predict your next bill for Kerala (KSEB), Karnataka (BESCOM), Maharashtra (MSEDCL), Delhi, Tamil Nadu, and 15+ states without technical jargon.',
   domain: NORMALIZED_DOMAIN,
   supportEmail: 'feedback@billwise.app',
   releaseStage: 'Launch Candidate 1 (v0.6.0-rc.1)',
@@ -21,7 +25,7 @@ export const SITE_CONFIG = {
   appVersion: '0.6.0-rc.1',
   calculationEngineVersion: 'v1-kserc-deterministic',
   predictionModelVersion: 'v1-daily-run-rate',
-  cacheVersion: 'billwise-v0.6.0-rc1',
+  cacheVersion: 'billwise-v0.6.0-rc2',
   schemaVersion: 1,
 
   // Tariff Baseline Reference
