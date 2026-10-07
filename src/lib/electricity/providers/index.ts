@@ -1,4 +1,4 @@
-import { ElectricityProvider, CoverageStatus } from '../types';
+import { ElectricityProvider } from '../types';
 
 export const NATIONAL_PROVIDER_REGISTRY: Record<string, ElectricityProvider> = {
   kseb: {

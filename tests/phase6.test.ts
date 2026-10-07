@@ -31,7 +31,7 @@ describe('Phase 6: Production Infrastructure & Live Service Readiness', () => {
       expect(SITE_CONFIG.appVersion).toBe('0.6.0-rc.1');
       expect(SITE_CONFIG.calculationEngineVersion).toBe('v1-kserc-deterministic');
       expect(SITE_CONFIG.predictionModelVersion).toBe('v1-daily-run-rate');
-      expect(SITE_CONFIG.cacheVersion).toBe('billwise-v0.6.0-rc1');
+      expect(SITE_CONFIG.cacheVersion).toBe('billwise-v0.6.0-rc2');
     });
   });
 

@@ -14,7 +14,6 @@ import {
   CoverageStatus,
 } from './types';
 import {
-  NATIONAL_PROVIDER_REGISTRY,
   getProviderById as lookupProviderById,
   getAllProviders as lookupAllProviders,
   getProvidersByState as lookupProvidersByState,

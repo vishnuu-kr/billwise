@@ -10,7 +10,7 @@ import MeterVisualGuide from '@/components/MeterVisualGuide';
 import ResultCard from '@/components/ResultCard';
 import CardSkeleton from '@/components/CardSkeleton';
 import MeterScanner from '@/components/MeterScanner';
-import { Camera, ChevronLeft, Calendar, X } from 'lucide-react';
+import { Camera, Calendar, X } from 'lucide-react';
 import Link from 'next/link';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { DateRangePicker, type Range, daysBetween, short } from '@/components/ui/DateRangePicker';

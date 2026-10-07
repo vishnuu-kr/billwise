@@ -15,18 +15,13 @@ import {
   FunnelAnalysis,
 } from '@/types';
 import {
-  Lock,
-  Unlock,
   ShieldCheck,
-  Save,
   CheckCircle2,
   AlertTriangle,
   History,
-  Key,
   BarChart3,
   GitCompare,
   Download,
-  Trash2,
   ThumbsUp,
   ThumbsDown,
   Layers,
@@ -44,11 +39,11 @@ export default function AdminPage() {
   const tariffStatus = getActiveTariffStatus();
 
   // Tariff Editor State
-  const [versions, setVersions] = useState<TariffVersion[]>(tariffRepo.getAllVersions());
-  const [auditLogs, setAuditLogs] = useState(tariffRepo.getAuditLogs());
+  const [versions] = useState<TariffVersion[]>(tariffRepo.getAllVersions());
+  const [auditLogs] = useState(tariffRepo.getAuditLogs());
   const [selectedVersion, setSelectedVersion] = useState<TariffVersion>(tariffRepo.getCurrentTariff());
-  const [saveStatus, setSaveStatus] = useState<string | null>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [saveStatus] = useState<string | null>(null);
+  const [validationError] = useState<string | null>(null);
 
   // Tariff Diff State
   const [baseDiffVersion] = useState<TariffVersion>(PREVIOUS_KSEB_TARIFF_2023);

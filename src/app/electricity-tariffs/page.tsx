@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getAllUniversalTariffs } from '@/lib/electricity/tariffs/registry';
 import { getProviderById } from '@/lib/electricity/providers';
 import { REGULATOR_REGISTRY } from '@/lib/electricity/regulators';
-import { BookOpen, ExternalLink, ShieldCheck, ArrowRight, Building } from 'lucide-react';
+import { BookOpen, ExternalLink, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function ElectricityTariffsPage() {
   const tariffs = getAllUniversalTariffs();

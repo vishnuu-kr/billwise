@@ -25,7 +25,7 @@ export const SITE_CONFIG = {
   appVersion: '0.6.0-rc.1',
   calculationEngineVersion: 'v1-kserc-deterministic',
   predictionModelVersion: 'v1-daily-run-rate',
-  cacheVersion: 'billwise-v0.6.0-rc1',
+  cacheVersion: 'billwise-v0.6.0-rc2',
   schemaVersion: 1,
 
   // Tariff Baseline Reference

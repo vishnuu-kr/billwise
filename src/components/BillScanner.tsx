@@ -24,7 +24,6 @@ import {
   ArrowRight,
   X,
   AlertCircle,
-  Building2,
 } from 'lucide-react';
 import { FileDropzone } from '@/components/ui/FileDropzone';
 import { TextScramble } from '@/components/ui/TextScramble';

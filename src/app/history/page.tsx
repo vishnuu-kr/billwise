@@ -2,9 +2,6 @@
 
 import React from 'react';
 import HistoryTracker from '@/components/HistoryTracker';
-import Link from 'next/link';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { ChevronLeft } from 'lucide-react';
 
 export default function HistoryPage() {
   return (

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { ElectricityProvider, CoverageStatus } from '@/lib/electricity/types';
+import { ElectricityProvider } from '@/lib/electricity/types';
 import { getAllProviders, searchProviders, getProvidersByState } from '@/lib/electricity/providers';
 
 interface ProviderSelectModalProps {

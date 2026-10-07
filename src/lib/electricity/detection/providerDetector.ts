@@ -1,5 +1,5 @@
 import { ElectricityProvider, CoverageStatus, UniversalBillInput } from '../types';
-import { getAllProviders, getProviderById, NATIONAL_PROVIDER_REGISTRY } from '../providers';
+import { getAllProviders, NATIONAL_PROVIDER_REGISTRY } from '../providers';
 
 export interface ProviderDetectionResult {
   detectedProvider: ElectricityProvider | null;

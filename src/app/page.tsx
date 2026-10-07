@@ -15,7 +15,6 @@ import {
   Receipt,
   ChevronRight,
   ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import ProductPreviewCard from '@/components/ProductPreviewCard';
@@ -53,7 +52,6 @@ export default function HomePage() {
   const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
   const [showQuickUpdate, setShowQuickUpdate] = useState(false);
   const [showActualBillModal, setShowActualBillModal] = useState(false);
-  const [showExamplePreview, setShowExamplePreview] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const activePreviewProvider = useMemo(() => {
