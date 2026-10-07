@@ -13,10 +13,10 @@ const NORMALIZED_DOMAIN = RAW_DOMAIN.replace(/\/+$/, '');
 
 export const SITE_CONFIG = {
   name: 'BILLWISE',
-  title: 'BILLWISE — Kerala Electricity Intelligence & Bill Predictor (KSEB LT-1A)',
-  tagline: 'Know your KSEB bill before it arrives',
+  title: 'BILLWISE — India Electricity Intelligence & Bill Predictor (25+ Boards)',
+  tagline: 'Know your electricity bill before it arrives',
   description:
-    'The simplest electricity intelligence for Kerala households. Predict your next KSEB electricity bill, understand your tariff slabs, and avoid high cost bands without technical jargon.',
+    'Smart electricity intelligence for households across India. Predict your next bill for Kerala (KSEB), Karnataka (BESCOM), Maharashtra (MSEDCL), Delhi, Tamil Nadu, and 15+ states without technical jargon.',
   domain: NORMALIZED_DOMAIN,
   supportEmail: 'feedback@billwise.app',
   releaseStage: 'Launch Candidate 1 (v0.6.0-rc.1)',

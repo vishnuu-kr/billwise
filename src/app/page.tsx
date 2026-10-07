@@ -32,9 +32,15 @@ import {
 import { cn } from '@/lib/cn';
 import { haptics } from '@/lib/haptics';
 
+import { getProviderById, NATIONAL_PROVIDER_REGISTRY } from '@/lib/electricity/providers';
+
 const QuickMeterUpdateModal = dynamic(() => import('@/components/QuickMeterUpdateModal'), { ssr: false });
 const ActualBillModal = dynamic(() => import('@/components/ActualBillModal'), { ssr: false });
 const OnboardingWizardModal = dynamic(() => import('@/components/OnboardingWizardModal'), { ssr: false });
+const ProviderSelectModal = dynamic(
+  () => import('@/components/ProviderSelectModal').then((m) => m.ProviderSelectModal),
+  { ssr: false }
+);
 
 export default function HomePage() {
   const { lang } = useLanguage();
@@ -42,11 +48,17 @@ export default function HomePage() {
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [isClientLoaded, setIsClientLoaded] = useState(false);
 
-  // Modals
+  // Modals & State Provider
+  const [previewProviderId, setPreviewProviderId] = useState('kseb');
+  const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
   const [showQuickUpdate, setShowQuickUpdate] = useState(false);
   const [showActualBillModal, setShowActualBillModal] = useState(false);
   const [showExamplePreview, setShowExamplePreview] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const activePreviewProvider = useMemo(() => {
+    return getProviderById(previewProviderId) || NATIONAL_PROVIDER_REGISTRY['kseb'];
+  }, [previewProviderId]);
 
   const loadData = () => {
     const home = storageManager.getSavedHome();
@@ -266,17 +278,33 @@ export default function HomePage() {
           {/* Native App Top Status Bar */}
           <div className="flex items-center justify-between px-0.5">
             <div>
-              <span className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wider block">
-                {lang === 'ml' ? 'ഗാർഹിക LT-1A (KSEB)' : 'KSEB LT-1A Domestic'}
-              </span>
-              <h1 className="text-[20px] font-bold text-[#17171C] tracking-tight">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[11px] font-semibold text-[#006FEE] uppercase tracking-wider bg-[#006FEE]/10 px-2.5 py-0.5 rounded-full border border-[#006FEE]/20 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#006FEE]" />
+                  {activePreviewProvider.state} · {activePreviewProvider.shortName}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsProviderModalOpen(true)}
+                  className="text-[11px] font-semibold text-[#71717A] hover:text-[#17171C] cursor-pointer flex items-center gap-0.5 transition-colors"
+                >
+                  <span>{lang === 'ml' ? 'ബോർഡ് മാറ്റാം' : 'Change Board'}</span>
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+              </div>
+              <h1 className="text-[20px] font-bold text-[#17171C] tracking-tight mt-1">
                 {lang === 'ml' ? 'വൈദ്യുതി ഡാഷ്‌ബോർഡ്' : 'Electricity Dashboard'}
               </h1>
+              <p className="text-[12px] text-[#71717A] leading-tight mt-0.5">
+                {lang === 'ml'
+                  ? 'ഗാർഹിക വൈദ്യുതി ബിൽ കണക്കുകൂട്ടലും സ്ലാബ് വിശകലനവും'
+                  : 'Smart bill predictor & tariff intelligence across India'}
+              </p>
             </div>
             <button
               type="button"
               onClick={() => setShowOnboarding(true)}
-              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#006FEE] bg-[#006FEE]/10 border border-[#006FEE]/20 px-2.5 py-1 rounded-full cursor-pointer hover:bg-[#006FEE]/15 active:scale-95 transition-all"
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#006FEE] bg-[#006FEE]/10 border border-[#006FEE]/20 px-2.5 py-1 rounded-full cursor-pointer hover:bg-[#006FEE]/15 active:scale-95 transition-all self-start mt-1 shrink-0"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>{lang === 'ml' ? 'വീട് ചേർക്കാം' : 'Set up home'}</span>
@@ -285,13 +313,18 @@ export default function HomePage() {
 
           {/* Live Instrument Card — Always Alive & Interactive */}
           <div className="rounded-[26px] bg-white/95 backdrop-blur-md border border-black/[0.06] p-4 sm:p-5 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.02] space-y-4">
-            <ProductPreviewCard interactive={true} />
+            <ProductPreviewCard
+              interactive={true}
+              selectedProviderId={previewProviderId}
+              onSelectProviderId={setPreviewProviderId}
+              onOpenProviderModal={() => setIsProviderModalOpen(true)}
+            />
           </div>
 
           {/* Native Action Buttons: Scan (Primary) & Check Meter (Secondary) */}
           <div className="grid grid-cols-2 gap-2.5 pt-1">
             <Link
-              href="/scan"
+              href={`/scan?provider=${previewProviderId}`}
               onClick={() => {
                 haptics.impact();
                 analytics.track('flow_started', { flow: 'bill_ocr' });
@@ -304,7 +337,7 @@ export default function HomePage() {
             </Link>
 
             <Link
-              href="/predict"
+              href={`/predict?provider=${previewProviderId}`}
               onClick={() => {
                 haptics.impact();
                 analytics.track('flow_started', { flow: 'meter_prediction' });
@@ -727,6 +760,16 @@ export default function HomePage() {
           setSavedHome(newHome);
           loadData();
         }}
+      />
+
+      <ProviderSelectModal
+        isOpen={isProviderModalOpen}
+        onClose={() => setIsProviderModalOpen(false)}
+        onSelectProvider={(p) => {
+          setPreviewProviderId(p.id);
+          setIsProviderModalOpen(false);
+        }}
+        selectedProviderId={previewProviderId}
       />
     </div>
   );

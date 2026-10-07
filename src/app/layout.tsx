@@ -30,15 +30,16 @@ export const metadata: Metadata = {
   description: SITE_CONFIG.description,
   applicationName: SITE_CONFIG.name,
   keywords: [
-    "KSEB bill calculator",
+    "electricity bill calculator",
     "KSEB bill prediction",
-    "KSEB meter reading calculator",
+    "BESCOM bill calculator",
+    "MSEDCL bill estimate",
+    "electricity tariff slabs",
     "Kerala electricity bill estimate",
-    "KSEB tariff slabs",
-    "LT-1A domestic",
-    "KSEB bill check"
+    "India power tariff check",
+    "LT-1A domestic"
   ],
-  authors: [{ name: "BILLWISE Kerala" }],
+  authors: [{ name: "BILLWISE" }],
   creator: SITE_CONFIG.name,
   manifest: "/manifest.json",
   icons: {
@@ -50,7 +51,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: SITE_CONFIG.title,
-    description: "Scan your previous bill, check your meter, and know your exact expected KSEB bill range in seconds.",
+    description: "Scan your previous bill, check your meter, and know your exact expected electricity bill range across 25+ Indian boards.",
     url: SITE_CONFIG.domain,
     siteName: SITE_CONFIG.name,
     locale: "en_IN",
