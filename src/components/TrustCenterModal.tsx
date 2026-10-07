@@ -97,7 +97,7 @@ export default function TrustCenterModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="trust-center-title"
-        className="fixed inset-0 z-50 flex flex-col justify-end"
+        className="fixed inset-0 z-50 flex flex-col justify-end md:justify-center md:items-center p-0 md:p-4"
       >
         {/* Backdrop */}
         <motion.div
@@ -124,7 +124,7 @@ export default function TrustCenterModal({
               onClose();
             }
           }}
-          className="ios-sheet max-h-[88vh] overflow-y-auto p-5 pb-10 space-y-4"
+          className="ios-sheet w-full max-h-[88vh] md:max-h-[80vh] md:max-w-[480px] md:rounded-[28px] md:shadow-2xl overflow-y-auto p-5 pb-10 space-y-4"
         >
           {/* Grab Handle */}
           <div className="flex justify-center pb-1">

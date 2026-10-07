@@ -1,4 +1,4 @@
-const CACHE_NAME = 'billwise-v0.6.0-rc1';
+const CACHE_NAME = 'billwise-v0.6.0-rc2';
 const OFFLINE_URLS = [
   '/',
   '/predict',
@@ -42,8 +42,16 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // Never cache API or telemetry routes
-  if (url.pathname.startsWith('/api/')) return;
+  // Never cache API, telemetry, or Next.js RSC prefetch requests
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.searchParams.has('_rsc') ||
+    event.request.headers.get('RSC') === '1' ||
+    event.request.headers.get('Next-Router-Prefetch') === '1' ||
+    event.request.headers.get('Next-Router-State-Tree') !== null
+  ) {
+    return;
+  }
 
   const isStaticAsset =
     url.pathname.startsWith('/_next/static/') ||

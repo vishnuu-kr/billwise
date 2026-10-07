@@ -448,26 +448,38 @@ export default function ResultCard({
       </>
       )}
 
-      {/* -- Next Action Guidance Card -------------------------- */}
-      <div className="rounded-2xl bg-white border border-black/[0.06] p-4 sm:p-5 space-y-2 shadow-2xs">
-        <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider block">
-          {lang === 'ml' ? 'അടുത്ത നടപടി' : 'Your next action'}
-        </span>
+      {/* -- Next Action Guidance Card (ADHD Action First) ---- */}
+      <div className="rounded-2xl bg-white border border-black/[0.06] p-4 sm:p-5 space-y-3 shadow-2xs">
         <div className="flex items-center justify-between">
-          <p className="text-[14px] font-semibold text-[#17171C]">
-            {lang === 'ml'
-              ? 'ഏകദേശം 7 ദിവസത്തിനകം മീറ്റർ വീണ്ടും പരിശോധിക്കുക.'
-              : 'Update your meter in ~7 days.'}
-          </p>
-          <span className="text-[12px] font-medium text-[#006FEE] bg-[#006FEE]/10 px-2.5 py-1 rounded-full shrink-0">
-            {prediction.daysRemaining}d {lang === 'ml' ? 'ബാക്കി' : 'left'}
+          <span className="text-[11px] font-bold text-[#006FEE] uppercase tracking-wider block flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#006FEE] animate-pulse" />
+            {lang === 'ml' ? 'അടുത്ത നടപടി' : 'Recommended next action'}
+          </span>
+          <span className="text-[11px] font-semibold text-[#006FEE] bg-[#006FEE]/10 px-2 py-0.5 rounded-full shrink-0">
+            {prediction.daysRemaining}d {lang === 'ml' ? 'ബാക്കി' : 'remaining'}
           </span>
         </div>
-        <p className="text-[12px] text-[#71717A] leading-relaxed">
+        <p className="text-[14px] font-semibold text-[#17171C]">
           {lang === 'ml'
-            ? 'ഇടയ്ക്കിടെയുള്ള റീഡിംഗുകൾ നിങ്ങളുടെ ബിൽ പ്രവചനങ്ങളെ കൂടുതൽ കൃത്യതയുള്ളതാക്കുന്നു.'
-            : 'Periodic meter checks calibrate your daily pace and protect against unexpected slab jumps.'}
+            ? 'ഈ കണക്ക് വീട്ടിലേക്ക് സൂക്ഷിക്കണോ അതോ What-If മാറ്റങ്ങൾ നോക്കണോ?'
+            : 'Save this home baseline or explore potential tariff shifts?'}
         </p>
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <Link
+            href={`/what-if?units=${prediction.projectedUnits}`}
+            className="ios-btn-primary h-11 text-[13px] font-semibold flex items-center justify-center gap-1.5 rounded-xl no-underline"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
+            <span>{lang === 'ml' ? 'മാറ്റങ്ങൾ നോക്കൂ' : 'Try What-If'}</span>
+          </Link>
+          <Link
+            href="/"
+            className="ios-btn-secondary h-11 text-[13px] font-semibold flex items-center justify-center gap-1.5 rounded-xl text-[#17171C] no-underline"
+          >
+            <span>{lang === 'ml' ? 'ഹോമിലേക്ക്' : 'Home'}</span>
+            <ChevronRight className="w-3.5 h-3.5 text-[#71717A]" />
+          </Link>
+        </div>
       </div>
 
       {/* -- Save Home Prompt (if not already saved) ----------- */}
@@ -562,7 +574,7 @@ export default function ResultCard({
           <div
             role="dialog"
             aria-modal="true"
-            className="fixed inset-0 z-50 flex flex-col justify-end"
+            className="fixed inset-0 z-50 flex flex-col justify-end md:justify-center md:items-center p-0 md:p-4"
           >
             <motion.div
               initial={{ opacity: 0 }}
@@ -587,7 +599,7 @@ export default function ResultCard({
                   setShowBreakdownSheet(false);
                 }
               }}
-              className="ios-sheet max-h-[85vh] overflow-y-auto p-5 pb-10 space-y-5"
+              className="ios-sheet w-full max-h-[85vh] md:max-h-[80vh] md:max-w-[480px] md:rounded-[28px] md:shadow-2xl overflow-y-auto p-5 pb-10 space-y-5"
             >
               {/* Grab Handle */}
               <div className="flex justify-center pb-1">

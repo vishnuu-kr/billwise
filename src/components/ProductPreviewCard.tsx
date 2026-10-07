@@ -4,8 +4,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { calculateBill } from '@/lib/calculation/engine';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { TickGauge } from '@/components/ui/TickGauge';
+import { haptics } from '@/lib/haptics';
 
 interface ProductPreviewProps {
   interactive?: boolean;
@@ -33,21 +34,25 @@ export default function ProductPreviewCard({ interactive = true }: ProductPrevie
 
   return (
     <div className="space-y-4 sm:space-y-5 transition-all">
-      {/* Top Header Row */}
+      {/* Top Header Row with Live Beacon */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#006FEE] animate-pulse" />
-          <span className="text-[12px] font-semibold text-[#71717A] uppercase tracking-wider">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#006FEE] opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#006FEE]" />
+          </span>
+          <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-[0.08em]">
             {lang === 'ml' ? 'തത്സമയ പ്രവചനം' : 'Live Estimate Engine'}
           </span>
         </div>
-        <span className="text-[11px] font-medium text-[#A1A1AA] px-2 py-0.5 rounded-full bg-black/[0.04]">
-          {lang === 'ml' ? 'മാതൃക' : 'Sample preview'}
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#71717A] px-2 py-0.5 rounded-full bg-black/[0.04] border border-black/[0.04]">
+          <Sparkles className="w-2.5 h-2.5 text-[#006FEE]" />
+          <span>{lang === 'ml' ? 'മാതൃക' : 'Interactive'}</span>
         </span>
       </div>
 
       {/* High-Precision Instrument Tick Gauge */}
-      <div className="rounded-[22px] bg-gradient-to-b from-[#FAFBFD] to-[#F3F5F9] p-5 border border-black/[0.05] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col items-center">
+      <div className="rounded-[24px] bg-gradient-to-b from-[#FFFFFF] via-[#FAFBFD] to-[#F1F4F9] p-5 border border-black/[0.06] shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_2px_12px_-2px_rgba(0,0,0,0.04)] flex flex-col items-center">
         <TickGauge
           value={(units / 500) * 100}
           threshold={48}
@@ -58,19 +63,30 @@ export default function ProductPreviewCard({ interactive = true }: ProductPrevie
         />
 
         {/* Dynamic Range Spectrum Bar */}
-        <div className="w-full space-y-1.5 px-2 pt-3.5 border-t border-black/[0.05] mt-3">
+        <div className="w-full space-y-2 px-1 pt-3.5 border-t border-black/[0.06] mt-3">
           <div className="flex justify-between items-center text-[12px] text-[#71717A] num-tabular">
             <span className="font-medium">
               ₹{rangeMin.toLocaleString('en-IN')}{' '}
               <span className="text-[10px] text-[#A1A1AA]">{lang === 'ml' ? 'കുറഞ്ഞത്' : 'min'}</span>
             </span>
-            <span className="text-[#006FEE] font-semibold bg-[#006FEE]/10 px-2.5 py-0.5 rounded-full text-[11px]">
+            <span className="text-[#006FEE] font-semibold bg-[#006FEE]/10 px-2.5 py-0.5 rounded-full text-[11px] border border-[#006FEE]/20 shadow-2xs">
               ₹{estimatedTotal.toLocaleString('en-IN')} {lang === 'ml' ? 'സാധ്യത' : 'likely'}
             </span>
             <span className="font-medium">
               ₹{rangeMax.toLocaleString('en-IN')}{' '}
               <span className="text-[10px] text-[#A1A1AA]">{lang === 'ml' ? 'കൂടിയത്' : 'max'}</span>
             </span>
+          </div>
+
+          {/* Visual Gradient Spectrum Track */}
+          <div className="relative w-full h-1.5 rounded-full bg-black/[0.06] overflow-hidden">
+            <div
+              className="absolute inset-y-0 rounded-full bg-gradient-to-r from-[#17C964] via-[#006FEE] to-[#F5A524] transition-all duration-300"
+              style={{
+                left: `${Math.max(0, Math.min(75, ((rangeMin - 200) / 2800) * 100))}%`,
+                width: `${Math.min(100, Math.max(22, ((rangeMax - rangeMin) / 2800) * 100))}%`,
+              }}
+            />
           </div>
         </div>
       </div>
@@ -93,7 +109,11 @@ export default function ProductPreviewCard({ interactive = true }: ProductPrevie
             max={500}
             step={10}
             value={units}
-            onChange={(e) => setUnits(Number(e.target.value))}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              setUnits(val);
+              if (val % 50 === 0) haptics.selection();
+            }}
             className="w-full"
             aria-label="Adjust units for bill preview"
           />
@@ -104,7 +124,10 @@ export default function ProductPreviewCard({ interactive = true }: ProductPrevie
               <button
                 key={p}
                 type="button"
-                onClick={() => setUnits(p)}
+                onClick={() => {
+                  haptics.selection();
+                  setUnits(p);
+                }}
                 className={`py-1.5 text-center rounded-xl text-[12px] font-semibold num-tabular transition-all cursor-pointer active:scale-95 border ${
                   units === p
                     ? 'bg-[#17171C] text-white border-[#17171C] shadow-xs'

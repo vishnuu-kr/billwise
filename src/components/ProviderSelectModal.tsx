@@ -81,11 +81,18 @@ export const ProviderSelectModal: React.FC<ProviderSelectModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="provider-modal-title"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex flex-col justify-end md:justify-center md:items-center p-0 md:p-4 bg-black/45 backdrop-blur-sm animate-in fade-in duration-200"
     >
+      {/* Backdrop Dismiss */}
+      <div className="absolute inset-0 -z-10" onClick={onClose} aria-hidden="true" />
+
       <div
-        className="w-full sm:max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden border border-slate-200 animate-in slide-in-from-bottom-6 duration-200"
+        className="ios-sheet w-full md:max-w-2xl md:rounded-[28px] shadow-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden border border-black/[0.06] animate-in slide-in-from-bottom-6 duration-200"
       >
+        {/* Grab Handle for mobile */}
+        <div className="flex justify-center pt-2 pb-1 md:hidden">
+          <div className="ios-sheet-handle cursor-grab active:cursor-grabbing" />
+        </div>
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
           <div>

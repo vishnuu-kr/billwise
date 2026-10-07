@@ -19,6 +19,8 @@ export const viewport: Viewport = {
   themeColor: "#F7F7F5",
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 
@@ -43,6 +45,9 @@ export const metadata: Metadata = {
     icon: "/favicon.ico",
     apple: "/icon-192.png",
   },
+  verification: {
+    google: "0AAKrgFKafSpu3MJyM76cyjG6WgWBkY7FNXi_NS7hyw",
+  },
   openGraph: {
     title: SITE_CONFIG.title,
     description: "Scan your previous bill, check your meter, and know your exact expected KSEB bill range in seconds.",
@@ -58,6 +63,21 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: SITE_CONFIG.name,
+  url: SITE_CONFIG.domain,
+  description: SITE_CONFIG.description,
+  applicationCategory: 'UtilityApplication',
+  operatingSystem: 'All',
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'INR',
+  },
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -70,24 +90,14 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="google-site-verification" content="0AAKrgFKafSpu3MJyM76cyjG6WgWBkY7FNXi_NS7hyw" />
         <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if (typeof window !== 'undefined' && 'serviceWorker' in navigator && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-                navigator.serviceWorker.getRegistrations().then(function(regs) {
-                  for (var i = 0; i < regs.length; i++) { regs[i].unregister(); }
-                });
-                if ('caches' in window) {
-                  caches.keys().then(function(keys) {
-                    for (var i = 0; i < keys.length; i++) { caches.delete(keys[i]); }
-                  });
-                }
-              }
-            `,
-          }}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="min-h-full flex flex-col bg-[#F7F7F5] text-[#17171C] selection:bg-[#006FEE]/20">
+      <body className="min-h-full flex flex-col text-[#17171C] selection:bg-[#006FEE]/20">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2.5 focus:bg-[#006FEE] focus:text-white focus:font-semibold focus:rounded-xl focus:shadow-lg focus:outline-2 focus:outline-offset-2 focus:outline-white"

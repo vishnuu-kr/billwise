@@ -31,7 +31,9 @@ const DateRangePicker = dynamic(
 
 export default function HistoryTracker() {
   const { lang } = useLanguage();
+  const [isMounted, setIsMounted] = useState<boolean>(false);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
+  const [hasSavedHome, setHasSavedHome] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'units' | 'bill'>('units');
   const [stats, setStats] = useState(storageManager.getUsageTrendStats());
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
@@ -44,6 +46,7 @@ export default function HistoryTracker() {
   const refreshData = () => {
     const list = storageManager.getHistory();
     setHistory(list);
+    setHasSavedHome(storageManager.hasSavedHome());
     setStats(storageManager.getUsageTrendStats());
     if (list.length > 0) {
       setSelectedPointIndex(list.length - 1);
@@ -51,6 +54,7 @@ export default function HistoryTracker() {
   };
 
   useEffect(() => {
+    setIsMounted(true);
     refreshData();
   }, []);
 
@@ -128,7 +132,7 @@ export default function HistoryTracker() {
               <ArrowRight className="w-4 h-4 shrink-0" />
             </Link>
 
-            {!storageManager.hasSavedHome() && (
+            {isMounted && !hasSavedHome && (
               <Link
                 href="/"
                 className="ios-btn-secondary w-full h-12 px-4 rounded-2xl flex items-center justify-center gap-2 text-[13px] font-semibold text-[#006FEE] border border-[#006FEE]/20 hover:bg-[#006FEE]/5 active:scale-[0.98] whitespace-nowrap"

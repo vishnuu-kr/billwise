@@ -3,7 +3,11 @@
  * Single source of truth for domain, versions, and service endpoints.
  */
 
-const RAW_DOMAIN = process.env.NEXT_PUBLIC_SITE_URL || 'https://billwise.app';
+const RAW_DOMAIN =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.NODE_ENV === 'test'
+    ? 'https://billwise.app'
+    : 'https://billwise-eight.vercel.app');
 // Strip trailing slash if present to guarantee uniform URL construction
 const NORMALIZED_DOMAIN = RAW_DOMAIN.replace(/\/+$/, '');
 

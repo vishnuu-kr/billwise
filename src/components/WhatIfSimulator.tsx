@@ -271,9 +271,14 @@ export default function WhatIfSimulator({ initialUnits = 240, isFromSavedHome = 
 
       {/* -- Actionable Energy Saving Audit Checklist ----------- */}
       <div className="space-y-2.5">
-        <div className="flex items-center gap-1.5 px-1 text-xs font-semibold text-zinc-600 uppercase tracking-wider">
-          <Sparkles className="size-3.5 text-amber-500" />
-          <span>Quick Energy Saving Actions</span>
+        <div className="flex items-center justify-between px-1 text-xs font-semibold text-zinc-600 uppercase tracking-wider">
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="size-3.5 text-amber-500" />
+            <span>{lang === 'ml' ? 'പെട്ടെന്ന് ലാഭിക്കാവുന്ന വഴികൾ' : 'Quick Energy Saving Actions'}</span>
+          </div>
+          <span className="text-[11px] font-medium text-emerald-600 lowercase">
+            {lang === 'ml' ? 'തുകയിൽ കുറവുണ്ടാകും' : 'instant ₹ impact'}
+          </span>
         </div>
 
         <div className="space-y-2">
@@ -283,8 +288,8 @@ export default function WhatIfSimulator({ initialUnits = 240, isFromSavedHome = 
               setTip1(checked);
               setUnits((prev) => Math.max(40, checked ? prev - 45 : prev + 45));
             }}
-            label="Shift 1 hour of AC use to ceiling fan daily"
-            sublabel="Reduces ~45 units bimonthly — potential savings of ₹290+"
+            label={lang === 'ml' ? 'ദിവസവും 1 മണിക്കൂർ AC ഫാനിലേക്ക് മാറ്റുക' : 'Shift 1 hour of AC use to ceiling fan daily'}
+            sublabel={lang === 'ml' ? 'രണ്ടുമാസം കൊണ്ട് ~45 യൂണിറ്റ് (₹290+ ലാഭം)' : 'Reduces ~45 units bimonthly — saves ~₹290'}
           />
 
           <ScribbleCheckbox
@@ -293,8 +298,8 @@ export default function WhatIfSimulator({ initialUnits = 240, isFromSavedHome = 
               setTip2(checked);
               setUnits((prev) => Math.max(40, checked ? prev - 25 : prev + 25));
             }}
-            label="Turn off electric geyser 10 minutes early"
-            sublabel="Reduces ~25 units bimonthly — prevents water heating waste"
+            label={lang === 'ml' ? 'ഗീസർ 10 മിനിറ്റ് നേരത്തെ ഓഫ് ചെയ്യുക' : 'Turn off electric geyser 10 minutes early'}
+            sublabel={lang === 'ml' ? 'രണ്ടുമാസം കൊണ്ട് ~25 യൂണിറ്റ് (₹160+ ലാഭം)' : 'Reduces ~25 units bimonthly — saves ~₹160'}
           />
 
           <ScribbleCheckbox
@@ -303,8 +308,8 @@ export default function WhatIfSimulator({ initialUnits = 240, isFromSavedHome = 
               setTip3(checked);
               setUnits((prev) => Math.max(40, checked ? prev - 15 : prev + 15));
             }}
-            label="Run motor pump outside peak hours (18:00 - 22:00)"
-            sublabel="Avoids 20% peak surcharge and protects against slab jumps"
+            label={lang === 'ml' ? 'പമ്പ് പീക്ക് സമയത്തിന് പുറത്ത് പ്രവർത്തിപ്പിക്കുക' : 'Run motor pump outside peak hours (18:00 - 22:00)'}
+            sublabel={lang === 'ml' ? 'സ്ലാബ് പരിധി കടക്കാതെ സംരക്ഷിക്കുന്നു (~₹100 ലാഭം)' : 'Reduces ~15 units bimonthly — protects slab boundary (~₹100)'}
           />
         </div>
       </div>

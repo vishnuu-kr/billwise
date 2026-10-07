@@ -24,21 +24,21 @@ export default function ManglishQueryBar() {
 
   return (
     <div className="w-full space-y-2">
-      {/* Single elegant input row */}
+      {/* Sleek Intelligence Input Pill */}
       <div className="relative flex items-center">
-        <Search className="absolute left-3.5 h-3.5 w-3.5 text-[var(--tertiary)]" />
+        <Search className="absolute left-3.5 h-4 w-4 text-[#71717A]" />
         <input
           type="text"
           value={query}
           onChange={e => handleSearch(e.target.value)}
           placeholder={lang === 'ml' ? 'ചോദിക്കൂ (ഉദാ: 240 units aayal ethra?)' : 'Ask BILLWISE (e.g. "240 units aayal ethra?")'}
-          className="w-full h-10 rounded-[var(--radius-sm)] bg-[var(--surface)] border border-[var(--border)] pl-9 pr-9 text-[13px] font-normal text-[var(--foreground)] placeholder:text-[var(--tertiary)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)] transition-all"
+          className="w-full h-11 rounded-2xl bg-white/95 backdrop-blur-md border border-black/[0.07] pl-10 pr-9 text-[13px] font-medium text-[#17171C] placeholder:text-[#A1A1AA] shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:border-[#006FEE] focus:ring-2 focus:ring-[#006FEE]/15 focus-visible:outline-none transition-all"
         />
         {query && (
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-1 w-8 h-8 flex items-center justify-center text-[var(--tertiary)] hover:text-[var(--foreground)] active:scale-[0.96] rounded-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
+            className="absolute right-1.5 w-8 h-8 flex items-center justify-center text-[#71717A] hover:text-[#17171C] active:scale-[0.96] rounded-full cursor-pointer"
             aria-label="Clear search input"
           >
             <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -46,10 +46,30 @@ export default function ManglishQueryBar() {
         )}
       </div>
 
+      {/* Quick Suggestion Chips when empty */}
+      {!query && (
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar px-1 py-0.5">
+          {[
+            { label: '240 units', q: '240 units bill ethra?' },
+            { label: 'Slab cliff', q: 'Slab cliff limit' },
+            { label: 'Solar net meter', q: 'Solar net meter rule' },
+          ].map((chip) => (
+            <button
+              key={chip.label}
+              type="button"
+              onClick={() => handleSearch(chip.q)}
+              className="text-[11px] font-semibold text-[#71717A] hover:text-[#17171C] bg-black/[0.03] hover:bg-black/[0.06] border border-black/[0.05] rounded-full px-2.5 py-1 whitespace-nowrap cursor-pointer transition-all active:scale-95"
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Answer item (if query entered) */}
       {result && result.directAnswer && (
-        <div className="rounded-[var(--radius-sm)] bg-[var(--surface)] border border-[var(--border)] p-3.5 space-y-1.5 text-[13px]">
-          <div className="font-medium text-[var(--foreground)] leading-relaxed">
+        <div className="rounded-2xl bg-white/95 backdrop-blur-md border border-black/[0.06] p-4 space-y-2 text-[13px] shadow-[0_4px_16px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.02]">
+          <div className="font-semibold text-[#17171C] leading-relaxed">
             {result.directAnswer}
           </div>
           {result.suggestedAction && (

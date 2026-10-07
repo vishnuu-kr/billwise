@@ -13,14 +13,16 @@ import { ElasticSlider } from '@/components/ui/ElasticSlider';
 interface BudgetControllerProps {
   currentProjectedUnits?: number;
   currentPaceUnitsPerDay?: number;
+  initialTargetRupees?: number;
 }
 
 export default function BudgetController({
   currentProjectedUnits = 240,
   currentPaceUnitsPerDay: _currentPaceUnitsPerDay = 3.8,
+  initialTargetRupees,
 }: BudgetControllerProps) {
   const { lang } = useLanguage();
-  const [budgetRupees, setBudgetRupees] = useState<number>(2000);
+  const [budgetRupees, setBudgetRupees] = useState<number>(initialTargetRupees || 2000);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Binary search to find target units corresponding to rupee budget

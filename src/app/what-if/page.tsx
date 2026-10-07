@@ -33,13 +33,13 @@ export default function WhatIfPage() {
 
   return (
     <div className="max-w-[430px] mx-auto px-4 pt-3 pb-4 space-y-4">
-      {/* Back Link */}
+      {/* Desktop Back */}
       <Link
-        href={`/result?units=${initialUnits}`}
-        className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[#71717A] hover:text-[#17171C] active:opacity-60 transition-colors"
+        href={isFromSavedHome ? "/" : `/result?units=${initialUnits}`}
+        className="hidden md:inline-flex items-center gap-1.5 text-[14px] font-medium text-[#71717A] hover:text-[#17171C] active:opacity-60 transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
-        <span>{lang === 'ml' ? 'ബിൽ ഫലത്തിലേക്ക്' : 'Back to result'}</span>
+        <span>{lang === 'ml' ? (isFromSavedHome ? 'ഹോം' : 'ബിൽ ഫലം') : (isFromSavedHome ? 'Home' : 'Back to result')}</span>
       </Link>
 
       <WhatIfSimulator initialUnits={initialUnits} isFromSavedHome={isFromSavedHome} />

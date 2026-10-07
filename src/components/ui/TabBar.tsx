@@ -3,6 +3,7 @@
 import React, { useRef } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
+import { haptics } from "@/lib/haptics";
 import { cn } from "@/lib/cn";
 
 export type TabBarItem = {
@@ -64,6 +65,7 @@ export function TabBar({
           e.preventDefault();
           // Automatic activation, animated exactly like a tap.
           const next = items[(target + items.length) % items.length].id;
+          haptics.selection();
           onChange(next);
           refs.current.get(next)?.focus();
         }}
@@ -84,7 +86,10 @@ export function TabBar({
               aria-controls={active ? `${idBase}-panel-${item.id}` : undefined}
               aria-label={item.label}
               tabIndex={active ? 0 : -1}
-              onClick={() => onChange(item.id)}
+              onClick={() => {
+                haptics.selection();
+                onChange(item.id);
+              }}
               layout
               // Only a change of tab moves anything, so unrelated renders
               // skip the measure.

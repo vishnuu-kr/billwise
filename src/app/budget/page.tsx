@@ -11,6 +11,7 @@ export default function BudgetPage() {
   const { lang } = useLanguage();
   const [currentUnits, setCurrentUnits] = useState(240);
   const [rate, setRate] = useState(3.8);
+  const [targetRupees, setTargetRupees] = useState<number | undefined>(undefined);
   const [hasHome, setHasHome] = useState(false);
 
   useEffect(() => {
@@ -18,6 +19,10 @@ export default function BudgetPage() {
       const sp = new URLSearchParams(window.location.search);
       const u = sp.get('currentUnits');
       const r = sp.get('rate');
+      const t = sp.get('target');
+      if (t && !isNaN(Number(t))) {
+        setTargetRupees(Number(t));
+      }
       const home = storageManager.getSavedHome();
       setHasHome(!!home);
 
@@ -40,10 +45,10 @@ export default function BudgetPage() {
 
   return (
     <div className="max-w-[430px] mx-auto px-4 pt-3 pb-4 space-y-4">
-      {/* Back Link */}
+      {/* Desktop Back */}
       <Link
         href="/"
-        className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[#71717A] hover:text-[#17171C] active:opacity-60 transition-colors"
+        className="hidden md:inline-flex items-center gap-1.5 text-[14px] font-medium text-[#71717A] hover:text-[#17171C] active:opacity-60 transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />
         <span>{lang === 'ml' ? 'ഹോം' : 'Home'}</span>
@@ -65,8 +70,10 @@ export default function BudgetPage() {
       )}
 
       <BudgetController
+        key={targetRupees ? `target-${targetRupees}` : 'default'}
         currentProjectedUnits={currentUnits}
         currentPaceUnitsPerDay={rate}
+        initialTargetRupees={targetRupees}
       />
     </div>
   );
