@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     apple: "/icon-192.png",
   },
   verification: {
-    google: "0AAKrgFKafSpu3MJyM76cyjG6WgWBkY7FNXi_NS7hyw",
+    google: "g5sVzrvEHPfaEeStWNMiJX7-CpVEePH_VUt99wbdktM",
   },
   openGraph: {
     title: SITE_CONFIG.title,
@@ -91,7 +91,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="format-detection" content="telephone=no" />
-        <meta name="google-site-verification" content="0AAKrgFKafSpu3MJyM76cyjG6WgWBkY7FNXi_NS7hyw" />
+        <meta name="google-site-verification" content="g5sVzrvEHPfaEeStWNMiJX7-CpVEePH_VUt99wbdktM" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
