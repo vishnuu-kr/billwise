@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { calculateBill } from '@/lib/calculation/engine';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { TickGauge } from '@/components/ui/TickGauge';
 import { haptics } from '@/lib/haptics';
+import { cn } from '@/lib/cn';
 
 interface ProductPreviewProps {
   interactive?: boolean;
@@ -28,7 +29,55 @@ export default function ProductPreviewCard({ interactive = true }: ProductPrevie
   const rangeMax = Math.round(estimatedTotal * 1.06);
   const dailyPace = (units / 60).toFixed(1);
   const unitsToNextBand = Math.max(0, 240 - units);
-  const isNearThreshold = units >= 210 && units <= 240;
+
+  const tariffInsight = useMemo(() => {
+    if (units <= 200) {
+      return {
+        dotClass: 'bg-[#17C964]',
+        containerClass: 'bg-[#17C964]/8 border-[#17C964]/20 text-[#12793B]',
+        titleClass: 'text-[#12793B]',
+        title: lang === 'ml' ? 'സബ്‌സിഡി പരിധിയിൽ സുരക്ഷിതം' : 'Subsidized Tariff Band',
+        desc: lang === 'ml'
+          ? `240 യൂണിറ്റ് സബ്‌സിഡി പരിധിയിലേക്ക് ഇനിയും ${240 - units} യൂണിറ്റ് സുരക്ഷിത മാർജിൻ ഉണ്ട്.`
+          : `Enjoying lowest subsidized telescopic slabs. ${240 - units} units buffer until subsidy ceiling.`,
+      };
+    }
+    if (units <= 240) {
+      return {
+        dotClass: 'bg-[#F5A524] animate-pulse',
+        containerClass: 'bg-[#F5A524]/10 border-[#F5A524]/25 text-[#935303]',
+        titleClass: 'text-[#935303]',
+        title: lang === 'ml' ? '240 യൂണിറ്റ് സബ്‌സിഡി പരിധി അടുക്കുന്നു' : 'Approaching Subsidy Ceiling (240u)',
+        desc: units === 240
+          ? (lang === 'ml'
+              ? '240 യൂണിറ്റ് പരിധിയിലെത്തി. ഇതിൽ കൂടുതൽ ഉപയോഗിച്ചാൽ സർക്കാർ സബ്‌സിഡി നഷ്ടപ്പെടും.'
+              : 'Reached 240 units ceiling. Crossing 240 units ends government energy subsidy.')
+          : (lang === 'ml'
+              ? `ഇനിയും ${240 - units} യൂണിറ്റുകൾ ബാക്കി. 240 യൂണിറ്റ് കഴിഞ്ഞാൽ സർക്കാർ സബ്‌സിഡി ലഭിക്കില്ല.`
+              : `${240 - units} units remaining. Government tariff subsidy discontinues above 240 units.`),
+      };
+    }
+    if (units <= 500) {
+      return {
+        dotClass: 'bg-[#006FEE]',
+        containerClass: 'bg-[#006FEE]/8 border-[#006FEE]/20 text-[#005BC4]',
+        titleClass: 'text-[#005BC4]',
+        title: lang === 'ml' ? 'ടെലിസ്കോപ്പിക് സ്ലാബ് നിരക്ക്' : 'Standard Telescopic Tariff',
+        desc: lang === 'ml'
+          ? `240 യൂണിറ്റിന് മുകളിലുള്ള സാധാരണ നിരക്ക് ബാധകം. 500 യൂണിറ്റ് കടന്നാൽ നോൺ-ടെലിസ്കോപ്പിക് ഉയർന്ന നിരക്ക് വരും.`
+          : `Standard bi-monthly tiered billing applies. Staying under 500 units prevents non-telescopic penalty rates.`,
+      };
+    }
+    return {
+      dotClass: 'bg-[#F31260] animate-pulse',
+      containerClass: 'bg-[#F31260]/10 border-[#F31260]/25 text-[#A30C3E]',
+      titleClass: 'text-[#A30C3E]',
+      title: lang === 'ml' ? 'നോൺ-ടെലിസ്കോപ്പിക് ഉയർന്ന നിരക്ക്' : 'Non-Telescopic Penalty Slab',
+      desc: lang === 'ml'
+        ? `500 യൂണിറ്റ് കവിഞ്ഞതിനാൽ എല്ലാ യൂണിറ്റുകൾക്കും ഉയർന്ന ഫ്ലാറ്റ് നിരക്ക് ബാധകമാകുന്നു.`
+        : `Exceeded 500 units bi-monthly. All units are now billed at flat peak rate without telescopic tiering.`,
+    };
+  }, [units, lang]);
 
   const presets = [120, 180, 240, 300, 400];
 
@@ -42,12 +91,12 @@ export default function ProductPreviewCard({ interactive = true }: ProductPrevie
             <span className="relative inline-flex rounded-full h-2 w-2 bg-[#006FEE]" />
           </span>
           <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-[0.08em]">
-            {lang === 'ml' ? 'തത്സമയ പ്രവചനം' : 'Live Estimate Engine'}
+            {lang === 'ml' ? 'തത്സമയ ബിൽ കണക്ക്' : 'KSEB Tariff Estimate'}
           </span>
         </div>
         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#71717A] px-2 py-0.5 rounded-full bg-black/[0.04] border border-black/[0.04]">
           <Sparkles className="w-2.5 h-2.5 text-[#006FEE]" />
-          <span>{lang === 'ml' ? 'മാതൃക' : 'Interactive'}</span>
+          <span>{lang === 'ml' ? 'മാതൃക' : 'Live Preview'}</span>
         </span>
       </div>
 
@@ -56,6 +105,7 @@ export default function ProductPreviewCard({ interactive = true }: ProductPrevie
         <TickGauge
           value={(units / 500) * 100}
           threshold={48}
+          thresholdBadge={units > 500 ? (lang === 'ml' ? 'നോൺ-ടെലിസ്കോപ്പിക്' : 'Non-Telescopic') : (lang === 'ml' ? 'സബ്‌സിഡി പരിധി' : 'Subsidy Cliff')}
           displayValue={estimatedTotal}
           prefix="₹"
           label={lang === 'ml' ? 'പ്രതീക്ഷിക്കുന്ന ബിൽ' : 'Estimated Bi-Monthly Bill'}
@@ -96,7 +146,7 @@ export default function ProductPreviewCard({ interactive = true }: ProductPrevie
         <div className="space-y-3 pt-1 border-t border-black/[0.05]">
           <div className="flex items-center justify-between text-[12px]">
             <span className="font-medium text-[#71717A]">
-              {lang === 'ml' ? 'ഉപയോഗം ക്രമീകരിക്കാം' : 'Scrub usage'}
+              {lang === 'ml' ? 'ഉപയോഗം മാറ്റാം' : 'Adjust usage'}
             </span>
             <span className="font-semibold text-[#17171C] num-tabular">
               {units} {lang === 'ml' ? 'യൂണിറ്റ്' : 'units'} / 60d
@@ -141,26 +191,18 @@ export default function ProductPreviewCard({ interactive = true }: ProductPrevie
         </div>
       )}
 
-      {/* Threshold Warning Callout */}
-      {isNearThreshold && (
-        <div className="rounded-2xl bg-[#F5A524]/10 border border-[#F5A524]/25 p-3.5 text-[12px] flex items-start gap-2.5">
-          <div className="w-2 h-2 rounded-full bg-[#F5A524] mt-1 shrink-0 animate-pulse" />
-          <div className="space-y-0.5">
-            <span className="font-semibold text-[#935303] block">
-              {lang === 'ml' ? '240 യൂണിറ്റ് സബ്‌സിഡി പരിധി അടുക്കുന്നു' : 'Approaching Subsidy Ceiling (240u)'}
-            </span>
-            <span className="text-[#935303]/90 mt-0.5 block leading-relaxed">
-              {unitsToNextBand > 0
-                ? (lang === 'ml'
-                    ? `ഇനിയും ${unitsToNextBand} യൂണിറ്റുകൾ ബാക്കി. 240 യൂണിറ്റ് കഴിഞ്ഞാൽ സർക്കാർ സബ്‌സിഡി ലഭിക്കില്ല.`
-                    : `${unitsToNextBand} units remaining. Government tariff subsidy discontinues above 240 units.`)
-                : (lang === 'ml'
-                    ? '240 യൂണിറ്റ് പരിധിയിലെത്തി. ഇതിൽ കൂടുതൽ ഉപയോഗിച്ചാൽ സർക്കാർ സബ്‌സിഡി നഷ്ടപ്പെടും.'
-                    : 'Reached 240 units ceiling. Crossing 240 units ends government energy subsidy.')}
-            </span>
-          </div>
+      {/* Dynamic Tariff Insight Callout — Persistent container eliminates Cumulative Layout Shift */}
+      <div className={cn('rounded-2xl border p-3.5 text-[12px] flex items-start gap-2.5 transition-colors duration-200 min-h-[72px]', tariffInsight.containerClass)}>
+        <div className={cn('w-2 h-2 rounded-full mt-1 shrink-0', tariffInsight.dotClass)} />
+        <div className="space-y-0.5 min-w-0">
+          <span className={cn('font-semibold block text-[12px]', tariffInsight.titleClass)}>
+            {tariffInsight.title}
+          </span>
+          <span className="opacity-90 block leading-relaxed text-[11.5px]">
+            {tariffInsight.desc}
+          </span>
         </div>
-      )}
+      </div>
 
       {/* Action Footer */}
       <div className="pt-2 border-t border-black/[0.05]">
@@ -168,7 +210,7 @@ export default function ProductPreviewCard({ interactive = true }: ProductPrevie
           href={`/predict?units=${units}`}
           className="flex items-center justify-between text-[13px] font-semibold text-[#006FEE] hover:text-[#005BC4] active:opacity-70 transition-colors py-1 group"
         >
-          <span>{lang === 'ml' ? 'മീറ്റർ റീഡിംഗുമായി താരതമ്യം ചെയ്യൂ' : 'Check with your actual meter'}</span>
+          <span>{lang === 'ml' ? 'കൃത്യമായ മീറ്റർ റീഡിംഗ് നൽകി കണക്കാക്കാം' : 'Calculate for my exact meter'}</span>
           <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
         </Link>
       </div>

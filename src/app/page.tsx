@@ -257,7 +257,7 @@ export default function HomePage() {
   }, [isClientLoaded, savedHome, history]);
 
   return (
-    <div className="relative max-w-[430px] mx-auto px-4 pt-3 pb-6 space-y-5">
+    <div className="relative max-w-[430px] mx-auto px-4 pt-3 pb-16 md:pb-10 space-y-5">
       {/* =========================================================
           STATE A: NEW USER (App Instrument Dashboard First)
          ========================================================= */}
@@ -267,10 +267,10 @@ export default function HomePage() {
           <div className="flex items-center justify-between px-0.5">
             <div>
               <span className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wider block">
-                {lang === 'ml' ? 'ഗാർഹിക വൈദ്യുതി' : 'Domestic LT-1A'}
+                {lang === 'ml' ? 'ഗാർഹിക LT-1A (KSEB)' : 'KSEB LT-1A Domestic'}
               </span>
               <h1 className="text-[20px] font-bold text-[#17171C] tracking-tight">
-                {lang === 'ml' ? 'വൈദ്യുതി മീറ്റർ' : 'Electricity Dashboard'}
+                {lang === 'ml' ? 'വൈദ്യുതി ഡാഷ്‌ബോർഡ്' : 'Electricity Dashboard'}
               </h1>
             </div>
             <button
@@ -279,7 +279,7 @@ export default function HomePage() {
               className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#006FEE] bg-[#006FEE]/10 border border-[#006FEE]/20 px-2.5 py-1 rounded-full cursor-pointer hover:bg-[#006FEE]/15 active:scale-95 transition-all"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>{lang === 'ml' ? 'സജ്ജീകരിക്കാം' : 'Setup Home'}</span>
+              <span>{lang === 'ml' ? 'വീട് ചേർക്കാം' : 'Set up home'}</span>
             </button>
           </div>
 
@@ -288,7 +288,7 @@ export default function HomePage() {
             <ProductPreviewCard interactive={true} />
           </div>
 
-          {/* Native Action Buttons: Scan (Primary) & Enter Units (Secondary) */}
+          {/* Native Action Buttons: Scan (Primary) & Check Meter (Secondary) */}
           <div className="grid grid-cols-2 gap-2.5 pt-1">
             <Link
               href="/scan"
@@ -296,40 +296,35 @@ export default function HomePage() {
                 haptics.impact();
                 analytics.track('flow_started', { flow: 'bill_ocr' });
               }}
-              className="ios-btn-primary w-full h-13 px-3 flex items-center justify-center gap-2 rounded-2xl text-[14px] font-semibold shadow-sm active:scale-[0.97]"
+              className="ios-btn-primary w-full min-h-[50px] h-auto py-2.5 px-3 flex items-center justify-center gap-2 rounded-2xl text-[13px] sm:text-[14px] font-semibold shadow-sm active:scale-[0.97]"
             >
               <Camera className="w-4 h-4 shrink-0" />
               <span>{lang === 'ml' ? 'ബിൽ സ്കാൻ' : 'Scan bill'}</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-auto opacity-70" />
+              <ArrowRight className="w-3.5 h-3.5 ml-auto opacity-70 shrink-0" />
             </Link>
 
             <Link
-              href="/manual"
+              href="/predict"
               onClick={() => {
                 haptics.impact();
-                analytics.track('flow_started', { flow: 'direct_units' });
+                analytics.track('flow_started', { flow: 'meter_prediction' });
               }}
-              className="ios-btn-secondary w-full h-13 px-3 flex items-center justify-center gap-2 rounded-2xl text-[14px] font-semibold text-[#17171C] active:scale-[0.97]"
+              className="ios-btn-secondary w-full min-h-[50px] h-auto py-2.5 px-3 flex items-center justify-center gap-2 rounded-2xl text-[13px] sm:text-[14px] font-semibold text-[#17171C] active:scale-[0.97]"
             >
               <Gauge className="w-4 h-4 shrink-0 text-[#71717A]" />
-              <span>{lang === 'ml' ? 'യൂണിറ്റ് നൽകുക' : 'Enter units'}</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-auto text-[#71717A] opacity-70" />
+              <span>{lang === 'ml' ? 'മീറ്റർ റീഡിംഗ്' : 'Check meter'}</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-auto text-[#71717A] opacity-70 shrink-0" />
             </Link>
           </div>
 
           {/* Privacy Guarantee Reassurance */}
-          <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#71717A] pt-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#17C964]" />
-            <span>
+          <div className="flex items-start justify-center gap-1.5 text-[11px] text-[#71717A] pt-1 text-center">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#17C964] shrink-0 mt-0.5" />
+            <span className="leading-snug">
               {lang === 'ml'
                 ? 'ലോഗിൻ ആവശ്യമില്ല · നിങ്ങളുടെ വിവരങ്ങൾ ഈ ഫോണിൽ മാത്രം'
                 : 'No login required · your bill stays on this device'}
             </span>
-          </div>
-
-          {/* Natural Language Assistant Bar */}
-          <div className="pt-1">
-            <ManglishQueryBar />
           </div>
         </div>
       )}

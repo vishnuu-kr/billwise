@@ -157,7 +157,7 @@ export default function Header() {
             type="button"
             onClick={() => setIsCommandOpen(true)}
             aria-label={lang === 'ml' ? 'ടൂളുകൾ തിരയുക (⌘K)' : 'Search features (⌘K)'}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-[var(--secondary)] hover:text-[var(--foreground)] bg-black/[0.04] border border-black/[0.06] transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-[var(--secondary)] hover:text-[var(--foreground)] bg-black/[0.04] border border-black/[0.06] transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
             title={lang === 'ml' ? 'ടൂളുകൾ തിരയുക (⌘K)' : 'Search features (⌘K)'}
           >
             <Search className="w-3.5 h-3.5" aria-hidden="true" />

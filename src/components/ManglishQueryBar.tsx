@@ -13,7 +13,7 @@ export default function ManglishQueryBar() {
 
   const handleSearch = (text: string) => {
     setQuery(text);
-    const parsed = parseManglishQuery(text);
+    const parsed = parseManglishQuery(text, lang);
     setResult(parsed);
   };
 
@@ -21,6 +21,25 @@ export default function ManglishQueryBar() {
     setQuery('');
     setResult(null);
   };
+
+  const suggestionChips = [
+    {
+      label: lang === 'ml' ? '240 യൂണിറ്റ്' : '240 units',
+      q: lang === 'ml' ? '240 യൂണിറ്റ്' : '240 units',
+    },
+    {
+      label: lang === 'ml' ? 'സ്ലാബ് പരിധി' : 'Slab cliff',
+      q: lang === 'ml' ? 'സ്ലാബ് പരിധി' : 'slab cliff limit',
+    },
+    {
+      label: lang === 'ml' ? 'ബിൽ കുറയ്ക്കാം' : 'Save tips',
+      q: lang === 'ml' ? 'ബിൽ കുറയ്ക്കാൻ ടിപ്സ്' : 'tips to save bill',
+    },
+    {
+      label: lang === 'ml' ? 'സോളാർ മീറ്റർ' : 'Solar net meter',
+      q: lang === 'ml' ? 'സോളാർ നെറ്റ് മീറ്റർ' : 'solar net meter',
+    },
+  ];
 
   return (
     <div className="w-full space-y-2">
@@ -31,7 +50,7 @@ export default function ManglishQueryBar() {
           type="text"
           value={query}
           onChange={e => handleSearch(e.target.value)}
-          placeholder={lang === 'ml' ? 'ചോദിക്കൂ (ഉദാ: 240 units aayal ethra?)' : 'Ask BILLWISE (e.g. "240 units aayal ethra?")'}
+          placeholder={lang === 'ml' ? 'ചോദിക്കൂ (ഉദാ: "240 units bill?")' : 'Ask anything (e.g. "240 units bill?")'}
           className="w-full h-11 rounded-2xl bg-white/95 backdrop-blur-md border border-black/[0.07] pl-10 pr-9 text-[13px] font-medium text-[#17171C] placeholder:text-[#A1A1AA] shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:border-[#006FEE] focus:ring-2 focus:ring-[#006FEE]/15 focus-visible:outline-none transition-all"
         />
         {query && (
@@ -49,11 +68,7 @@ export default function ManglishQueryBar() {
       {/* Quick Suggestion Chips when empty */}
       {!query && (
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar px-1 py-0.5">
-          {[
-            { label: '240 units', q: '240 units bill ethra?' },
-            { label: 'Slab cliff', q: 'Slab cliff limit' },
-            { label: 'Solar net meter', q: 'Solar net meter rule' },
-          ].map((chip) => (
+          {suggestionChips.map((chip) => (
             <button
               key={chip.label}
               type="button"
